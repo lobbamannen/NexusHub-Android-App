@@ -19,7 +19,7 @@ function completed(item: PendingWrite) { if (typeof window !== 'undefined') wind
 export function noteGithubFailure() { if (observing) networkFailure = true; }
 export function configureOutbox(handler: Dispatcher) { dispatch = handler; }
 export function isQueuedMutation(request: Request) {
-  return request.method === 'POST' && /^\/api\/(films|series|media-register|story-register|story-status|document-bookmarks|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
+  return request.method === 'POST' && /^\/api\/(films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
 }
 async function locked<T>(work: () => Promise<T>): Promise<T> {
   const run = async (): Promise<T> => {
@@ -100,6 +100,14 @@ async function reconcile(item: PendingWrite): Promise<Response | null> {
   const response = await dispatch(new Request(new URL(endpoint, location.origin)));
   if (!response.ok) return null;
   const data: any = await response.clone().json(), register = data.register;
+  if (item.path === '/api/economy') {
+    const file = data.files?.find((f: any) => f.path === input.path);
+    const rows = file?.data?.entries || file?.data?.purchases;
+    const hits = rows?.filter((row: any) => row.id === input.id);
+    const confirmed = file?.sha !== input.expectedSha && hits?.length === 1 &&
+      matches(hits[0], input.changes);
+    return confirmed ? Response.json({ ...data, saved: true, reconciled: true, source: 'github' }) : null;
+  }
   if (!register) return null;
   let complete = false;
   if (item.path === '/api/media-register') {
