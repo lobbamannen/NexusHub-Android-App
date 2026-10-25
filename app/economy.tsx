@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, Coins, Edit3, Loader2, Plus, RefreshCw, Save, Search, X } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, Coins, LibraryBig, Edit3, Loader2, Plus, RefreshCw, Save, Search, X } from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
 import './economy.css';
@@ -33,6 +33,7 @@ async function json(response: Response) {
   return data;
 }
 export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boolean, busy?: boolean) => void }) {
+  const [screen, setScreen] = useState<'overview' | 'register'>('overview');
   const [files, setFiles] = useState<EconomyFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -52,7 +53,8 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
   };
   useEffect(() => { void reload(); }, []);
   useEffect(() => { onDirtyChange?.(!!form, saving); return () => onDirtyChange?.(false, false); }, [form, saving, onDirtyChange]);
-  useBackHandler(120, () => { if (!form || saving) return false; setForm(null); return true; });
+  useBackHandler(120, () => { if (!form) return false; if (!saving) setForm(null); return true; });
+  useBackHandler(90, () => { if (screen !== 'register' || form) return false; setScreen('overview'); window.scrollTo(0, 0); return true; });
   const rows = useMemo<Row[]>(() => files.flatMap(file => (file.data.entries || file.data.purchases || []).map(entry => ({
     key: file.path + ':' + entry.id, source: file, kind: file.data.entries ? 'budget' as const : 'purchase' as const,
     person: personFor(file.path), entry,
@@ -103,6 +105,15 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
       <div><p className="eyebrow">NEXUS HUB · DATABAS</p><h1>Ekonomi</h1><p>Fasta budgetposter och gemensamma köp, direkt från GitHub.</p></div>
       <button type="button" className="nh-economy-refresh" onClick={() => void reload()} disabled={loading || !!form} aria-label="Uppdatera ekonomiregistret"><RefreshCw size={19} className={loading ? 'spin' : ''}/></button>
     </header>
+    {screen === 'overview' ? <div className="nh-economy-overview">
+      <button type="button" className="nh-economy-register-link" onClick={() => { setScreen('register'); window.scrollTo(0, 0); }}>
+        <span className="nh-economy-link-icon"><MaterialIcon tone="green" size={46}><LibraryBig size={27}/></MaterialIcon></span>
+        <span className="nh-economy-link-copy"><strong>Register</strong><small>Alla fasta och rörliga utgifter · sök, läs och redigera</small><span>{loading ? 'Hämtar poster…' : rows.length + ' poster i databasen'}</span></span>
+        <ChevronRight size={23} aria-hidden="true"/>
+      </button>
+      {error && <div role="alert" className="nh-economy-error">{error}<button type="button" onClick={() => void reload()}>Försök igen</button></div>}
+    </div> : <>
+    <button type="button" className="nh-economy-back" onClick={() => { setScreen('overview'); window.scrollTo(0, 0); }}><ArrowLeft size={17}/>Tillbaka till Ekonomi</button>
     <div className="nh-economy-register">
       <div className="nh-economy-register-top"><div><span className="hub-section-kicker">EKONOMIREGISTER</span><h2>Alla poster</h2><p>{rows.length} registrerade poster · {periodCount} ekonomiperiod{periodCount === 1 ? '' : 'er'}</p></div><button className="primary" type="button" onClick={openNew} disabled={loading || !!form}><Plus size={17}/>Ny post</button></div>
       <div className="nh-economy-tabs" role="group" aria-label="Filtrera på hushållsdel">
@@ -132,6 +143,7 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
         })}
       </div> : <div className="nh-economy-empty">Inga ekonomiposter matchar filtreringen.</div>}
     </div>
+    </>}
     {form && <div className="nh-economy-overlay" role="presentation"><form className="nh-economy-editor" onSubmit={save} aria-label={form.row ? 'Redigera ekonomipost' : 'Skapa ekonomipost'}>
       <div className="nh-economy-editor-head"><div><p className="eyebrow">{form.person} · {form.kind === 'budget' ? 'FAST BUDGET' : 'RÖRLIGT KÖP'}</p><h2>{form.row ? 'Redigera post' : 'Ny post'}</h2></div><button type="button" aria-label="Stäng formulär" onClick={() => setForm(null)} disabled={saving}><X size={21}/></button></div>
       <div className="nh-economy-fields">
