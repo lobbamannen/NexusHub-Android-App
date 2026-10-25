@@ -5,6 +5,7 @@ import * as stories from '@/app/api/story-register/route';
 import * as storyStatus from '@/app/api/story-status/route';
 import * as bookmarks from '@/app/api/document-bookmarks/route';
 import * as posters from '@/app/api/posters/route';
+import * as economy from '@/app/api/economy/route';
 import * as fallback from '@/app/api/[[...path]]/route';
 import { initializeStorage, durableGet, durableSet } from './local-store';
 import { configureOutbox, enqueueMutation, isQueuedMutation, noteGithubFailure } from './outbox';
@@ -15,10 +16,10 @@ type Route = Partial<Record<Method, (request: Request) => Promise<Response>>>;
 const routes: Record<string, Route> = {
   '/api/films': films, '/api/series': series, '/api/media-register': media,
   '/api/story-register': stories, '/api/story-status': storyStatus,
-  '/api/document-bookmarks': bookmarks, '/api/posters': posters,
+  '/api/document-bookmarks': bookmarks, '/api/posters': posters, '/api/economy': economy,
 };
 interface CachedResponse { body: ArrayBuffer; status: number; headers: [string, string][]; savedAt: string; repositorySavedAt?: Record<string, string> }
-const cacheable = (request: Request) => request.method === 'GET' && /^\/api\/(films|series|story-register|story-status|document-bookmarks|github\/browse|portal\/(overview|document))(?:\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search);
+const cacheable = (request: Request) => request.method === 'GET' && /^\/api\/(films|series|story-register|story-status|document-bookmarks|economy|github\/browse|portal\/(overview|document))(?:\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search);
 async function dispatch(request: Request): Promise<Response> {
   await initializeStorage();
   const path = new URL(request.url).pathname.replace(/\/$/, '');
