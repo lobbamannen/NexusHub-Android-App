@@ -8,7 +8,7 @@ import * as bookmarks from '@/app/api/document-bookmarks/route';
 import * as posters from '@/app/api/posters/route';
 import * as economy from '@/app/api/economy/route';
 import * as fallback from '@/app/api/[[...path]]/route';
-import { initializeStorage, durableGet, durableSet } from './local-store';
+import { initializeStorage, durableGet, durableSet, durableDelete } from './local-store';
 import { configureOutbox, enqueueMutation, isQueuedMutation, noteGithubFailure } from './outbox';
 export { pendingWrites, retryPendingWrites, discardPendingWrite, cancelQueuedEdits } from './outbox';
 
@@ -111,6 +111,13 @@ export function installLocalApi(): void {
     const url = new URL(raw, location.href);
     if (url.origin === location.origin && url.pathname.startsWith('/api/')) {
       const request = new Request(input instanceof Request ? input : url.href, init);
+      if (request.method === 'DELETE' && url.pathname === '/api/ideas') {
+        try {
+          const input = await request.clone().json();
+          await durableDelete('api-read:v1:/api/ideas');
+          await durableDelete('api-read:v1:/api/ideas?id=' + encodeURIComponent(input.id));
+        } catch { return Response.json({error:'Telefonens cache kunde inte uppdateras. Försök igen.'},{status:503}); }
+      }
       return isQueuedMutation(request) ? enqueueMutation(request) : dispatchWithCache(request);
     }
     // Observe failures so routes that convert fetch's TypeError to HTTP 400 can

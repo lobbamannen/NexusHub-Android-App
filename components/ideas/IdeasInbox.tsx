@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Lightbulb, Plus, RefreshCw, ChevronRight, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
+import { Trash2, Lightbulb, Plus, RefreshCw, ChevronRight, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
 import { IDEA_STATUSES } from '@/lib/ideas.mjs';
@@ -63,6 +63,7 @@ export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
             {pending && pending.status !== 'conflict' && <button type="button" className="secondary" disabled={ideas.busy} onClick={() => void ideas.continueEditing(idea.id)}>Fortsätt skriva</button>}
             {pending?.status === 'conflict'  && <button className="secondary" type="button" disabled={ideas.busy} onClick={() => void ideas.fetchRemote(idea.id)}>Visa GitHub-versionen</button>}
             {ideas.remote && <section className="nh-idea-conflict"><h3>Nuvarande GitHub-version</h3><p>{ideas.remote.idea.text}</p><small>Status: {IDEA_STATUSES[ideas.remote.idea.status]}</small><button type="button" className="secondary" disabled={ideas.busy} onClick={() => { if (confirm('Använd GitHub-versionen och kasta det lokala utkastet? Kopiera först din text om du vill behålla den.')) void ideas.useRemote(); }}>Använd GitHub-versionen</button></section>}
+            {draft.sha && <button type="button" className="secondary nh-idea-delete" disabled={ideas.busy || !!pending} onClick={() => { if (confirm('Radera idén från GitHub och telefonen? Eventuellt lokalt utkast kastas också. Idén försvinner ur NexusHub; GitHubs versionshistorik finns kvar.')) void ideas.remove(idea.id); }}><Trash2 size={17}/>Radera idé</button>}
             <small className="nh-ideas-note">Skapad {date(idea.createdAt)}</small>
         </div>
         <div className="nh-idea-editor-actions">{local ? <button type="button" className="secondary" disabled={ideas.busy} onClick={() => { if (confirm('Kasta det lokala utkastet och dess väntande sparförsök? En eventuell GitHub-version finns kvar.')) void ideas.discard(idea.id); }}><Undo2 size={17}/>Ångra utkast</button> : <button type="button" className="secondary" onClick={ideas.close}>Stäng</button>}<button className="primary" disabled={ideas.busy || !local || !idea.text.trim() || !!pending && pending.status !== 'pending'}>{ideas.busy ? <Loader2 className="spin" size={17}/> : <Save size={17}/>} {pending ? 'Försök igen' : 'Spara'}</button></div>

@@ -99,6 +99,23 @@ export function useIdeas() {
             if (current) await commitDrafts({ ...draftsRef.current, [id]: { ...current, error: e.message } }).catch(() => {});
         } finally { await refreshPending().catch(() => {}); busyRef.current = false; setBusy(false); }
     }
+    async function remove(id: string) {
+        if (busyRef.current) return;
+        const row = rows.find(row => row.idea.id === id), draft = draftsRef.current[id];
+        const sha = draft?.sha || row?.sha;
+        if (!sha) return;
+        busyRef.current = true; setBusy(true); sequence.current++; setLoading(false); setError('');
+        try {
+            const queued = await refreshPending();
+            if (queued[id]) throw Error('Avsluta eller ångra det väntande sparförsöket innan du raderar idén.');
+            const response = await fetch('/api/ideas', {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,expectedSha:sha})});
+            const data = await response.json();
+            if (!response.ok || !data.deleted) throw Error(data.error || 'Raderingen kunde inte bekräftas. Försök igen.');
+            const next = {...draftsRef.current}; delete next[id]; await commitDrafts(next);
+            setRows(current => current.filter(row => row.idea.id !== id)); setSelected(null); setRemote(null);
+        } catch (e: any) { setError(e.message); }
+        finally { busyRef.current = false; setBusy(false); }
+    }
     async function discard(id: string) {
         if (busyRef.current) return;
         busyRef.current = true; setBusy(true);
@@ -140,6 +157,6 @@ export function useIdeas() {
     for (const [id, draft] of Object.entries(drafts)) merged.set(id, draft);
     const items = [...merged.values()].sort((a, b) => b.idea.updatedAt.localeCompare(a.idea.updatedAt));
     const current = selected ? merged.get(selected) : undefined;
-    return { items, current, drafts, pending, selected, ready, loading, error, stale, confirmedIds, busy, remote, create, open, close, edit, save, discard, continueEditing, fetchRemote, useRemote, reload };
+    return { items, current, drafts, pending, selected, ready, loading, error, stale, confirmedIds, busy, remote, create, open, close, edit, save, discard, continueEditing, fetchRemote, useRemote, reload, remove };
 }
 export type IdeasController = ReturnType<typeof useIdeas>;

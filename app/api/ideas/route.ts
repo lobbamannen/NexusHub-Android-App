@@ -20,3 +20,16 @@ export async function POST(request: Request) {
         return json(await github().saveIdea(input.idea, input.expectedSha));
     } catch (error: any) { return json({ saved: false, error: error.message }, error.status === 409 || error.status === 422 ? 409 : error.status === 401 || error.status === 403 ? 403 : 503); }
 }
+
+/** Deletion is explicit and online only; it is never replayed from an outbox. */
+export async function DELETE(request: Request) {
+    try {
+        const origin = request.headers.get('origin');
+        if (origin && origin !== new URL(request.url).origin) return json({error:'Otillåtet ursprung.'},403);
+        const raw = await request.text();
+        if (raw.length > 1000) return json({error:'Ogiltig radering.'},400);
+        let input: any;
+        try { input = JSON.parse(raw); } catch { return json({error:'Ogiltig radering.'},400); }
+        return json(await github().deleteIdea(input.id, input.expectedSha));
+    } catch (error: any) { return json({deleted:false,error:error.message},error.status === 409 || error.status === 422 ? 409 : error.status === 401 || error.status === 403 ? 403 : 503); }
+}
