@@ -1,6 +1,19 @@
 # Nexus Hub App
 
-Självständig Android-version av Nexus Hub. Appen kör det verkliga React-gränssnittet lokalt och kommunicerar direkt med GitHub. Den befintliga Siten och dess Android-wrapper är separata produkter och behöver inte ändras eller avvecklas.
+Självständig Android-version av Nexus Hub. Appen kör det verkliga React-gränssnittet lokalt och kommunicerar direkt med GitHub. Den tidigare Siten och dess Android-wrapper bevaras som arkiverade versioner.
+
+## Användning och underhåll
+
+Robin använder sedan 2026-10-25 Android-appen som sin huvudsakliga NexusHub. Siten är en arkiverad version och ska inte vara mål för löpande utveckling eller publicering. Dess befintliga kod och driftsättning lämnas orörda; GitHub-innehållet flyttas inte.
+
+| Vad ändras? | Var görs det? | Leverans |
+|---|---|---|
+| Dokument, register, betyg, lässtatus och bilder | Befintliga sökvägar i [Databas](https://github.com/lobbamannen/Databas) | Hämtas av respektive klient; ingen ny APK behövs för innehåll som redan stöds. |
+| Android-appens funktion eller utseende | Detta repository | Bygg en ny signerad APK och installera ovanpå den befintliga appen. |
+| Den arkiverade Sitens kod | [NexusHub](https://github.com/lobbamannen/NexusHub) | Ingen löpande publicering; ändring kräver ett uttryckligt beslut att återuppta Site-arbete. |
+| Pluginpaket och katalog | [ChatGPT-Plugin](https://github.com/lobbamannen/ChatGPT-Plugin) | Följ respektive plugins publiceringsflöde; GitHub-källa och installation i ChatGPT är skilda saker. |
+
+Ändra inte databasens format eller skapa dubbla register för Android. Android använder samma GitHub-filer som den arkiverade Siten. En arkiverad driftsättning som fortfarande går att öppna är inte automatiskt en fryst ögonblicksbild av dessa filer. Telefonens väntande sparningar kan inte verifieras genom att bara läsa GitHub. Kodändringar i en version förs inte automatiskt över till den andra.
 
 ## Installera och anslut
 

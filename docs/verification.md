@@ -22,6 +22,12 @@ Leverans: https://github.com/lobbamannen/NexusHub-Android-App/releases/tag/app-v
 
 Bygge: https://github.com/lobbamannen/NexusHub-Android-App/actions/runs/40196488832
 
+## Återkoppling från faktisk användning
+
+Robin installerade appen på sin Samsung 2026-10-25 och uppgav att allt såg ut att fungera. Skärmbilder visar anslutning och hämtad GitHub-katalog i originalgränssnittet. En verklig filmstatusändring för *A Wrinkle in Time* (2018), IMDb `tt1620680`, verifierades i Databas genom commit `4dd59135f1f4c3daa395d591ab0c1653703093f4`. Detta är bevis för den sparningen, inte ett påstående om filmens nuvarande status eller att alla funktioner är testade på telefon.
+
+Robin väljer nu Android-appen för daglig användning. Siten behålls som arkiverad version utan löpande utveckling.
+
 ## Kvarvarande telefonverifiering
 
 Följande kräver den faktiska Samsung-telefonen och Robins token: Keystore över verklig APK-uppdatering, Androids systemfilväljare/delningsappar, systemfält/tangentbord och pixeljämförelse mot installerad Site-wrapper. Ingen sådan fysisk telefonverifiering har utförts i utvecklingsmiljön.
@@ -31,4 +37,4 @@ Följande kräver den faktiska Samsung-telefonen och Robins token: Keystore öve
 - Originalets route-kontrakt återanvänds lokalt för att minska risken att domänregler förändras. SQLite är ett kompatibilitetslager för originalets SQL, ingen server.
 - Väntande sparningar spelas inte upp automatiskt vid start/återgång/nätanslutning. Återförsök sker vid nytt uttryckligt Spara eller via Inställningar; detta bevarar redigerings- och SHA-beteendet utan att införa bakgrundskonflikter.
 - En opublicerad draft release förvarar signeringsidentiteten så att inget manuellt nyckelsteg behövs. Valvet får aldrig publiceras eller raderas.
-- Ingen kopiering från befintlig Sites-lagring har gjorts och inga andra repositoryn har ändrats.
+- Ingen kopiering från befintlig Sites-lagring har gjorts. Appbygget lämnade den befintliga Site-koden och innehållsregistren orörda; gemensam dokumentation uppdateras separat.
