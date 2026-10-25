@@ -10,7 +10,7 @@ async function readSeries() {
     if (file.type !== 'file' || file.encoding !== 'base64' || typeof file.content !== 'string' || !/^[a-f0-9]{40}$/.test(file.sha || ''))
         fail('GitHub levererade inte ett giltigt serieregister.', 503);
     const bytes = Uint8Array.from(atob(file.content.replace(/\s/g, '')), c => c.charCodeAt(0));
-    if (bytes.byteLength > 900000 || await gitBlobSha(bytes) !== file.sha)
+    if (await gitBlobSha(bytes) !== file.sha)
         fail('Serieregistrets GitHub-hash kunde inte verifieras.', 503);
     const register = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
     if (register?.schemaVersion !== 1 || !Array.isArray(register.series))

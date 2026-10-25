@@ -41,7 +41,7 @@ function signalStale(path: string, savedAt: string | null, repositories?: string
 }
 async function dispatchWithCache(request: Request) {
   const response = await dispatch(request);
-  if (!cacheable(request)) return response;
+  if (!cacheable(request) || /^Kunskap(?:\/|$)/i.test(new URL(request.url).searchParams.get('path') || '')) return response;
   const path = new URL(request.url).pathname;
   const key = readCacheKey(request);
   try {

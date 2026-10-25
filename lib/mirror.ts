@@ -2,7 +2,7 @@ import {db,bucket,sha256,now} from './store';
 import {gitBlobSha} from './github-inbox.mjs';
 import {readableRecord,REPOSITORIES} from './catalog.mjs';
 // Immutable content-addressed versions. Never edits entries/files or writes to GitHub.
-const LIMIT=10*1024*1024;
+const LIMIT=Number.POSITIVE_INFINITY;
 const textFile=(path:string)=>/\.(md|txt|json|csv|ya?ml|xml|log|rst|js|mjs|ts|tsx|jsx|py|toml|html|css|sh)$/i.test(path)||/(^|\/)(LICENSE|README)$/i.test(path);
 export async function mirrorManifest(repo='databas'){const r=await db().prepare('SELECT value FROM settings WHERE key=?').bind('mirror_manifest:'+repo).first<any>();return r?JSON.parse(r.value):null;}
 export function renderMirror(bytes:ArrayBuffer,path:string,metadata:any){let body='',title=path.split('/').pop()||path,structured=false;if(textFile(path)){try{body=new TextDecoder('utf-8',{fatal:true}).decode(bytes);}catch{return {...metadata,path,name:path.split('/').pop(),title,body:'',structured:false,type:'file',readOnly:true,textWarning:'Originalet är bevarat men kan inte visas som UTF-8-text.'};}if(/\.md$/i.test(path))title=body.match(/^#\s+([^\n]+)/m)?.[1]||title;if(/\.json$/i.test(path)){const r=readableRecord(body);body=r.body;title=r.title||title;structured=r.structured;}}return {...metadata,path,name:path.split('/').pop(),title,body,structured,type:'file',readOnly:true};}
@@ -41,6 +41,7 @@ export async function repairMirrorVersion(repo:string,file:any,bytes:ArrayBuffer
  return {...document,mirror:{state:'verified',verifiedAt,contentHash:hash,repaired:true}};
 }
 export async function mirroredRead(repo:string,path:string,client:any){
+ if(repo==='databas' && /^Kunskap(?:\/|$)/i.test(path))return null;
  try{const metadata:any=await client.browse(path);
  if(metadata.type!=='file')return null;
  const cached=await latest(repo,path,metadata.sha);

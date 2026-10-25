@@ -198,6 +198,18 @@ export default function Portal() {
         if (request === overviewRequest.current)
             setLoading(false);
     } };
+    useEffect(() => {
+        let pending = false;
+        const refresh = () => { pending = true; apply(); };
+        const apply = () => {
+            if (!pending || registerDirtyRef.current || navigationBusyRef.current) return;
+            pending = false; void load(true); void ideas.reload();
+            window.dispatchEvent(new CustomEvent('nexus-refresh-module', {detail:{view:activeViewRef.current}}));
+        };
+        const timer = window.setInterval(apply,1000);
+        window.addEventListener('nexus-github-changed',refresh);
+        return () => {clearInterval(timer);window.removeEventListener('nexus-github-changed',refresh);};
+    }, [ideas.reload]);
     const openMedia = async (next: 'filmer' | 'serier', item: string) => { if (navigationBusyRef.current)
         return; if (registerDirtyRef.current && !window.confirm('Du har osparade ändringar. Lämna sidan och kasta dem?'))
         return; if(registerDirtyRef.current && !await discardRegisterDrafts()) return; rememberOrigin(); readRequest.current++; setReading(false); readerStack.current = []; if (next !== view)

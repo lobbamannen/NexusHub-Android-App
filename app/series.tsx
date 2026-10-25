@@ -170,6 +170,11 @@ export default function Series({ initialItem, onExitDetail }: {
         setLoading(false);
     } };
     useEffect(() => { load(false); }, []);
+    useEffect(() => {
+        const refresh = (event: Event) => { if ((event as CustomEvent).detail?.view === 'serier' && !(watchSaving || seasonSaving)) void load(true); };
+        window.addEventListener('nexus-refresh-module',refresh);
+        return () => window.removeEventListener('nexus-refresh-module',refresh);
+    }, [watchSaving,seasonSaving]);
     const toggleWatchlist = async (item: Entry) => {
         if (!sourceSha || watchSaving || seasonSaving) {
             setError('Ladda serieregistret innan du ändrar Vill se.');

@@ -24,13 +24,25 @@ Robin använder sedan 2026-10-25 Android-appen som sin huvudsakliga NexusHub. Si
 
 Token kan senare bytas under **Inställningar & system → Android-app & GitHub**. Kandidaten kontrolleras innan en befintlig token ersätts. Token krypteras med AES/GCM och Android Keystore och ligger utanför synk, exporter och källkod. Vanliga APK-uppdateringar bevarar token. Utgången/återkallad token, avinstallation, rensad appdata eller byte av telefon kan kräva ny inmatning. Välj lämplig giltighetstid i GitHub.
 
+## Beständig lokal kopia och automatisk uppdatering
+
+Telefonen och GitHub behåller varsin lagring. Automatisk kopiering använder befintlig SQLite/IndexedDB och spegelarkiv. `Kunskap/` undantas från automatisk filkopiering och nya dokumentcachekopior; filnamn och katalogmetadata kan fortfarande finnas lokalt. Redan lagrade äldre kopior raderas inte av denna uppdatering.
+
+- Kopiering startar när appen öppnas och token finns. GitHubs `main` kontrolleras var **15:e sekund medan appen är synlig**, vid återupptagning och när nätet återkommer. Ingen Android-bakgrundstjänst håller en stängd app aktiv. Detta är polling, inte push från GitHub.
+- Ny commit ger en komplett filträdsinventering. Endast saknade eller ändrade filhashar hämtas; bytes verifieras mot GitHubs blob-SHA före beständig lagring. Första kopieringen sker i omgångar om fyra filer och fortsätter vid nästa användning om den avbryts.
+- Inställningar → Android-app & GitHub visar kopieringsförlopp och fel. Nätfel eller full lagring innebär att kopian inte är komplett. Kopieringen försöks igen och befintliga filer behålls.
+- Registervyer uppdateras vid upptäckta GitHub-ändringar. Öppna utkast och väntande sparningar skrivs inte över; uppdatering av gränssnittet skjuts upp när en registerredigering pågår. Automatisk hämtning spelar **inte** upp skrivkön.
+- Bildindex sparas beständigt så att hämtade affischer/omslag också kan hittas efter omstart utan nät. Tidigare filversioner behålls i spegelarkivet. Radering i GitHub tar bort posten ur den aktuella vyn men innebär inte utradering av versionshistorik.
+- Appens tidigare storlekstak för registerläsning, spegelfiler och affischer är borttagna. Större Contents-filer hämtas via GitHubs blob-API. Kontrollsummor, SHA-konfliktskydd och formatvalidering behålls. GitHubs egna API-gränser och telefonens tillgängliga minne/lagring gäller fortfarande; filuppladdning har sitt separata kontrakt.
+- En lokal kopia är inte bevis på att en ändring har sparats i GitHub. Spara/Ångra, uttryckliga återförsök och konflikthantering gäller som tidigare.
+
 ## Samma innehåll och arbetsflöden
 
 - GitHub är gemensam beständig källa för Siten, appen och ChatGPT.
 - Befintliga filer, registerformat och originalvägar används utan omstrukturering.
 - Spara/Ångra, separata betygsskalor, favoriter, Sparad/Läst och verifierade säsonger behålls.
 - Ingen Firebase, egen backend eller schemalagd bakgrundstjänst används.
-- Register och dokument hämtas vid användning. Den valfria spegeladministrationen finns kvar men ingen full kopiering startas automatiskt.
+- Beständig lokal kopia fylls automatiskt av allt i Databas utom `Kunskap/`, samt plugin-repots innehåll. Även aldrig öppnade affischer, omslag, berättelser och övriga filer kopieras. GitHub är huvudkälla; en ofullständig lokal kopiering visas som pågående eller fel, aldrig som färdig.
 - Lokal lagring består av SQLite/IndexedDB för metadata och cache samt IndexedDB för bild-/originalbytes och väntande sparningar.
 
 En sparning säkras lokalt innan GitHub-anropet startar. En verifierad GitHub-kvittens krävs innan gränssnittet säger att den är sparad i GitHub. Vid nätverksfel behålls utkast och en beständig köpost. Tryck **Spara** igen för att försöka igen med samma väntande ändring, eller hantera den i **Android-app & GitHub**. Inga köade sparningar spelas upp automatiskt bakom en öppen redigering. Ångra eller bekräftad kassering av redigeringsutkast tar även bort motsvarande väntande redigeringsförsök.

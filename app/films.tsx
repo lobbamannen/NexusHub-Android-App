@@ -182,6 +182,11 @@ export default function Films({ initialItem, onExitDetail, onDirtyChange }: {
         setLoading(false);
     } };
     useEffect(() => { load(false); }, []);
+    useEffect(() => {
+        const refresh = (event: Event) => { if ((event as CustomEvent).detail?.view === 'filmer' && !(editorDirty.current || saving)) void load(true); };
+        window.addEventListener('nexus-refresh-module',refresh);
+        return () => window.removeEventListener('nexus-refresh-module',refresh);
+    }, [saving]);
     useEffect(() => { if (initialItem) {
         setSelected(initialItem);
         setDraft(null);

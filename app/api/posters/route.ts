@@ -1,11 +1,11 @@
+import {durableGet,durableSet} from '@/platform/local-store';
 import {github} from '@/lib/github';
 import {bucket} from '@/lib/store';
 import {buildPosterIndex,createPosterService} from '@/lib/repository-posters.mjs';
 
 export const dynamic='force-dynamic';
 const decode=(file:any)=>Uint8Array.from(atob(file.content.replace(/\s/g,'')),c=>c.charCodeAt(0));
-const service=createPosterService({
- loadIndex:async()=>{
+const loadLiveIndex=async()=>{
   const client=github('databas'),snapshot=await client.snapshot();
   const file:any=await client.browse('Media/poster-catalog.json',snapshot.commit);
   if(file.encoding!=='base64'||typeof file.content!=='string')throw Error('Filmernas bildkatalog kunde inte läsas.');
@@ -20,13 +20,18 @@ const service=createPosterService({
    console.warn('Berättelseomslag kunde inte uppdateras från GitHub:',error?.message||'Okänt fel');
    return {...buildPosterIndex(snapshot,movieCatalog),storyError:error?.message||'Berättelsernas bildkatalog kunde inte läsas.'};
   }
+ };
+const service=createPosterService({
+ loadIndex:async()=>{
+   try { const index=await loadLiveIndex(); await durableSet('posters:index:v1',index); return index; }
+   catch(error) { const cached=await durableGet<any>('posters:index:v1'); if(cached)return cached; throw error; }
  },
  readBytes:async(entry:any,commit:string)=>{
   const file:any=await github('databas').browse(entry.path,commit);
   if(file.sha!==entry.sha||file.encoding!=='base64'||typeof file.content!=='string')throw Error('Omslagsbilden kunde inte läsas från rätt GitHub-version.');
   return decode(file);
  },
- readCache:async(sha:string)=>{const object=await bucket().get('github-posters/v1/'+sha);return object?new Uint8Array(await object.arrayBuffer()):null;},
+ readCache:async(sha:string)=>{const object=await bucket().get('github-posters/v1/'+sha)||await bucket().get('mirror/databas/'+sha);return object?new Uint8Array(await object.arrayBuffer()):null;},
  writeCache:async(sha:string,bytes:Uint8Array,mime:string)=>{await bucket().put('github-posters/v1/'+sha,bytes,{httpMetadata:{contentType:mime}});},
 } as any);
 

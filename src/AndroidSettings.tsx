@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Database, KeyRound, RefreshCw, Save, ChevronDown, AlertCircle } from 'lucide-react';
 import { setGithubToken } from '@/platform/env';
 import { pendingWrites, retryPendingWrites, discardPendingWrite } from '@/platform/api';
+import { replicaStatus, type ReplicaStatus } from '@/platform/replica-sync';
 import type { PendingWrite } from '@/platform/outbox';
 
 export function TokenForm({ onConnected, initial = false }: { onConnected?: () => void; initial?: boolean }) {
@@ -32,12 +33,15 @@ export function TokenForm({ onConnected, initial = false }: { onConnected?: () =
 
 export default function AndroidSettings() {
   const [items,setItems] = useState<PendingWrite[]>([]), [busy,setBusy] = useState(false), [error,setError] = useState('');
+  const [replica,setReplica] = useState<ReplicaStatus>(replicaStatus());
+  useEffect(()=>{const update=()=>setReplica(replicaStatus());window.addEventListener('nexus-replica-status',update);return()=>window.removeEventListener('nexus-replica-status',update);},[]);
   const reload = () => { void pendingWrites().then(setItems).catch(e=>setError(e.message)); };
   useEffect(()=>{reload();window.addEventListener('nexus-outbox-changed',reload);return()=>window.removeEventListener('nexus-outbox-changed',reload);},[]);
   const retry = async (id?:string) => {setBusy(true);setError('');try {setItems(await retryPendingWrites(id));}catch(e:any){setError(e.message);}finally{setBusy(false);}};
   return <details className="nh-settings-section" open={items.length>0}>
     <summary><Database size={22}/><span><strong>Android-app & GitHub</strong><small>Token och väntande sparningar på den här telefonen.</small></span><ChevronDown size={18} className="nh-details-chevron"/></summary>
     <div className="panel settings-panel"><h2><KeyRound size={18}/> GitHub-anslutning</h2><TokenForm/>
+      <h2>Beständig lokal kopia</h2><p>Allt innehåll utom Kunskap/ kopieras automatiskt till telefonen. GitHub kontrolleras var 15:e sekund medan appen är öppen och direkt när den återupptas. Öppna redigeringar behålls.</p><p role="status">{replica.running ? 'Kopierar: '+replica.done+' av '+replica.total+' filer i aktuellt repository.' : replica.checkedAt ? 'Senast kontrollerat: '+new Date(replica.checkedAt).toLocaleString('sv-SE') : 'Väntar på första lokala kopieringen.'}</p>{replica.error && <p className="error-banner">{replica.error}</p>}
       <h2>Väntande sparningar ({items.length})</h2>
       {!items.length && <p>Inga ändringar väntar på synk.</p>}
       {items.map(item=><div className="panel" key={item.id} style={{padding:16,marginBlock:12}}>

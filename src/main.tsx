@@ -10,6 +10,7 @@ import { hasGithubToken } from '@/platform/env';
 import { installLocalApi } from '@/platform/api';
 import { installResourceHandling } from '@/platform/resources';
 import './android.css';
+import { startReplicaSync } from '@/platform/replica-sync';
 
 function App() {
   const [connected,setConnected]=useState(hasGithubToken());
@@ -20,6 +21,7 @@ function App() {
 async function start() {
   await initializeStorage(); installLocalApi(); installResourceHandling();
   createRoot(document.getElementById('root')!).render(<App/>);
+  startReplicaSync();
 
 }
 void start().catch(error=>{

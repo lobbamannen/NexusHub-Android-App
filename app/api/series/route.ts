@@ -12,7 +12,7 @@ async function read(){
  const file:any=await github('databas').browse('Serier/register.json');
  if(file.type!=='file'||file.encoding!=='base64'||typeof file.content!=='string'||!/^[a-f0-9]{40}$/.test(file.sha||''))throw Error('GitHub levererade inte ett komplett serieregister.');
  const bytes=Uint8Array.from(atob(file.content.replace(/\s/g,'')),c=>c.charCodeAt(0));
- if(bytes.byteLength>900000||await gitBlobSha(bytes)!==file.sha)throw Error('Serieregistrets GitHub-hash kunde inte verifieras.');
+ if(await gitBlobSha(bytes)!==file.sha)throw Error('Serieregistrets GitHub-hash kunde inte verifieras.');
  const register=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));
  if(register?.schemaVersion!==1||!Array.isArray(register.series))throw Error('Serieregistrets format känns inte igen.');
  return {sha:file.sha,commit:file.commit,register};
