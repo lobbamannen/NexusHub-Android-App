@@ -1,4 +1,5 @@
 import { durableGet, durableSet, durableDelete, durableEntries } from './local-store';
+import { catalogReconciledReceipt } from '@/lib/economy-catalog.mjs';
 
 export type WriteStatus = 'pending' | 'conflict' | 'failed';
 type StoredBody = { kind: 'json'; text: string } | { kind: 'form'; entries: [string, string | File][] };
@@ -101,12 +102,16 @@ async function reconcile(item: PendingWrite): Promise<Response | null> {
   if (!response.ok) return null;
   const data: any = await response.clone().json(), register = data.register;
   if (item.path === '/api/economy') {
+    if (input.action === 'upsert' && /^Ekonomi\/Katalog\/(?:kategorier|produkter)\.json$/.test(input.path || '')) {
+      const receipt = catalogReconciledReceipt(data, input);
+      return receipt ? Response.json(receipt) : null;
+    }
     const file = data.files?.find((f: any) => f.path === input.path);
     const rows = file?.data?.entries || file?.data?.purchases;
     const hits = rows?.filter((row: any) => row.id === input.id);
     const confirmed = file?.sha !== input.expectedSha && hits?.length === 1 &&
       matches(hits[0], input.changes);
-    return confirmed ? Response.json({ ...data, saved: true, reconciled: true, source: 'github' }) : null;
+    return confirmed ? Response.json({ saved: true, reconciled: true, source: 'github', path: input.path, sha: file.sha, data: file.data }) : null;
   }
   if (!register) return null;
   let complete = false;

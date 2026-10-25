@@ -1,0 +1,63 @@
+/* Read-only insights and editable taxonomy: same black premium glass and green glow as Economy. */
+.portal-shell.nh-chroma-site .nh-eco-insight,.portal-shell.nh-chroma-site .nh-eco-catalog{color:#eafdf3;display:grid;gap:14px}
+.portal-shell .nh-eco-period-picker{display:grid;gap:8px;font-size:12px;font-weight:750;color:#c1f0d8}
+.portal-shell .nh-eco-period-picker select,.portal-shell .nh-eco-inline-form select,.portal-shell .nh-eco-inline-form input{width:100%;background:#0c0e0e;color:#edfff5;border:1px solid #ffffff24;border-radius:12px;padding:12px;font:inherit;font-size:13px;min-width:0}
+.portal-shell .nh-eco-date{margin:0;color:#94b9a6;font-size:12px}
+.portal-shell .nh-eco-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.portal-shell .nh-eco-summary-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.portal-shell .nh-eco-summary>div{display:grid;align-content:start;gap:8px;min-height:105px;padding:18px;border-radius:16px;border:1px solid #ffffff18;background:radial-gradient(ellipse at 0 100%,#12835724,transparent 69%),#0f1112}
+.portal-shell .nh-eco-summary small{font-size:11px;line-height:1.4;color:#93b09f}
+.portal-shell .nh-eco-summary strong{font-size:clamp(18px,4vw,27px);font-weight:800;letter-spacing:-.7px;color:#e5ffee;overflow-wrap:anywhere}
+.portal-shell .nh-eco-summary span{font-size:11px;color:#81b59a}
+.portal-shell .nh-eco-summary-three strong{font-size:24px}
+.portal-shell .nh-eco-panel-heading{display:flex;align-items:baseline;justify-content:space-between;gap:13px;margin:13px 0 2px}
+.portal-shell .nh-eco-panel-heading h3{font-size:17px;line-height:1.25;letter-spacing:-.3px;margin:0;color:#f3fff9}
+.portal-shell .nh-eco-panel-heading small{font-size:11px;color:#86b59b;text-align:right}
+.portal-shell .nh-eco-bars{display:grid;gap:16px;border:1px solid #ffffff18;background:#0a0c0c;border-radius:17px;padding:20px 16px}
+.portal-shell .nh-eco-bar-row{display:grid;gap:8px}
+.portal-shell .nh-eco-bar-label{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:13px;color:#d3f4e0}
+.portal-shell .nh-eco-bar-label strong{font-weight:750;color:#a6eac4;white-space:nowrap}
+.portal-shell .nh-eco-bar-track{height:8px;border-radius:9px;background:#202524;overflow:hidden}
+.portal-shell .nh-eco-bar-track>span{height:100%;border-radius:9px;display:block;background:linear-gradient(90deg,#236344,#6ee0a0);box-shadow:0 0 14px #42cf8c44}
+.portal-shell .nh-eco-warning{margin:0;display:flex;align-items:flex-start;gap:9px;border:1px solid #daae6552;background:#80602420;color:#f8dda7;padding:12px 14px;border-radius:12px;font-size:12px;line-height:1.55}
+.portal-shell .nh-eco-warning svg{flex-shrink:0;margin-top:1px}
+.portal-shell .nh-eco-review-list{display:grid;gap:7px}
+.portal-shell .nh-eco-review-list>div{background:#0e1110;border:1px solid #ffffff19;border-radius:13px;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+.portal-shell .nh-eco-review-list>div>span{min-width:0;overflow-wrap:anywhere;color:#e2f9ea;display:grid;gap:4px}
+.portal-shell .nh-eco-review-list small{display:block;font-size:10px;color:#8aaf99}
+.portal-shell .nh-eco-review-list strong{white-space:nowrap;color:#c2f7d9;font-size:12px}
+.portal-shell .nh-eco-note{padding:12px 14px;background:#0e1110;border:1px solid #ffffff12;border-radius:12px;font-size:12px;line-height:1.55;color:#acc6b5;margin:0}
+.portal-shell .nh-eco-footnote{font-size:11px;line-height:1.65;color:#7eaa92;margin:11px 0 0}
+.portal-shell .nh-eco-text-button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;background:#173b29;border:1px solid #76d49d49;border-radius:12px;color:#bbf2d4;padding:12px;font-weight:750;font-size:12px;cursor:pointer}
+.portal-shell .nh-eco-text-button svg:last-child{margin-left:auto}
+.portal-shell .nh-eco-catalog-actions{display:flex;gap:10px;min-width:0}
+.portal-shell .nh-eco-catalog-actions .nh-economy-search{flex:1}
+.portal-shell .nh-eco-catalog-actions .primary,.portal-shell .nh-eco-inline-form .primary{display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;border:1px solid #74de9d61;background:#1c7149;color:#ecfff4;padding:11px 14px;border-radius:11px;font-size:12px;font-weight:760;cursor:pointer}
+.portal-shell .nh-eco-catalog-list{display:grid;gap:7px;max-height:660px;overflow-y:auto;padding:1px}
+.portal-shell .nh-eco-catalog-list>button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#0d100f;border:1px solid #ffffff18;border-radius:13px;padding:12px;color:#e4f7eb;cursor:pointer}
+.portal-shell .nh-eco-catalog-list>button:hover{border-color:#63c58a6d;background:#122119}
+.portal-shell .nh-eco-catalog-list>button>span:nth-child(2){display:grid;gap:4px;min-width:0;flex:1}
+.portal-shell .nh-eco-catalog-list strong{font-size:13px}
+.portal-shell .nh-eco-catalog-list small{font-size:11px;color:#95ad9b}
+.portal-shell .nh-eco-catalog-list>button>svg{color:#69bc8a;flex-shrink:0}
+.portal-shell .nh-eco-catalog-icon{display:grid;place-items:center;flex:0 0 38px;height:38px;border:1px solid #356f4d6d;background:#153123;border-radius:12px;color:#82dfac}
+.portal-shell .nh-eco-small-button{border-radius:9px;color:#b8f2d1;border:1px solid #427b5b;background:#123c28;padding:8px 11px;cursor:pointer;font-size:12px;font-weight:700}
+.portal-shell .nh-eco-inline-form{background:#101613;border:1px solid #347955;border-radius:17px;padding:17px;display:grid;gap:13px}
+.portal-shell .nh-eco-inline-form h3{margin:0;font-size:17px;color:#eafff0}
+.portal-shell .nh-eco-inline-form p{margin:0;font-size:12px;color:#adcab6}
+.portal-shell .nh-eco-inline-form label{display:grid;gap:7px;color:#c6e8d2;font-size:12px}
+.portal-shell .nh-eco-form-buttons{display:flex;justify-content:flex-end;gap:9px}
+.portal-shell .nh-eco-form-buttons>button:first-child{background:#1b2320;border:1px solid #ffffff27;color:#c7dbce;padding:10px 13px;border-radius:10px;cursor:pointer}
+.portal-shell .nh-eco-package{display:grid;grid-template-columns:minmax(0,1fr) 94px;gap:12px}
+.portal-shell .nh-economy-fields textarea{background:#09090b;border:1px solid #ffffff24;border-radius:12px;padding:12px;color:#ecfff4;font:inherit;font-size:13px;min-height:100px;resize:vertical}
+@media(max-width:630px){
+  .portal-shell .nh-eco-summary{gap:8px}
+  .portal-shell .nh-eco-summary>div{padding:13px;min-height:102px}
+  .portal-shell .nh-eco-summary small{font-size:10px}
+  .portal-shell .nh-eco-summary strong{font-size:20px}
+  .portal-shell .nh-eco-summary-three strong{font-size:19px}
+  .portal-shell .nh-eco-panel-heading{display:grid;gap:5px}
+  .portal-shell .nh-eco-panel-heading small{text-align:left}
+  .portal-shell .nh-eco-catalog-actions .primary{padding:10px 11px}
+  .portal-shell .nh-eco-review-list>div{padding:11px 10px}
+}

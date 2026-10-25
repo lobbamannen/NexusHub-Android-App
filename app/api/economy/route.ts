@@ -1,11 +1,16 @@
 import { github } from '@/lib/github';
 import { gitBlobSha } from '@/lib/github-inbox.mjs';
+import { applyEconomyCatalogEdit, combineEconomyCatalogRead, validateEconomyCatalog } from '@/lib/economy-catalog.mjs';
+import { validateEconomyArticles } from '@/lib/economy-articles.mjs';
 
 export const dynamic = 'force-dynamic';
 const reply = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const BUDGETS = ['Ekonomi/Robin/budget.json', 'Ekonomi/Rebecca/budget.json'];
+const CATEGORY_PATH = 'Ekonomi/Katalog/kategorier.json';
+const PRODUCT_PATH = 'Ekonomi/Katalog/produkter.json';
 const periodFile = (path: string) => /^Ekonomi\/Gemensamt\/20\d{2}\/20\d{2}-\d{2}-\d{2}\.json$/.test(path);
-const allowed = (path: string) => BUDGETS.includes(path) || periodFile(path);
+const catalogFile = (path: string) => path === CATEGORY_PATH || path === PRODUCT_PATH;
+const allowed = (path: string) => BUDGETS.includes(path) || periodFile(path) || catalogFile(path);
 function fail(message: string, status = 400): never { throw Object.assign(new Error(message), { status }); }
 const object = (value: unknown): value is Record<string, any> => !!value && typeof value === 'object' && !Array.isArray(value);
 function text(value: unknown, label: string, max = 280): string {
@@ -36,23 +41,10 @@ async function read(path: string, ref?: string) {
     const bytes = Uint8Array.from(atob(file.content.replace(/\s/g, '')), c => c.charCodeAt(0));
     if (bytes.byteLength > 900000 || await gitBlobSha(bytes) !== file.sha) fail('Ekonomifilens kontrollsumma avviker.', 503);
     const value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-    (periodFile(path) ? verifyPeriod : verifyBudget)(value);
+    if (path === CATEGORY_PATH) validateEconomyCatalog(value, 'categories');
+    else if (path === PRODUCT_PATH) validateEconomyCatalog(value, 'products');
+    else (periodFile(path) ? verifyPeriod : verifyBudget)(value);
     return { path, sha: file.sha, data: value };
-}
-function validateArticles(value: unknown) {
-    if (!Array.isArray(value) || value.length > 150) fail('För många artikelrader.');
-    return value.map((row: any) => {
-        if (!object(row)) fail('Ogiltig artikelrad.');
-        const name = text(row.name, 'artikel', 220);
-        const sum = money(Math.abs(row.line_amount_sek), 'artikelbelopp');
-        const signed = row.line_amount_sek < 0 ? -sum : sum;
-        if (!Number.isFinite(row.line_amount_sek)) fail('Ogiltigt artikelbelopp.');
-        return { name, quantity_or_weight: row.quantity_or_weight == null ? null : String(row.quantity_or_weight).slice(0, 60),
-            unit_price_sek: row.unit_price_sek == null ? null : Number(row.unit_price_sek),
-            line_amount_sek: signed, category: row.category ? String(row.category).slice(0, 160) : null,
-            note: row.note ? String(row.note).slice(0, 400) : null,
-            ...(Number.isInteger(row.source_row) ? { source_row: row.source_row } : {}) };
-    });
 }
 function changes(kind: 'budget' | 'purchase', input: any) {
     if (!object(input)) fail('Ändringen saknar fält.');
@@ -66,7 +58,7 @@ function changes(kind: 'budget' | 'purchase', input: any) {
     if ('category' in input) result.category = text(input.category, 'kategori', 160);
     if ('date' in input) result.date = date(input.date);
     if ('amount_sek' in input) result.amount_sek = money(input.amount_sek, 'köpbelopp');
-    if ('articles' in input) result.articles = validateArticles(input.articles);
+    if ('articles' in input) result.articles = validateEconomyArticles(input.articles);
     if ('status' in input) result.status = text(input.status, 'status', 120);
     return result;
 }
@@ -112,8 +104,14 @@ export async function GET() {
         const periodPaths = snapshot.tree.filter((item: any) => item.type === 'blob' && periodFile(item.path)).map((item: any) => item.path).sort();
         if (periodPaths.length > 60) fail('För många ekonomiperioder för denna vy.', 503);
         const paths = [...BUDGETS, ...periodPaths];
-        const files = await Promise.all(paths.map(path => read(path, snapshot.commit)));
-        return reply({ files, commit: snapshot.commit, retrievedAt: new Date().toISOString() });
+        const [files, categories, products] = await Promise.allSettled([
+            Promise.all(paths.map(path => read(path, snapshot.commit))),
+            read(CATEGORY_PATH, snapshot.commit), read(PRODUCT_PATH, snapshot.commit),
+        ]);
+        if (files.status === 'rejected') throw files.reason;
+        const result = combineEconomyCatalogRead(categories.status === 'fulfilled' ? categories.value : null,
+            products.status === 'fulfilled' ? products.value : null);
+        return reply({ files: files.value, ...result, commit: snapshot.commit, retrievedAt: new Date().toISOString() });
     } catch (e: any) { return reply({ error: e.message || 'Ekonomiregistret kunde inte läsas.' }, e.status || 503); }
 }
 export async function POST(request: Request) {
@@ -127,7 +125,16 @@ export async function POST(request: Request) {
         if (!object(input) || typeof input.path !== 'string' || !allowed(input.path) || !/^[a-f0-9]{40}$/.test(input.expectedSha || '')) fail('Ogiltig ekonomifil eller versionsnyckel.');
         const current = await read(input.path);
         if (current.sha !== input.expectedSha) return reply({ error: 'Ekonomifilen ändrades i GitHub. Dina ändringar är kvar; läs om innan du sparar.' }, 409);
-        const next = apply(current.data, input.path, input);
+        let next;
+        if (catalogFile(input.path)) {
+            if (input.action !== 'upsert' || typeof input.kind !== 'string' || !object(input.entry) ||
+                Object.keys(input).some(key => !['path','expectedSha','action','kind','entry'].includes(key))) fail('Ogiltig katalogändring.');
+            if (input.path === CATEGORY_PATH && !['category','group'].includes(input.kind)) fail('Fel katalogtyp.');
+            if (input.path === PRODUCT_PATH && input.kind !== 'product') fail('Fel katalogtyp.');
+            const reference = input.path === PRODUCT_PATH ? (await read(CATEGORY_PATH)).data :
+                input.kind === 'group' ? (await read(PRODUCT_PATH)).data : null;
+            next = applyEconomyCatalogEdit(current.data, input.kind, input.entry, reference);
+        } else next = apply(current.data, input.path, input);
         const content = JSON.stringify(next, null, 2) + '\n';
         const saved = await github('databas').writeEconomyFile(input.path, current.sha, content);
         return reply({ saved: true, path: input.path, sha: saved.sha, commit: saved.commit, data: next });

@@ -37,6 +37,35 @@ En sparning säkras lokalt innan GitHub-anropet startar. En verifierad GitHub-kv
 
 SHA-konflikter stoppas och kräver omläsning/beslut. Appen byter aldrig ut en gammal versionsnyckel för att tvinga igenom en gammal ändring. Osäkra kvittenser kan kontrolleras mot aktuell GitHub-data innan nytt försök. En ändring i Siten eller ChatGPT hanteras som en samtidig extern ändring.
 
+## Ekonomi: kvitton, kategorier och produktkunskap
+
+Ekonomi är en egen sida med tre undervyer: **Register** (budgetar och gemensamma köp), **Analys** (kategorisummor per verklig utbetalningsperiod) och **Kategorier & produkter** (redigerbar gemensam katalog). Samtliga är byggda på det befintliga svarta materialtemat med grön ikon och diskret grön bottenfade.
+
+| Databasfil | Funktion |
+|---|---|
+| `Ekonomi/Gemensamt/<år>/<utbetalningsdatum>.json` | **Enda originalet** för gemensamma köp, artiklar, priser, rabatter och pant i en utbetalningsperiod. |
+| `Ekonomi/Katalog/kategorier.json` | Huvudkategorier, produktgrupper, alias för generella kvittonamn och mappningar av äldre artikelkategorier. |
+| `Ekonomi/Katalog/produkter.json` | Endast säkert identifierade produkter och alternativa kvittonamn, med eventuell verifierad förpackningsstorlek. **Inga kopior av kvitton eller priser.** |
+| `Ekonomi/Robin/budget.json`, `Ekonomi/Rebecca/budget.json` | Budgeterade inkomster och fasta utgifter, inte ytterligare kvittoköp. |
+
+### Ett kvitto, en skrivning
+
+1. Robin skickar bild/PDF på kvitto till sin befintliga ChatGPT-chatt. **OCR och AI-förståelse sker där, inte i NexusHub-appen.**
+2. Chatten verifierar butik, köpdatum, totalsumma, radbelopp, rabatter och pant och kontrollerar befintlig period mot dubbletter. Samma kvitto får inte ett nytt köp-ID vid omsändning. Särskilt säker kvittoreferens eller jämförelse av datum/butik/belopp/artiklar behövs för att upptäcka dubbletter med nya ID:n; GitHub hindrar automatiskt endast identiska post-ID:n vid appens egen sparning.
+3. Chatten skriver **en** ändring i lämplig periodfil efter kontroll av GitHub SHA. Den ska inte också skriva separata kopior av köpet i produkt- eller kategorikatalogen.
+4. NexusHub läser periodfiler + katalog och kategoriserar deterministiskt utan nätbaserad AI för varje visning. Kända exakta produkter matchas till produkt-ID, generella varunamn till produktgrupp; äldre etiketter används som reserv. Nya/oklara namn markeras för granskning.
+5. Robin kan ändra kategori, produktgrupp, säkra alias eller förpackning i katalogundervyn. Katalogändringen SHA-sparas separat och räknar om historiska analyser **utan att skriva om gamla kvitton**. Framtida kvittoimport behöver inte redigera katalogen vid varje köp.
+
+En bred kvittotext som `VÅTSERVETTER` ger gruppen **Våtservetter** men inte ett påhittat varumärke eller 72-pack. En säker fullständig variant kan få eget produkt-ID och användas för prisjämförelser, men bara när köp av samma produkt och jämförbar mängd finns. Det finns ingen automatisk produktinlärning som skriver till GitHub i bakgrunden.
+
+### Ekonomiperiod och sanningsenlig statistik
+
+- En månad är **från faktisk utbetalning till nästa utbetalning**. Periodfilens `start_date` är auktoritativt; om `end_date` saknas kan appen härleda sista dagen enbart när nästa verkliga periodstart finns. Appen gissar inte att det alltid är den 19:e.
+- Analys summerar artikelrader i heltalsöre och stämmer av dem mot köpens registrerade total. Rabatt som entydigt kopplas till en vara minskar den kategorin; otydliga bonusar och pant särredovisas. Ingen artikel läggs ovanpå köptotalen som en ny kostnad.
+- Köp utan artikelrader och beloppsavvikelser visas som **ospecificerat**, inte som säker mat-, godis- eller babykonsumtion. Budgetposter och interna kontoöverföringar räknas inte som extra gemensamma köp.
+- Historisk import (`Ekonomi/Import/`) behålls oförändrad som källa. Kategorikatalogen täcker 47 historiska artikelbeteckningar; den innehåller från början endast några få säkert identifierade exakta produkter. Katalogen kan utvecklas efterhand.
+- Appens katalogredigering använder samma verifierade SHA och beständiga väntande sparningar som övriga ekonomiregister. Vid konflikt behövs omläsning; gammal data skrivs inte över automatiskt.
+
 ## Originaldesign
 
 Gränssnittet hämtades från `lobbamannen/NexusHub`, källträd `8b550f150035d8214b1c648ff2ff7f1e79f3249d`. `docs/source-provenance.json` innehåller SHA-256 för originalets designfiler. All CSS, inbäddade typsnitt, SVG och huvuddelen av komponenterna är oförändrade.
@@ -71,6 +100,7 @@ npm run dev
 npm run check
 npm run check:design
 npm run build
+node --test tests/economy-*.test.mjs
 gradle :app:assembleDebug
 ```
 

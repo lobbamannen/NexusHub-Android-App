@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BadgeCheck, ChevronDown, ChevronRight, Coins, LibraryBig, Edit3, Loader2, Plus, RefreshCw, Save, Search, X } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, BarChart3, ChevronDown, ChevronRight, Coins, LibraryBig, Edit3, Loader2, Plus, RefreshCw, Save, Search, Tags, X } from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
+import { EconomyInsights, EconomyCatalog, type EconomyCatalogSnapshot } from './economy-insights';
+import { removeEconomyArticle, renameEconomyArticle } from '@/lib/economy-articles.mjs';
 import './economy.css';
 
-type Article = { name: string; quantity_or_weight?: string | null; unit_price_sek?: number | null; line_amount_sek: number; category?: string | null; note?: string | null; source_row?: number };
+type Article = { name: string; quantity_or_weight?: string | null; unit_price_sek?: number | null; line_amount_sek: number; category?: string | null; note?: string | null; source_row?: number; product_id?: string; group_id?: string; discount_for_index?: number; discount_for_source_row?: number };
 type BudgetEntry = { id: string; name: string; type: string; monthly_amount_sek: number };
 type Purchase = { id: string; date: string | null; description: string; category: string; amount_sek: number; status?: string; paid_by?: string | null; articles?: Article[]; article_reconciliation?: string };
 type EconomyFile = { path: string; sha: string; data: { entries?: BudgetEntry[]; purchases?: Purchase[]; period?: { label?: string; start_date?: string; end_date?: string | null } } };
@@ -33,8 +35,12 @@ async function json(response: Response) {
   return data;
 }
 export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boolean, busy?: boolean) => void }) {
-  const [screen, setScreen] = useState<'overview' | 'register'>('overview');
+  const [screen, setScreen] = useState<'overview' | 'register' | 'analysis' | 'catalog'>('overview');
   const [files, setFiles] = useState<EconomyFile[]>([]);
+  const [catalog, setCatalog] = useState<EconomyCatalogSnapshot | null>(null);
+  const [catalogEditing, setCatalogEditing] = useState(false);
+  const [catalogSaving, setCatalogSaving] = useState(false);
+  const [offlineCopy, setOfflineCopy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -47,14 +53,23 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
   const [articleEdit, setArticleEdit] = useState(false);
   const reload = async () => {
     setLoading(true); setError('');
-    try { const data = await json(await fetch('/api/economy', { cache: 'no-store' })); setFiles(data.files); }
+    try { const response = await fetch('/api/economy', { cache: 'no-store' }); const data = await json(response); setFiles(data.files); setCatalog(data.catalog); setError(data.catalogError || ''); setOfflineCopy(response.headers.get('X-Nexus-Offline') === 'true'); }
     catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   };
   useEffect(() => { void reload(); }, []);
-  useEffect(() => { onDirtyChange?.(!!form, saving); return () => onDirtyChange?.(false, false); }, [form, saving, onDirtyChange]);
+  useEffect(() => {
+    const onCompleted = (event: Event) => {
+      if ((event as CustomEvent<{ path?: string }>).detail?.path !== '/api/economy') return;
+      if (!form && !catalogEditing && !catalogSaving && !saving) void reload();
+      else setNotice('En väntande ekonomisparning slutfördes. Uppdatera registret när du är klar med redigeringen.');
+    };
+    window.addEventListener('nexus-write-completed', onCompleted);
+    return () => window.removeEventListener('nexus-write-completed', onCompleted);
+  }, [form, catalogEditing, catalogSaving, saving]);
+  useEffect(() => { onDirtyChange?.(!!form || catalogEditing, saving || catalogSaving); return () => onDirtyChange?.(false, false); }, [form, saving, catalogEditing, catalogSaving, onDirtyChange]);
   useBackHandler(120, () => { if (!form) return false; if (!saving) setForm(null); return true; });
-  useBackHandler(90, () => { if (screen !== 'register' || form) return false; setScreen('overview'); window.scrollTo(0, 0); return true; });
+  useBackHandler(90, () => { if (screen === 'overview' || form || catalogEditing) return false; setScreen('overview'); window.scrollTo(0, 0); return true; });
   const rows = useMemo<Row[]>(() => files.flatMap(file => (file.data.entries || file.data.purchases || []).map(entry => ({
     key: file.path + ':' + entry.id, source: file, kind: file.data.entries ? 'budget' as const : 'purchase' as const,
     person: personFor(file.path), entry,
@@ -98,23 +113,50 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
     finally { setSaving(false); }
   };
   const articleSum = (articles: Article[]) => Math.round(articles.reduce((sum, a) => sum + (Number(a.line_amount_sek) || 0), 0) * 100) / 100;
+  const saveCatalogEntry = async (kind: 'category'|'group'|'product', entry: any) => {
+    if (!catalog || catalogSaving) throw Error('Katalogen är inte redo för sparning.');
+    const slot = kind === 'product' ? 'products' : 'categories';
+    const file = catalog[slot];
+    setCatalogSaving(true);
+    try {
+      const result = await json(await fetch('/api/economy', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: file.path, expectedSha: file.sha, action: 'upsert', kind, entry }) }));
+      if (!result.saved || !result.sha || !result.data) throw Error('GitHub bekräftade inte katalogändringen.');
+      setCatalog(previous => previous ? { ...previous, [slot]: { path: result.path, sha: result.sha, data: result.data } } : previous);
+      setNotice('Katalogändringen är sparad i GitHub.');
+      setError('');
+    } catch (e: any) { setError(e.message || 'Kunde inte spara katalogändringen.'); throw e; }
+    finally { setCatalogSaving(false); }
+  };
   const periodCount = files.filter(file => !!file.data.purchases).length;
   return <section className="nh-economy" aria-label="Ekonomi">
     <header className="nh-economy-hero">
       <MaterialIcon size={62} tone="green"><Coins size={35}/></MaterialIcon>
       <div><p className="eyebrow">NEXUS HUB · DATABAS</p><h1>Ekonomi</h1><p>Fasta budgetposter och gemensamma köp, direkt från GitHub.</p></div>
-      <button type="button" className="nh-economy-refresh" onClick={() => void reload()} disabled={loading || !!form} aria-label="Uppdatera ekonomiregistret"><RefreshCw size={19} className={loading ? 'spin' : ''}/></button>
+      <button type="button" className="nh-economy-refresh" onClick={() => void reload()} disabled={loading || !!form || catalogEditing} aria-label="Uppdatera ekonomiregistret"><RefreshCw size={19} className={loading ? 'spin' : ''}/></button>
     </header>
+    {offlineCopy && <p className="nh-eco-warning">Du ser en sparad offlinekopia. Nya uppgifter kan saknas tills GitHub går att nå igen.</p>}
+    {error && screen === 'analysis' && <div role="alert" className="nh-economy-error">{error}</div>}
     {screen === 'overview' ? <div className="nh-economy-overview">
       <button type="button" className="nh-economy-register-link" onClick={() => { setScreen('register'); window.scrollTo(0, 0); }}>
         <span className="nh-economy-link-icon"><MaterialIcon tone="green" size={46}><LibraryBig size={27}/></MaterialIcon></span>
         <span className="nh-economy-link-copy"><strong>Register</strong><small>Alla fasta och rörliga utgifter · sök, läs och redigera</small><span>{loading ? 'Hämtar poster…' : rows.length + ' poster i databasen'}</span></span>
         <ChevronRight size={23} aria-hidden="true"/>
       </button>
+      <button type="button" className="nh-economy-register-link" onClick={() => { setScreen('analysis'); window.scrollTo(0, 0); }}>
+        <span className="nh-economy-link-icon"><MaterialIcon tone="green" size={46}><BarChart3 size={27}/></MaterialIcon></span>
+        <span className="nh-economy-link-copy"><strong>Analys</strong><small>Mat, godis, bebis, hushåll och annat – per utbetalningsperiod</small><span>{periodCount} ekonomiperiod{periodCount === 1 ? '' : 'er'}</span></span>
+        <ChevronRight size={23} aria-hidden="true"/>
+      </button>
+      <button type="button" className="nh-economy-register-link" onClick={() => { setScreen('catalog'); window.scrollTo(0, 0); }}>
+        <span className="nh-economy-link-icon"><MaterialIcon tone="green" size={46}><Tags size={27}/></MaterialIcon></span>
+        <span className="nh-economy-link-copy"><strong>Kategorier & produkter</strong><small>Lär NexusHub nya kvittonamn och redigera produktgrupper</small><span>{catalog ? catalog.categories.data.groups.length + ' produktgrupper' : 'Hämtar katalog…'}</span></span>
+        <ChevronRight size={23} aria-hidden="true"/>
+      </button>
       {error && <div role="alert" className="nh-economy-error">{error}<button type="button" onClick={() => void reload()}>Försök igen</button></div>}
     </div> : <>
-    <button type="button" className="nh-economy-back" onClick={() => { setScreen('overview'); window.scrollTo(0, 0); }}><ArrowLeft size={17}/>Tillbaka till Ekonomi</button>
-    <div className="nh-economy-register">
+    <button type="button" className="nh-economy-back" disabled={!!form || catalogEditing || catalogSaving} onClick={() => { setScreen('overview'); window.scrollTo(0, 0); }}><ArrowLeft size={17}/>Tillbaka till Ekonomi</button>
+    {screen === 'register' ? <div className="nh-economy-register">
       <div className="nh-economy-register-top"><div><span className="hub-section-kicker">EKONOMIREGISTER</span><h2>Alla poster</h2><p>{rows.length} registrerade poster · {periodCount} ekonomiperiod{periodCount === 1 ? '' : 'er'}</p></div><button className="primary" type="button" onClick={openNew} disabled={loading || !!form}><Plus size={17}/>Ny post</button></div>
       <div className="nh-economy-tabs" role="group" aria-label="Filtrera på hushållsdel">
         {(['Alla','Robin','Rebecca','Gemensamt'] as const).map(value => <button key={value} type="button" className={scope === value ? 'active' : ''} aria-pressed={scope === value} onClick={() => {setScope(value);setCategory('');}}>{value}</button>)}
@@ -142,7 +184,11 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
           </div>;
         })}
       </div> : <div className="nh-economy-empty">Inga ekonomiposter matchar filtreringen.</div>}
-    </div>
+    </div> : screen === 'analysis' ? <EconomyInsights files={files} catalog={catalog} onCatalog={() => {setScreen('catalog');window.scrollTo(0,0);}} /> :
+      <><EconomyCatalog files={files} catalog={catalog} save={saveCatalogEntry} onDirtyChange={setCatalogEditing}/>
+        {notice && <div role="status" className="nh-economy-success"><BadgeCheck size={18}/>{notice}<button type="button" onClick={() => setNotice('')} aria-label="Stäng meddelande"><X size={15}/></button></div>}
+        {error && <div role="alert" className="nh-economy-error">{error}</div>}
+      </>}
     </>}
     {form && <div className="nh-economy-overlay" role="presentation"><form className="nh-economy-editor" onSubmit={save} aria-label={form.row ? 'Redigera ekonomipost' : 'Skapa ekonomipost'}>
       <div className="nh-economy-editor-head"><div><p className="eyebrow">{form.person} · {form.kind === 'budget' ? 'FAST BUDGET' : 'RÖRLIGT KÖP'}</p><h2>{form.row ? 'Redigera post' : 'Ny post'}</h2></div><button type="button" aria-label="Stäng formulär" onClick={() => setForm(null)} disabled={saving}><X size={21}/></button></div>
@@ -158,7 +204,7 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
         {form.kind === 'purchase' && <div className="nh-economy-edit-articles">
           <button type="button" className="nh-economy-article-toggle" onClick={() => setArticleEdit(!articleEdit)}>Artiklar ({form.articles.length}) <ChevronDown size={17}/></button>
           {articleEdit && <><p>Rabatter och pant kan anges med minusbelopp. Köpbeloppet räknas aldrig två gånger.</p>
-          {form.articles.map((article, index) => <div key={index} className="nh-economy-article-edit"><input aria-label={'Artikel ' + (index+1)} placeholder="Artikel" value={article.name} onChange={e => set({ articles: form.articles.map((a,i) => i===index?{...a,name:e.target.value}:a) })}/><input aria-label={'Artikelbelopp ' + (index+1)} inputMode="decimal" value={article.line_amount_sek} onChange={e => set({articles:form.articles.map((a,i)=>i===index?{...a,line_amount_sek:numeric(e.target.value)}:a)})}/><button type="button" aria-label="Ta bort artikelrad" onClick={() => set({ articles: form.articles.filter((_,i)=>i!==index) })}><X size={16}/></button></div>)}
+          {form.articles.map((article, index) => <div key={index} className="nh-economy-article-edit"><input aria-label={'Artikel ' + (index+1)} placeholder="Artikel" value={article.name} onChange={e => set({ articles: renameEconomyArticle(form.articles, index, e.target.value) })}/><input aria-label={'Artikelbelopp ' + (index+1)} inputMode="decimal" value={article.line_amount_sek} onChange={e => set({articles:form.articles.map((a,i)=>i===index?{...a,line_amount_sek:numeric(e.target.value)}:a)})}/><button type="button" aria-label="Ta bort artikelrad" onClick={() => set({ articles: removeEconomyArticle(form.articles, index) })}><X size={16}/></button></div>)}
           <button type="button" className="secondary" onClick={() => set({articles:[...form.articles,{name:'',line_amount_sek:0}]})}><Plus size={15}/>Lägg till artikelrad</button>
           <p>Artikelsumma: {money(articleSum(form.articles))}{form.articles.length && validAmount(form.amount) && Math.abs(articleSum(form.articles)-numeric(form.amount))>.01?' · Skiljer sig från köpbeloppet':''}</p></>}
         </div>}

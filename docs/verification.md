@@ -1,5 +1,19 @@
 # Verifiering 2026-10-25
 
+## Intelligent ekonomi och artikelkatalog – tillägg 2026-10-25
+
+Den nya ekonomifunktionen är en **ren läsprojektion** av periodfilerna plus två centrala katalogfiler. Ingen av de äldre 24 köpposterna eller de 156 importerade artikelraderna ändrades vid införandet.
+
+- `Ekonomi/Katalog/kategorier.json` och `Ekonomi/Katalog/produkter.json` skapades och återlästes från `lobbamannen/Databas`; de nedladdade filerna matchade exakt skapade byteinnehåll. Katalogen täcker alla 47 etiketter som finns i de 156 artikelraderna, men innehåller bara fem säkert identifierade exakta produkter.
+- Verklig oktobersammanställning med katalogen och den riktiga periodfilen: **24 köp, 156 artikelrader och 8 358,34 kr**. Summan av visade kategorier (inklusive ospecificerat/pant/nettorabatter) är också **8 358,34 kr**. Skillnad mellan specificerade kvittons artikel- och köpbelopp: **0 kr**. Tre köp utan artikelrader motsvarar **758 kr**; dessutom är två äldre artikelbeskrivningar ospecificerade och visas för manuell granskning.
+- 26 nya rena beteendetester kontrollerar exakt produkt kontra generellt kvittonamn, kategoriflytt utan historikändring, säker rabattkoppling utan delsträngsträffar, pant, ofullständiga kvitton, faktisk ekonomiperiod, produktgrupper, prisjämförelse med faktisk mängd, katalogschema, förbjudna alias över båda katalogerna, fixerade GitHub-skrivvägar, förlorat GitHub-svar och intakta artikel- och rabattreferenser vid redigering.
+- Den oberoende kodgranskningen föranledde en samlad åtgärdsrunda: explicit säker rabattmålskontroll, löpande produktgruppssumma inklusive ospecificerat, prioritet för nästa kända löneperiod, gruppöversikt i gränssnittet, säker borttagning/namnändring av kvittorad, tvärvalidering av alias samt fortsatt åtkomst till grundregistret om en katalogfil inte kan läsas.
+- TypeScript-kontroll och React-produktionsbygge kördes lokalt. APK-byggandet sker i GitHub Actions och ska redovisas separat när det har körts.
+- Hela äldre Node-testsviten har nio andra kända fel: affischimport (2), `mirror.test` (1), serie-UI (4), Site-integritet (1), `upload-api.test` (1). **Exakt samma nio fel reproducerades i en ren kopia av föregående `main` (8c21ff0)**: den gamla versionen hade 88 godkända/97 totalt och den nya 106 godkända/115 totalt. Inga nya fel observerades.
+- `npm run check:design` rapporterar `components/home/ModuleGrid.tsx` även i den rena föregående versionen, eftersom originaldesignens jämförelselista inte uppdaterats för ett tidigare tillägg; ekonomiändringen berör inte den filen.
+
+**Ej verifierat här:** verklig Android-telefon, grafisk pixeljämförelse och en sparning från den nya katalogredigeraren med Robins token. Första kvittot via ChatGPT kräver fortsatt manuell kontroll av kvittoidentifiering och SHA-skrivningen i den befintliga chatten; denna app ersätter inte dess OCR-verktyg.
+
 ## Utfört
 
 - Samtliga 150 hämtade originalfiler jämfördes mot GitHubs Git-blob-SHA: full matchning med originalets källträd.
