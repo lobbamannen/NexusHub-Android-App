@@ -154,28 +154,28 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
     finally { setCatalogSaving(false); }
   };
   const periodCount = files.filter(file => !!file.data.purchases).length;
-  return <section className="nh-economy" aria-label="Ekonomi">
-    <header className="nh-module-dashboard-header nh-economy-hero"><div className="nh-module-dashboard-title"><span className="nh-module-heading-icon">
+  return <section className="nh-economy nh-module-dashboard" aria-label="Ekonomi">
+    <header className="nh-module-dashboard-header"><div className="nh-module-dashboard-title"><span className="nh-module-heading-icon">
       <MaterialIcon size={48} tone="green"><Coins size={29}/></MaterialIcon></span>
-      <div><p className="nh-module-eyebrow">NEXUS HUB · DATABAS</p><h1>Ekonomi</h1><p>Fasta budgetposter och gemensamma köp, direkt från GitHub.</p></div></div>
-      <button type="button" className="nh-economy-refresh" onClick={() => void reload()} disabled={loading || !!form || catalogEditing} aria-label="Uppdatera ekonomiregistret"><RefreshCw size={19} className={loading ? 'spin' : ''}/></button>
+      <div><span className="nh-module-eyebrow">NEXUS HUB · EKONOMI</span><h1>Ekonomi</h1><p>Fasta budgetposter och gemensamma köp, direkt från GitHub.</p></div></div>
     </header>
+    <div className="nh-story-primary-actions"><button type="button" className="primary" onClick={() => void reload()} disabled={loading || !!form || catalogEditing} aria-label="Uppdatera ekonomiregistret"><RefreshCw size={17} className={loading ? 'spin' : ''}/>Uppdatera</button></div>
     {offlineCopy && <p className="nh-eco-warning">Du ser en sparad offlinekopia. Nya uppgifter kan saknas tills GitHub går att nå igen.</p>}
     {error && screen === 'analysis' && <div role="alert" className="nh-economy-error">{error}</div>}
     {screen === 'overview' ? <div className="nh-economy-overview">
-      <button type="button" className="nh-economy-register-link" onClick={() => { setScreen('register'); window.scrollTo(0, 0); }}>
-        <span className="nh-economy-link-icon"><MaterialIcon tone="green" size={46}><LibraryBig size={27}/></MaterialIcon></span>
-        <span className="nh-economy-link-copy"><strong>Register</strong><small>Alla fasta och rörliga utgifter · sök, läs och redigera</small><span>{loading ? 'Hämtar poster…' : rows.length + ' poster i databasen'}</span></span>
+      <button type="button" className="nh-register-shortcut" onClick={() => { setScreen('register'); window.scrollTo(0, 0); }}>
+        <span className="nh-economy-shortcut-icon"><MaterialIcon tone="blue" size={38}><LibraryBig size={25}/></MaterialIcon></span>
+        <span className="nh-register-shortcut-copy"><strong>Register</strong><small>Alla fasta och rörliga utgifter · sök, läs och redigera</small><span>{loading ? 'Hämtar poster…' : rows.length + ' poster i databasen'}</span></span>
         <ChevronRight size={23} aria-hidden="true"/>
       </button>
-      <button type="button" className="nh-economy-register-link" onClick={() => { setScreen('analysis'); window.scrollTo(0, 0); }}>
-        <span className="nh-economy-link-icon"><MaterialIcon tone="green" size={46}><BarChart3 size={27}/></MaterialIcon></span>
-        <span className="nh-economy-link-copy"><strong>Analys</strong><small>Mat, godis, bebis, hushåll och annat – per utbetalningsperiod</small><span>{periodCount} ekonomiperiod{periodCount === 1 ? '' : 'er'}</span></span>
+      <button type="button" className="nh-register-shortcut" onClick={() => { setScreen('analysis'); window.scrollTo(0, 0); }}>
+        <span className="nh-economy-shortcut-icon"><MaterialIcon tone="violet" size={38}><BarChart3 size={25}/></MaterialIcon></span>
+        <span className="nh-register-shortcut-copy"><strong>Analys</strong><small>Mat, godis, bebis, hushåll och annat – per utbetalningsperiod</small><span>{periodCount} ekonomiperiod{periodCount === 1 ? '' : 'er'}</span></span>
         <ChevronRight size={23} aria-hidden="true"/>
       </button>
-      <button type="button" className="nh-economy-register-link" onClick={() => { setScreen('catalog'); window.scrollTo(0, 0); }}>
-        <span className="nh-economy-link-icon"><MaterialIcon tone="green" size={46}><Tags size={27}/></MaterialIcon></span>
-        <span className="nh-economy-link-copy"><strong>Kategorier & produkter</strong><small>Lär NexusHub nya kvittonamn och redigera produktgrupper</small><span>{catalog ? catalog.categories.data.groups.length + ' produktgrupper' : 'Hämtar katalog…'}</span></span>
+      <button type="button" className="nh-register-shortcut" onClick={() => { setScreen('catalog'); window.scrollTo(0, 0); }}>
+        <span className="nh-economy-shortcut-icon"><MaterialIcon tone="violet" size={38}><Tags size={25}/></MaterialIcon></span>
+        <span className="nh-register-shortcut-copy"><strong>Kategorier & produkter</strong><small>Lär NexusHub nya kvittonamn och redigera produktgrupper</small><span>{catalog ? catalog.categories.data.groups.length + ' produktgrupper' : 'Hämtar katalog…'}</span></span>
         <ChevronRight size={23} aria-hidden="true"/>
       </button>
       {error && <div role="alert" className="nh-economy-error">{error}<button type="button" onClick={() => void reload()}>Försök igen</button></div>}
