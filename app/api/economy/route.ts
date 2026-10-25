@@ -13,7 +13,7 @@ function text(value: unknown, label: string, max = 280): string {
     return value.trim();
 }
 function money(value: unknown, label: string): number {
-    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100000000 || Math.round(value * 100) !== value * 100) fail('Ogiltigt belopp: ' + label);
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100000000 || Math.abs(Math.round(value * 100) - value * 100) > 0.000001) fail('Ogiltigt belopp: ' + label);
     return value;
 }
 function date(value: unknown): string | null {
@@ -76,7 +76,7 @@ function apply(current: any, path: string, input: any) {
     const list = current[field] as any[];
     if (!['create', 'update'].includes(input.action)) fail('Ogiltig åtgärd.');
     const id = text(input.id, 'ID', 120);
-    if (!/^[a-zA-Z0-9_-][a-zA-Z0-9_:-]{2,119}$/.test(id)) fail('Ogiltigt post-ID.');
+    if (input.action === 'create' && !/^[a-zA-Z0-9_-][a-zA-Z0-9_:-]{2,119}$/.test(id)) fail('Ogiltigt nytt post-ID.');
     const indexes = list.map((row, i) => row.id === id ? i : -1).filter(i => i >= 0);
     const patch = changes(kind, input.changes);
     if (input.action === 'create') {
