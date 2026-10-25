@@ -1,0 +1,194 @@
+/* Second-pass mobile-first discovery UX: category-first views, no duplicate legacy lists. */
+.portal-shell .nh-media-dashboard .nh-module-heading-actions{align-items:center}
+.portal-shell .nh-category-tabs{display:flex;gap:7px;overflow-x:auto;scrollbar-width:thin;scrollbar-color:#62547d transparent;padding:0 0 3px;margin:-6px 0 -4px}
+.portal-shell .nh-category-tabs button{display:inline-flex;justify-content:center;align-items:center;flex:none;min-height:40px;padding:9px 14px;border:1px solid #354966;background:#142139;border-radius:11px;color:#b7c5df;font-size:12px;font-weight:660}
+.portal-shell .nh-category-tabs button.active{color:#f2e8ff;background:linear-gradient(125deg,#594078,#302748);border-color:#9875cf;box-shadow:0 4px 14px #00000020}
+.portal-shell .nh-category-tabs button:focus-visible{outline:2px solid #ddbcff;outline-offset:2px}
+.portal-shell .nh-story-mode-tabs{display:flex;align-items:center;gap:6px;align-self:start;width:fit-content;max-width:100%;margin:-4px 0 1px;padding:4px;border:1px solid #344763;border-radius:12px;background:#0d192a}
+.portal-shell .nh-story-mode-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:7px 13px;border-radius:9px;color:#aabbcf;font-size:12px;font-weight:660}
+.portal-shell .nh-story-mode-tabs button.active{background:linear-gradient(125deg,#5b427b,#342849);color:#f3e9ff}
+.portal-shell .nh-story-mode-tabs button:focus-visible{outline:2px solid #dfc5ff;outline-offset:2px}
+.portal-shell .nh-module-category-card{min-height:78px;padding:11px 12px;gap:10px}
+.portal-shell .nh-module-category-card .nh-category-icon{width:37px;height:37px;border-radius:10px}
+.portal-shell .nh-module-category-card .nh-category-icon svg{width:21px;height:21px}
+.portal-shell .nh-module-category-card .nh-category-copy{gap:3px}
+.portal-shell .nh-module-category-card .nh-category-copy strong{font-size:12px;line-height:1.28}
+.portal-shell .nh-module-category-card .nh-category-copy small{font-size:10px}
+.portal-shell .nh-module-dashboard .nh-module-category-head h2{font-size:19px}
+.portal-shell .nh-module-dashboard .nh-module-category-head p{font-size:11px}
+.portal-shell .nh-discovery{display:grid;gap:10px;padding:13px 14px;margin:18px 0 12px;border:1px solid #344967;border-radius:15px;background:linear-gradient(140deg,#17243a,#0e1a2d)}
+.portal-shell .nh-discovery-main{display:flex;align-items:stretch;gap:9px;min-width:0}
+.portal-shell .nh-discovery-search{display:flex;align-items:center;gap:10px;flex:1;min-width:0;min-height:45px;border:1px solid #445673;border-radius:10px;background:#0d192b;color:#98abcb;padding:0 12px}
+.portal-shell .nh-discovery-search>svg{flex:none}
+.portal-shell .nh-discovery-search input{flex:1;min-width:0;background:transparent;border:0;outline:0;padding:12px 0;color:#f1edff;font-size:12px;font-family:inherit;line-height:1.4}
+.portal-shell .nh-discovery-search input::placeholder{color:#8294b0}
+.portal-shell .nh-discovery-search:focus-within{border-color:#bc9df4;box-shadow:0 0 0 2px #b89ff625}
+.portal-shell .nh-discovery-search button{display:grid;place-items:center;flex:none;color:#c1addf;min-width:25px;min-height:28px}
+.portal-shell .nh-discovery-main-action{display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;flex:none;min-height:45px;padding:9px 15px;border:1px solid #8d6db8;border-radius:10px;background:#43305f;color:#f0ddff;font-weight:720;font-size:12px;transition:background .15s}
+.portal-shell .nh-discovery-main-action:hover{background:#553b77}
+.portal-shell .nh-discovery-bottom{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;color:#a6bad6}
+.portal-shell .nh-discovery-small-note{display:inline-flex;align-items:center;gap:7px;font-size:10px;line-height:1.6;color:#a7b7cd;flex:1;min-width:135px}
+.portal-shell .nh-discovery-small-note svg{flex:none;color:#83cfb7}
+.portal-shell .nh-tool-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:33px;padding:5px 8px;border:1px solid #374962;border-radius:9px;color:#d6b9f9;background:#1a2840;font-size:10px;cursor:pointer}
+.portal-shell .nh-tool-action:hover{background:#2c3655}
+.portal-shell .nh-tool-action:disabled{opacity:.5;cursor:default}
+.portal-shell .nh-discovery-options{width:100%;border-top:1px solid #2d4059;padding:8px 0 0}
+.portal-shell .nh-discovery-options summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:34px;padding:4px 0;color:#cbb1f0;font-size:11px;font-weight:680}
+.portal-shell .nh-discovery-options summary::-webkit-details-marker{display:none}
+.portal-shell .nh-discovery-options summary:before{content:'⚙';font-size:13px}
+.portal-shell .nh-discovery-options .nh-advanced-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;background:transparent;border:0;border-top:1px solid #344259;border-radius:0;padding:12px 0 2px;margin:6px 0 0}
+.portal-shell .nh-discovery-options .nh-advanced-filters label{grid-column:auto}
+.portal-shell .nh-discovery-options .nh-advanced-filters select{width:100%}
+.portal-shell .nh-discovery-options .nh-advanced-filters .film-search{display:none}
+.portal-shell .nh-discovery-options .stories-filterbar label{display:flex;flex-direction:column;gap:6px}
+.portal-shell .nh-discovery-results{min-width:0;margin:11px 0 27px;scroll-margin-top:99px}
+.portal-shell .nh-discovery-results>.film-list-heading,.portal-shell .nh-discovery-results>.stories-list-header,.portal-shell .nh-discovery-results>.hub-results-heading{margin-top:17px}
+.portal-shell .nh-discovery-results .film-list-heading h2,.portal-shell .nh-discovery-results .stories-list-header h2{font-size:18px;color:#f1ebff}
+.portal-shell .nh-discovery-results .film-list-heading .film-quiet{font-size:11px}
+.portal-shell .nh-discovery-results .nh-database-results{border-radius:15px}
+.portal-shell .nh-discovery-results .stories-grid{gap:11px}
+.portal-shell .stories-app>.stories-github-status{margin:7px 0 13px}
+.portal-shell .film-compact-intro{margin-bottom:12px}
+.portal-shell .film-compact-intro h1{font-size:23px}
+.portal-shell .film-compact-intro .eyebrow{font-size:10px}
+.portal-shell .nh-module-dashboard :is(button,a):focus-visible,.portal-shell .nh-discovery :is(button,input,summary,select):focus-visible{outline:2px solid #d9b9fa;outline-offset:3px}
+@media(max-width:700px){
+ .portal-shell .nh-module-dashboard{padding:15px 13px;gap:15px}
+ .portal-shell .nh-module-stat-row{gap:8px}
+ .portal-shell .nh-module-stat{min-height:91px;padding:11px 10px;gap:6px}
+ .portal-shell .nh-module-stat strong{font-size:24px}
+ .portal-shell .nh-module-stat span{font-size:10px}
+ .portal-shell .nh-module-category-grid{gap:8px}
+ .portal-shell .nh-module-category-card{flex-direction:row;align-items:center;gap:8px;min-height:84px;padding:11px 9px}
+ .portal-shell .nh-module-category-card .nh-category-icon{width:33px;height:33px;flex:none}
+ .portal-shell .nh-module-category-card .nh-category-icon svg{width:20px;height:20px}
+ .portal-shell .nh-module-category-card .nh-category-copy strong{font-size:11px}
+ .portal-shell .nh-module-category-card .nh-category-copy small{font-size:10px}
+ .portal-shell .nh-module-category-card .nh-category-arrow{position:absolute;top:8px;right:8px;width:14px}
+ .portal-shell .nh-module-category-card .nh-category-copy{padding-right:5px}
+ .portal-shell .nh-story-mode-tabs{width:100%;align-self:stretch}
+ .portal-shell .nh-story-mode-tabs button{flex:1}
+ .portal-shell .nh-module-dashboard .nh-module-category-head h2{font-size:18px}
+ .portal-shell .nh-discovery{padding:10px 11px;margin:13px 0 10px}
+ .portal-shell .nh-discovery-main{flex-wrap:wrap}
+ .portal-shell .nh-discovery-search{width:100%;flex-basis:100%}
+ .portal-shell .nh-discovery-main-action{width:100%}
+ .portal-shell .nh-discovery-bottom{gap:7px}
+ .portal-shell .nh-discovery-small-note{flex-basis:100%;min-width:0}
+ .portal-shell .nh-discovery-options .nh-advanced-filters{margin:4px 0 0}
+ .portal-shell .nh-discovery-results>.stories-list-header{gap:8px}
+ .portal-shell .nh-discovery-results>.stories-list-header span{max-width:45%;text-align:right}
+}
+@media(max-width:375px){
+ .portal-shell .nh-module-category-card{min-height:94px;align-items:flex-start;flex-direction:column}
+ .portal-shell .nh-module-category-card .nh-category-copy strong{font-size:11px}
+ .portal-shell .nh-module-category-card .nh-category-copy small{font-size:9px}
+ .portal-shell .nh-discovery-options .nh-advanced-filters{grid-template-columns:1fr}
+ .portal-shell .nh-module-stat strong{font-size:21px}
+}
+@media(prefers-reduced-motion:reduce){.portal-shell .nh-discovery-main-action{transition:none}}
+
+
+/* Original undergenres remain available as filters after opening a category. */
+.portal-shell .nh-genre-category{display:flex;flex-direction:column;min-width:0;align-items:stretch}
+.portal-shell .nh-genre-results-filter{display:grid;gap:10px;margin:0 0 15px;border:1px solid #465075;border-radius:13px;padding:12px;background:linear-gradient(135deg,#211f3a,#121d31)}
+.portal-shell .nh-genre-results-heading{display:flex;flex-wrap:wrap;gap:5px 11px;align-items:baseline}
+.portal-shell .nh-genre-results-heading strong{color:#ebdbff;font-size:13px}
+.portal-shell .nh-genre-results-heading span{font-size:10px;line-height:1.5;color:#aebfd8}
+.portal-shell .nh-genre-results-chips{display:flex;flex-wrap:wrap;gap:6px}
+.portal-shell .nh-genre-results-chips button{display:inline-flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;max-width:100%;padding:7px 10px;border:1px solid #455473;border-radius:10px;background:#17243d;color:#e2d7f3;font-size:11px;line-height:1.45;cursor:pointer}
+.portal-shell .nh-genre-results-chips button:hover{background:#283453;border-color:#9b88d2}
+.portal-shell .nh-genre-results-chips button small{flex:none;border-radius:6px;background:#ffffff12;color:#b7c6dc;padding:2px 5px;font-size:10px;font-variant-numeric:tabular-nums}
+.portal-shell .nh-genre-results-chips button svg{flex:none;color:#bda0f0}
+.portal-shell .nh-genre-results-chips button:focus-visible{outline:2px solid #e2b9ff;outline-offset:3px}
+@media(max-width:700px){.portal-shell .nh-genre-results-chips button{font-size:10px}}
+
+/* Media discovery v3: genre-first navigation replaces the oversized statistic dashboard. */
+.portal-shell .nh-media-dashboard{gap:13px}
+.portal-shell .nh-media-dashboard .nh-module-dashboard-title p{max-width:420px}
+.portal-shell .nh-media-quick-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-width:0}
+.portal-shell .nh-media-quick-link{display:flex;align-items:center;min-width:0;gap:11px;min-height:65px;padding:10px 13px;border:1px solid #465274;border-radius:13px;background:linear-gradient(130deg,#242441,#131f35);color:#d5c2ff;text-align:left;cursor:pointer;transition:background .15s,border-color .15s}
+.portal-shell .nh-media-quick-link:nth-child(2){background:linear-gradient(130deg,#2d243e,#131e31);color:#edb5df}
+.portal-shell .nh-media-quick-link:hover,.portal-shell .nh-media-quick-link.active{background:#303054;border-color:#9f85d8}
+.portal-shell .nh-media-quick-link>svg:first-child{flex:none}
+.portal-shell .nh-media-quick-link>svg:last-child{margin-left:auto;flex:none;color:#a3aacd}
+.portal-shell .nh-media-quick-link span{display:flex;flex-direction:column;min-width:0;gap:3px}
+.portal-shell .nh-media-quick-link strong{font-size:21px;line-height:1.08;font-weight:760;color:#f0e9ff;font-variant-numeric:tabular-nums}
+.portal-shell .nh-media-quick-link small{font-size:11px;color:#b7c2db;font-weight:620}
+.portal-shell .nh-media-dashboard .nh-module-category-head .nh-module-eyebrow{margin-bottom:4px}
+.portal-shell .nh-media-dashboard .nh-module-category-card{min-height:77px}
+.portal-shell .nh-media-dashboard .nh-genre-category>.nh-module-category-card{min-height:77px}
+.portal-shell .nh-media-dashboard .nh-media-quick-link:focus-visible{outline:2px solid #e1c0ff;outline-offset:3px}
+@media(max-width:700px){
+ .portal-shell .nh-media-dashboard{gap:11px;padding:14px 12px}
+ .portal-shell .nh-media-dashboard .nh-module-dashboard-header{gap:9px}
+ .portal-shell .nh-media-dashboard .nh-module-dashboard-title{gap:9px}
+ .portal-shell .nh-media-dashboard .nh-module-dashboard-title p{margin:4px 0 0;font-size:10px;line-height:1.4}
+ .portal-shell .nh-media-dashboard .nh-module-heading-icon{width:39px;height:39px}
+ .portal-shell .nh-media-dashboard .nh-module-heading-icon svg{width:23px;height:23px}
+ .portal-shell .nh-media-dashboard .nh-module-dashboard-title h1{font-size:21px}
+ .portal-shell .nh-media-dashboard .nh-module-heading-actions{width:auto;gap:7px}
+ .portal-shell .nh-media-dashboard .nh-module-heading-actions>button{flex:none;min-height:34px;padding:7px 12px;font-size:11px}
+ .portal-shell .nh-media-quick-links{gap:7px}
+ .portal-shell .nh-media-quick-link{gap:7px;min-height:61px;padding:8px 10px}
+ .portal-shell .nh-media-quick-link strong{font-size:20px}
+ .portal-shell .nh-media-quick-link small{font-size:10px}
+ .portal-shell .nh-media-quick-link>svg:first-child{width:17px;height:17px}
+ .portal-shell .nh-media-quick-link>svg:last-child{width:12px}
+ .portal-shell .nh-media-dashboard .nh-module-category-head h2{font-size:17px}
+ .portal-shell .nh-media-dashboard .nh-module-category-head p{margin:3px 0 0;font-size:10px}
+ .portal-shell .nh-media-dashboard .nh-category-tabs{margin:0;gap:6px}
+ .portal-shell .nh-media-dashboard .nh-category-tabs button{min-height:36px;padding:7px 10px;font-size:11px}
+ .portal-shell .nh-media-dashboard .nh-module-category-card{min-height:78px}
+ .portal-shell .nh-media-dashboard .nh-genre-category>.nh-module-category-card{min-height:78px}
+}
+@media(max-width:375px){
+ .portal-shell .nh-media-quick-link{padding:8px;gap:6px}
+ .portal-shell .nh-media-quick-link strong{font-size:18px}
+ .portal-shell .nh-media-dashboard .nh-module-category-card{min-height:91px}
+ .portal-shell .nh-media-dashboard .nh-genre-category>.nh-module-category-card{min-height:91px}
+}
+@media(prefers-reduced-motion:reduce){.portal-shell .nh-media-quick-link{transition:none}}
+
+/* Integrated genre card retains the original movie/TV accent above small posters. */
+.portal-shell .nh-module-dashboard>.nh-discovery{margin:0}
+.portal-shell .nh-genre-category-unified{gap:0;overflow:hidden;border:1px solid #3b384b;border-radius:13px;background:#100d17}
+.portal-shell .nh-genre-category-unified>.nh-module-category-card{width:100%;border:0;border-radius:0;min-height:72px}
+.portal-shell .nh-story-primary-actions{display:flex;justify-content:flex-start}
+.portal-shell .nh-story-primary-actions .primary{min-height:46px;font-size:13px}
+.portal-shell .nh-category-tabs{mask-image:linear-gradient(to right,#000 0%,#000 calc(100% - 22px),transparent 100%)}
+@media(max-width:600px){.portal-shell .nh-category-tabs button{padding-inline:11px}.portal-shell .nh-module-dashboard>.nh-discovery{margin:0}}
+
+.portal-shell .nh-watchlist-group{display:grid;gap:12px;border-top:1px solid #344360;padding-top:15px}
+.portal-shell .nh-watchlist-group .nh-module-category-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.portal-shell .nh-watchlist-open{display:inline-flex;align-items:center;gap:4px;min-height:44px;color:#dbc0ff;font-size:12px}
+.portal-shell .nh-watchlist-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.portal-shell .nh-watchlist-items button{display:flex;align-items:center;text-align:left;gap:9px;min-height:50px;padding:10px;background:#16263b;border:1px solid #3a4a68;border-radius:11px;font-size:12px}
+.portal-shell .nh-watchlist-items button span{flex:1;min-width:0;overflow-wrap:anywhere}
+.portal-shell .nh-watchlist-items button svg:first-child{color:#c0a0eb;flex:none}
+@media(max-width:600px){.portal-shell .nh-watchlist-items{grid-template-columns:1fr}}
+
+/* Compact newest-added title previews in film and series genre cards. */
+.portal-shell .nh-media-category-grid .nh-genre-category{overflow:hidden;gap:0;border:1px solid #30303a;border-radius:14px;background:#0c0a11}
+.portal-shell .nh-media-category-grid .nh-genre-category>.nh-module-category-card{border:0;border-radius:0;min-height:84px}
+.portal-shell .nh-genre-poster-strip{display:flex;justify-content:center;align-items:center;gap:6px;min-height:62px;padding:8px 9px 10px;border-top:1px solid #302b37;background:linear-gradient(180deg,#100d16,#0c0a12)}
+.portal-shell .nh-genre-poster-strip[data-kind="series"]{border-top-color:#293349;background:linear-gradient(180deg,#0d101a,#0b0c14)}
+.portal-shell .nh-genre-poster{display:block;flex:0 1 37px;min-width:0;max-width:37px;aspect-ratio:2/3;border:1px solid #ffffff25;border-radius:5px;overflow:hidden;background:#18121f;box-shadow:0 2px 8px #0008}
+.portal-shell .nh-genre-poster img{display:block;width:100%;height:100%;object-fit:cover}
+.portal-shell .nh-genre-poster-fallback{display:grid;place-items:center;width:100%;height:100%;color:#80768c}
+@media(max-width:700px){
+ .portal-shell .nh-genre-poster-strip{gap:4px;padding:7px 7px 8px;min-height:50px}
+ .portal-shell .nh-genre-poster{flex-basis:31px;max-width:31px;border-radius:4px}
+}
+
+/* Story names use the card width on phones, keeping whole words together. */
+.portal-shell .nh-story-dashboard .nh-category-copy strong{overflow-wrap:normal;word-break:normal;hyphens:none}
+@media(max-width:600px){
+ .portal-shell .nh-story-dashboard .nh-module-category-card{display:grid;grid-template-columns:minmax(0,1fr) 17px;align-content:start;align-items:center;gap:10px;min-height:118px}
+ .portal-shell .nh-story-dashboard .nh-category-icon{grid-column:1;grid-row:1}
+ .portal-shell .nh-story-dashboard .nh-category-arrow{grid-column:2;grid-row:1;position:static;justify-self:end}
+ .portal-shell .nh-story-dashboard .nh-category-copy{grid-column:1/-1;grid-row:2;width:100%}
+}
+
+/* Shared search and register navigation. Existing Chroma surfaces are reused. */
+.nh-search-poster{width:42px;height:60px;flex:0 0 42px;overflow:hidden;border-radius:7px;display:grid;place-items:center;background:#111019}.nh-search-poster img{width:100%;height:100%;object-fit:cover}.nh-search-loading{display:flex;align-items:center;gap:8px;color:var(--muted)}.nh-search-more{margin-top:12px}.nh-global-results .entry-text{min-width:0}.nh-global-results .entry-text strong{overflow-wrap:anywhere}.nh-plugin-technical{margin:24px 0}.nh-plugin-technical summary{cursor:pointer;padding:12px 0}.nh-plugin-technical pre{overflow:auto;max-width:100%}.nh-unified-register-tabs{margin-bottom:22px;display:flex;flex-wrap:wrap}.nh-unified-register-tabs button{flex:1;min-width:95px} .nh-register-switch.nh-unified-register-tabs button{white-space:nowrap}

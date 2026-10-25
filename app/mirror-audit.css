@@ -1,0 +1,38 @@
+.audit-panel{border:1px solid #3b485b;border-radius:15px;padding:22px;margin:24px 0;background:linear-gradient(150deg,#182438,#101928);color:#edf1f9}
+.audit-header{display:flex;gap:14px;align-items:center}.audit-header h2{font-size:19px;margin:0 0 8px!important}.audit-header p{font-size:12px;color:#acb9cd;line-height:1.7;margin:0!important}
+.audit-heading-icon{display:flex;align-items:center;justify-content:center;width:47px;height:47px;flex-shrink:0;border:1px solid #536c76;border-radius:11px;background:#253d45;color:#aedcd0}
+.audit-intro{display:flex;align-items:flex-start;gap:11px;padding:14px;border-radius:9px;border:1px solid #33445b;background:#101b2c;margin:18px 0;font-size:12px;color:#b1c2d5;line-height:1.7}
+.audit-intro svg{flex-shrink:0;color:#b6a3db;margin-top:2px}.audit-empty{padding:13px 0 0}.audit-empty p{color:#bdc9d8;font-size:13px;line-height:1.8}
+.audit-empty button{display:inline-flex;align-items:center;gap:8px;margin-top:14px}
+.audit-meta{display:flex;align-items:center;gap:13px;flex-wrap:wrap;font-size:11px;color:#abb9d0;margin:17px 0 12px}
+.audit-meta code{color:#e0c9fa}.audit-progress-bar{height:9px;overflow:hidden;border-radius:9px;background:#344054;border:1px solid #475169}
+.audit-progress-bar>div{height:100%;background:linear-gradient(90deg,#7c8fd0,#a6ccb2);transition:width .2s}
+.audit-progress-caption{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:11px;color:#a7b8c9;margin:11px 0 18px}
+.audit-progress-caption strong{color:#dfe8f6;font-size:14px}
+.audit-counts{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px;margin:20px 0}
+.audit-count{background:#121e2f;border:1px solid #334259;border-radius:9px;padding:12px 10px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.audit-count strong{font-size:22px;line-height:1}.audit-count span{font-size:10px;line-height:1.4;color:#a6b5c8}
+.audit-ok strong{color:#8bd8b1}.audit-corrupt strong,.audit-missing strong{color:#f1aaa5}.audit-unknown strong,.audit-oversized strong{color:#e9c99a}
+.audit-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:18px 0}
+.audit-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:12px;min-height:42px}
+.audit-actions .audit-reload{color:#cabce8;padding:10px}
+.audit-summary{display:flex;align-items:flex-start;gap:9px;border:1px solid #2c5d53;border-radius:9px;padding:13px;background:#16332e;color:#b4e2cc;font-size:11px;line-height:1.6}
+.audit-summary svg{flex-shrink:0}
+.audit-issues-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:25px 0 13px}
+.audit-issues-head h3{font-size:15px}.audit-issues-head select{background:#101a2b;border:1px solid #3a4860;border-radius:8px;color:#d6e0f0;padding:10px;font-size:12px;max-width:60%}
+.audit-issues{border-radius:10px;overflow:hidden;border:1px solid #374257;background:#131f2e;max-height:420px;overflow-y:auto}
+.audit-issue{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-bottom:1px solid #29384a}
+.audit-issue:last-child{border-bottom:0}.audit-issue>span{color:#e3bc96;flex-shrink:0}
+.audit-issue.corrupt>span,.audit-issue.missing>span{color:#edaaa4}
+.audit-issue>div{min-width:0}.audit-issue strong{display:block;color:#e8eafa;font-size:11px;overflow-wrap:anywhere;line-height:1.6}
+.audit-issue small{display:block;color:#a9b8cd;line-height:1.7;font-size:10px;margin-top:5px}
+.audit-no-issues{padding:24px;color:#9cb1c7;font-size:12px}
+.audit-pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:13px;font-size:11px;color:#a8b7cb}
+.audit-pager button{display:flex;gap:5px;align-items:center;min-height:36px;color:#d0bde9}
+.audit-pager button:disabled{opacity:.35}
+.audit-explain{font-size:11px;line-height:1.8;color:#9badc3;margin:24px 0 0}
+.audit-error{display:flex;align-items:center;gap:9px;border:1px solid #ad6677;background:#3f2634;border-radius:9px;padding:13px;color:#ffc4ca;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.stories-github-status{display:flex;gap:9px;align-items:center;flex-wrap:wrap;border:1px solid #375a56;background:#183129;color:#bce9d2;font-size:11px;border-radius:9px;padding:10px 12px;margin:0 0 20px;line-height:1.6}
+.stories-github-status.error{background:#3d2735;border-color:#895660;color:#ffc3c0}
+.stories-github-status .stories-text-button{margin-left:auto;min-height:26px;font-size:11px}
+@media(max-width:650px){.audit-panel{padding:15px;margin:20px 0}.audit-counts{grid-template-columns:repeat(2,minmax(0,1fr))}.audit-progress-caption{flex-wrap:wrap}.audit-issues-head{align-items:stretch;flex-direction:column}.audit-issues-head select{max-width:100%}.audit-actions .primary{width:100%}}

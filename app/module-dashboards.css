@@ -1,0 +1,139 @@
+/* Nexus Hub · shared category dashboards for Databas, Berättelser and system.
+   All styling scoped to current portal. No effect on data sources or legacy editor. */
+.portal-shell .nh-module-dashboard{--nh-tone:#c5a6ff;display:grid;gap:21px;min-width:0;margin:0 0 23px;padding:22px;border:1px solid #35466c;border-radius:21px;background:radial-gradient(circle at 88% 0%,#59447424,transparent 36%),linear-gradient(135deg,#192640,#101929 80%);box-shadow:0 18px 38px #00000024}
+.portal-shell .nh-module-dashboard-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.portal-shell .nh-module-dashboard-title{display:flex;gap:14px;min-width:0;align-items:flex-start}
+.portal-shell .nh-module-heading-icon{display:grid;place-items:center;width:53px;height:53px;flex:none;border-radius:15px;border:1px solid #725c9f;background:linear-gradient(135deg,#513c75,#262b49);color:#dab7ff;box-shadow:0 6px 19px #0002}
+.portal-shell .nh-module-eyebrow{display:block;margin-bottom:8px;font-size:10px;font-weight:780;letter-spacing:1.75px;color:#c0a6f8;line-height:1.5}
+.portal-shell .nh-module-dashboard-title h1{margin:0;color:#f4efff;font-size:clamp(23px,3vw,31px);font-weight:780;line-height:1.18;letter-spacing:-.8px}
+.portal-shell .nh-module-dashboard-title p{margin:9px 0 0;color:#b4c2da;font-size:12px;line-height:1.7;max-width:580px}
+.portal-shell .nh-catalog-status{display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:160px;min-width:0;flex:none;font-size:11px;color:#8fdfb6;font-weight:680;line-height:1.5;text-align:right}
+.portal-shell .nh-status-line{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}.portal-shell .nh-status-line svg{flex:none}
+.portal-shell .nh-catalog-status small{font-size:10px;color:#aec0da;font-weight:450}
+.portal-shell .nh-module-stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.portal-shell .nh-story-stat-row{grid-template-columns:repeat(4,minmax(0,1fr))}
+.portal-shell .nh-module-stat{--nh-stat-color:#c1a3fc;display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0;min-height:126px;padding:16px;border:1px solid color-mix(in srgb,var(--nh-stat-color) 29%,#30405c);border-radius:15px;background:linear-gradient(145deg,color-mix(in srgb,var(--nh-stat-color) 9%,#101d30),#101b2c)}
+.portal-shell .nh-module-stat.nh-tone-blue{--nh-stat-color:#84c8ff}
+.portal-shell .nh-module-stat.nh-tone-green{--nh-stat-color:#74e0b0}
+.portal-shell .nh-module-stat.nh-tone-pink{--nh-stat-color:#f0a0d1}
+.portal-shell .nh-module-stat.nh-tone-orange{--nh-stat-color:#ffd095}
+.portal-shell .nh-module-stat svg{color:var(--nh-stat-color)}
+.portal-shell .nh-module-stat strong{font-weight:760;font-size:clamp(24px,3vw,30px);line-height:1.05;font-variant-numeric:tabular-nums;color:#eff0ff}
+.portal-shell .nh-module-stat span{font-size:11px;line-height:1.4;color:#adbcda}
+.portal-shell .nh-dashboard-note{border:1px solid #736241;background:#342a1d;color:#f3d7a9;font-size:11px;line-height:1.6;border-radius:10px;padding:10px 13px;margin:0}
+.portal-shell .nh-module-category-head h2{margin:0;font-size:clamp(18px,2.4vw,22px);color:#f2edff;letter-spacing:-.3px}
+.portal-shell .nh-module-category-head p{margin:6px 0 0;font-size:11px;color:#a9b9d3;line-height:1.6}
+.portal-shell .nh-module-category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.portal-shell .nh-module-category-card{--nh-category-color:#bf9cff;display:flex;align-items:center;gap:12px;position:relative;min-width:0;min-height:89px;padding:13px 14px;border:1px solid #3d4c6c;border-radius:15px;background:linear-gradient(120deg,#17243a,#111c31);text-align:left;color:#f1ecff;cursor:pointer;transition:border-color .18s,transform .18s,background .18s,box-shadow .18s}
+.portal-shell .nh-category-1{--nh-category-color:#87c7ff}
+.portal-shell .nh-category-2{--nh-category-color:#ef9ec9}
+.portal-shell .nh-category-3{--nh-category-color:#81d9b3}
+.portal-shell .nh-category-all{--nh-category-color:#c9a4ff;background:linear-gradient(125deg,#2a2146,#15213b)}
+.portal-shell .nh-module-category-card.selected{border-color:var(--nh-category-color);background:linear-gradient(130deg,color-mix(in srgb,var(--nh-category-color) 17%,#192238),#101b2c);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nh-category-color) 16%,transparent)}
+.portal-shell .nh-module-category-card:hover{transform:translateY(-2px);border-color:var(--nh-category-color)}
+.portal-shell .nh-category-icon{width:45px;height:45px;display:grid;place-items:center;flex:none;border-radius:12px;color:var(--nh-category-color);background:color-mix(in srgb,var(--nh-category-color) 12%,#20263d)}
+.portal-shell .nh-category-copy{min-width:0;flex:1;display:flex;flex-direction:column;gap:6px}
+.portal-shell .nh-category-copy strong{color:#f0edff;font-size:13px;line-height:1.35;overflow-wrap:anywhere;font-weight:720}
+.portal-shell .nh-category-copy small{color:#a7b7d0;font-size:10px;line-height:1.4}
+.portal-shell .nh-category-arrow{color:#c2b5d9;flex:none}
+.portal-shell .nh-category-expand,.portal-shell .nh-dashboard-refresh{display:inline-flex;align-items:center;justify-content:center;gap:8px;justify-self:start;border:1px solid #465576;border-radius:11px;background:#1b2941;color:#dbc4fc;min-height:40px;padding:9px 13px;font-size:11px;font-weight:650;cursor:pointer}
+.portal-shell .nh-category-expand:hover,.portal-shell .nh-dashboard-refresh:hover{background:#2a3151;border-color:#8b72ba}
+.portal-shell .nh-rotated{transform:rotate(180deg)}
+.portal-shell .nh-module-heading-actions{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:9px}
+.portal-shell .nh-module-heading-actions .secondary{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;min-height:40px;font-size:11px}
+.portal-shell .nh-story-dashboard{--nh-tone:#cba3ff}
+.portal-shell .nh-story-dashboard .nh-module-heading-icon{background:linear-gradient(135deg,#684187,#302344)}
+.portal-shell .nh-module-dashboard :is(button,a):focus-visible,.portal-shell .nh-settings-section>summary:focus-visible{outline:3px solid #d6b1ff;outline-offset:3px}
+.portal-shell .nh-module-search-panel{border:1px solid #384b6c;border-radius:17px;background:linear-gradient(125deg,#17253b,#101b2c);padding:16px;margin:20px 0 16px}
+.portal-shell .nh-module-search-panel .searchbar{margin:0 0 12px}
+.portal-shell .nh-module-search-panel .portal-topic{margin:0}
+.portal-shell .nh-module-search-panel .portal-topic select{background:#0e192b;border:1px solid #3c506e;color:#f0f3ff}
+.portal-shell .nh-module-search-panel .nh-module-filter-label{display:block;color:#cbb7ee;font-size:10px;font-weight:750;letter-spacing:1.1px;margin:0 0 9px}
+.portal-shell .nh-database-results{overflow:hidden;border-color:#334765}
+.portal-shell .nh-database-results .entry-with-check{border-bottom:1px solid #35465d}
+.portal-shell .nh-database-results .entry-with-check:last-child{border-bottom:0}
+.portal-shell .nh-database-results .entry-with-check:nth-child(even){background:#1c293c55}
+.portal-shell .nh-database-results .entry-row{min-height:104px;padding:15px 17px}
+.portal-shell .nh-database-results .entry-row:hover{background:#2a375260}
+.portal-shell .nh-database-results .entry-icon{flex:none}
+.portal-shell .nh-database-results .entry-text{line-height:1.55}
+.portal-shell .nh-database-results .entry-text strong{font-size:13px;color:#f2f0ff}
+.portal-shell .nh-database-results .entry-text small{font-size:11px}
+.portal-shell #nh-database-results,.portal-shell #nh-story-results{scroll-margin-top:90px}
+.portal-shell .stories-app .stories-switch{margin:0 0 18px}
+.portal-shell .stories-app .stories-github-status{border-radius:12px;padding:9px 12px;margin:0 0 18px;font-size:10px;line-height:1.55;background:#142b2c;border-color:#34565b;color:#b8e6d8}
+.portal-shell .stories-app .stories-github-status .stories-text-button{font-size:10px}
+.portal-shell .stories-app .stories-filterbar{margin-top:0}
+.portal-shell .stories-app .stories-list-header{margin-top:16px}
+.portal-shell .stories-app .stories-list-header h2{color:#f4ebff}
+.portal-shell .nh-settings-overview{gap:18px}
+.portal-shell .nh-settings-verification{display:flex;align-items:flex-start;gap:10px;border:1px solid #3d5b59;border-radius:13px;background:#142e2c;color:#b1dbc9;padding:12px 14px;font-size:11px;line-height:1.7;margin:0}
+.portal-shell .nh-settings-verification svg{color:#87dbb4;flex:none;margin-top:1px}
+.portal-shell .nh-settings-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.portal-shell .nh-settings-action{display:flex;align-items:center;gap:11px;min-height:96px;padding:15px;background:linear-gradient(135deg,#1b2942,#111a2e);border:1px solid #425373;border-radius:14px;color:#cbb2ff;text-align:left;cursor:pointer;transition:border-color .18s,transform .18s}
+.portal-shell .nh-settings-action:hover{border-color:#b6a1f0;transform:translateY(-2px)}
+.portal-shell .nh-settings-action>svg:first-child{flex:none}
+.portal-shell .nh-settings-action>span{display:flex;flex-direction:column;min-width:0;gap:7px;flex:1}
+.portal-shell .nh-settings-action strong{font-size:13px;color:#f3eeff;line-height:1.35}
+.portal-shell .nh-settings-action small{color:#a8b9d4;font-size:11px;line-height:1.55}
+.portal-shell .nh-settings-section{border:1px solid #354766;border-radius:17px;background:linear-gradient(140deg,#16243b,#10192c);margin:0 0 17px;overflow:hidden}
+.portal-shell .nh-settings-section>summary{display:flex;align-items:center;gap:12px;min-height:74px;padding:17px 19px;cursor:pointer;color:#dcc7fd;list-style:none}
+.portal-shell .nh-settings-section>summary::-webkit-details-marker{display:none}
+.portal-shell .nh-settings-section>summary>svg:first-child{flex:none;width:24px;height:24px}
+.portal-shell .nh-settings-section>summary>span{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.portal-shell .nh-settings-section>summary strong{color:#f5eeff;font-size:14px}
+.portal-shell .nh-settings-section>summary small{color:#a6b7cf;font-size:11px;line-height:1.5}
+.portal-shell .nh-settings-section .nh-details-chevron{transition:transform .18s}
+.portal-shell .nh-settings-section[open] .nh-details-chevron{transform:rotate(180deg)}
+.portal-shell .nh-settings-section[open]>summary{border-bottom:1px solid #334761;background:#ffffff07}
+.portal-shell .nh-settings-section>.settings-panel{border:0;background:transparent;margin:0;border-radius:0;box-shadow:none}
+.portal-shell .nh-settings-section .audit-panel{margin:16px}
+.portal-shell .nh-menu-section-title{font-size:10px;color:#ac9bce;letter-spacing:1.55px;font-weight:750;padding:15px 16px 5px;margin:0}
+.portal-shell .nh-menu-private-note{display:flex;gap:10px;align-items:center;margin:15px 7px 5px;padding:13px 14px;border:1px solid #355a52;border-radius:12px;color:#acd9c4;background:#153029;font-size:11px;line-height:1.5}
+.portal-shell .nh-menu-private-note svg{flex:none;color:#82d9ab}
+.portal-shell .nh-menu-settings{margin-top:13px!important;border:1px solid #61477f!important;background:#2c2145!important;color:#ebd7ff!important}
+.portal-shell .nh-menu-settings>svg:last-child{margin-left:auto}
+@media(max-width:900px){
+ .portal-shell .nh-module-dashboard-header{flex-direction:column}
+ .portal-shell .nh-module-heading-actions{justify-content:flex-start}
+ .portal-shell .nh-catalog-status{align-items:flex-start;max-width:none;text-align:left}
+ .portal-shell .nh-catalog-status svg{margin:0}
+}
+@media(max-width:600px){
+ .portal-shell .nh-module-dashboard{padding:15px 13px;gap:16px;border-radius:17px;margin-bottom:17px}
+ .portal-shell .nh-module-dashboard-title{gap:10px}
+ .portal-shell .nh-module-heading-icon{width:43px;height:43px;border-radius:12px}
+ .portal-shell .nh-module-heading-icon svg{width:24px;height:24px}
+ .portal-shell .nh-module-eyebrow{font-size:9px;letter-spacing:1.2px;margin-bottom:6px}
+ .portal-shell .nh-module-dashboard-title h1{font-size:22px}
+ .portal-shell .nh-module-dashboard-title p{font-size:11px;line-height:1.6}
+ .portal-shell .nh-module-stat-row{gap:8px}
+ .portal-shell .nh-module-stat{min-height:100px;gap:6px;padding:12px 10px;border-radius:12px}
+ .portal-shell .nh-module-stat svg{width:20px;height:20px}
+ .portal-shell .nh-module-stat strong{font-size:23px}
+ .portal-shell .nh-module-stat span{font-size:10px}
+ .portal-shell .nh-story-stat-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .portal-shell .nh-module-category-head h2{font-size:18px}
+ .portal-shell .nh-module-category-grid{gap:8px}
+ .portal-shell .nh-module-category-card{flex-direction:column;align-items:flex-start;min-height:137px;gap:9px;padding:12px 11px;border-radius:13px}
+ .portal-shell .nh-category-icon{width:36px;height:36px}
+ .portal-shell .nh-category-icon svg{width:21px;height:21px}
+ .portal-shell .nh-category-copy strong{font-size:12px}
+ .portal-shell .nh-category-copy small{font-size:10px}
+ .portal-shell .nh-category-arrow{position:absolute;top:15px;right:10px;width:15px}
+ .portal-shell .nh-module-search-panel{padding:11px;border-radius:13px}
+ .portal-shell .nh-database-results .entry-row{padding:13px 12px;min-height:106px}
+ .portal-shell .nh-database-results .entry-text strong{font-size:12px}
+ .portal-shell .nh-settings-actions{grid-template-columns:1fr}
+ .portal-shell .nh-settings-action{min-height:78px}
+ .portal-shell .nh-settings-section>summary{padding:15px 12px}
+ .portal-shell .nh-settings-section .audit-panel{margin:9px}
+}
+@media(max-width:370px){
+ .portal-shell .nh-module-stat strong{font-size:20px}
+ .portal-shell .nh-module-stat{padding:10px 7px}
+ .portal-shell .nh-module-category-card{min-height:150px}
+ .portal-shell .nh-module-heading-actions{width:100%}
+ .portal-shell .nh-module-heading-actions>button{flex:1}
+}
+@media(prefers-reduced-motion:reduce){.portal-shell .nh-module-category-card,.portal-shell .nh-settings-action{transition:none}.portal-shell .nh-module-category-card:hover,.portal-shell .nh-settings-action:hover{transform:none}}

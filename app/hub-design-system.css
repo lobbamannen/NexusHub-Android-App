@@ -1,0 +1,107 @@
+/* Nexus Hub · shared design tokens and component surfaces.
+   Applied across all portal modules without changing data or navigation behavior. */
+.portal-shell{
+ --nh-bg:#080f1d;
+ --nh-surface:#111d30;
+ --nh-surface-raised:#17263d;
+ --nh-border:#344766;
+ --nh-border-active:#9b7bda;
+ --nh-text:#f1f2fc;
+ --nh-muted:#a5b7d2;
+ --nh-accent:#c49bff;
+ --nh-blue:#79bdff;
+ --nh-green:#74e2ad;
+ --nh-pink:#f6a2d4;
+ --nh-orange:#ffc181;
+ color:var(--nh-text);
+}
+.portal-shell .workspace{background:radial-gradient(circle at 83% 2%,#281c3a40,transparent 34%),#090f1c}
+.portal-shell main{max-width:1380px;margin-inline:auto}
+.portal-shell .sidebar{background:linear-gradient(170deg,#101a2b,#0b1220 80%);border-right-color:#304262}
+.portal-shell .topbar{background:#0b1322f4;border-bottom-color:#314263;backdrop-filter:blur(17px)}
+.portal-shell .brand b{color:#c598ff}
+.portal-shell .bottom-nav{background:linear-gradient(175deg,#111c30f7,#090e1def);border-top-color:#304362;backdrop-filter:blur(15px)}
+.portal-shell .bottom-nav button.active,.portal-shell .nav-item.active{color:#ddb7ff}
+.portal-shell .bottom-nav button:focus-visible,.portal-shell .nav-item:focus-visible{outline:2px solid #d5b4ff;outline-offset:2px}
+.portal-shell :is(.page-heading,.film-intro,.stories-intro) h1{color:#f3f0ff;letter-spacing:-.7px;font-weight:760;line-height:1.2}
+.portal-shell .film-intro h1 svg,.portal-shell .stories-intro h1 svg{color:var(--nh-accent)}
+.portal-shell :is(.page-heading,.film-intro,.stories-intro) p:last-child{color:var(--nh-muted);line-height:1.68}
+.portal-shell :is(.page-heading .eyebrow,.film-intro .eyebrow,.stories-kicker){color:#c7adf5;letter-spacing:1.7px;font-weight:750}
+.portal-shell :is(.panel,.settings-panel,.film-detail-sections section,.stories-reader-article,.series-season-overview,.series-provider,.film-viewing-edit){
+ background:linear-gradient(145deg,#19263c,#101a2b);
+ border:1px solid var(--nh-border);
+ border-radius:17px;
+ color:var(--nh-text);
+ box-shadow:0 9px 25px #0000001a;
+}
+.portal-shell :is(.film-stats>div,.stories-stats>div,.mirror-stats>div){
+ background:linear-gradient(145deg,#1a2940,#101b2e);
+ border:1px solid #394b6a;
+ border-radius:15px;
+}
+.portal-shell :is(.film-stats strong,.stories-stats strong){color:#f0f1ff;font-variant-numeric:tabular-nums;font-weight:760}
+.portal-shell :is(.film-stats span,.stories-stats span){color:#a9bad3}
+.portal-shell :is(.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card,.stories-category){
+ background:linear-gradient(155deg,#19283f,#101b2d);
+ border:1px solid #34496a;
+ border-radius:16px;
+ box-shadow:0 12px 26px #00000020;
+ transition:border-color .18s,transform .18s,box-shadow .18s;
+}
+.portal-shell :is(.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card,.stories-category):hover{
+ border-color:#9277c1;
+ transform:translateY(-2px);
+ box-shadow:0 17px 33px #00000040;
+}
+.portal-shell :is(.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card,.stories-category):focus-within{
+ border-color:#aa8bdf;
+}
+.portal-shell :is(.film-filters,.stories-filterbar,.series-filters){
+ background:linear-gradient(145deg,#131f32,#101929);
+ border:1px solid #314361;
+ border-radius:17px;
+ padding:14px;
+ margin-block:16px 21px;
+}
+.portal-shell :is(.film-filters input,.film-filters select,.film-fields input,.film-fields select,.film-fields textarea,.stories-filterbar input,.stories-filterbar select,.series-filters input,.series-filters select){
+ background:#0e192a;
+ border:1px solid #3b506e;
+ border-radius:10px;
+ color:#f0edff;
+}
+.portal-shell :is(.film-filters input,.film-filters select,.film-fields input,.film-fields select,.film-fields textarea,.stories-filterbar input,.stories-filterbar select,.series-filters input,.series-filters select):focus-visible{
+ outline:2px solid #b693ed;
+ outline-offset:1px;
+ border-color:#ad8ce9;
+}
+.portal-shell :is(.film-grid,.stories-grid,.hub-plugin-grid){gap:15px}
+.portal-shell .film-poster{background:#121e32;border-color:#435371}
+.portal-shell :is(.film-card,.stories-card) :is(h3,strong){color:#f0edff}
+.portal-shell :is(.film-muted,.stories-disclaimer,.film-source,.stories-source-note){color:#a6b8d2}
+.portal-shell .film-status.seen,.portal-shell .series-read-only{color:#8fe0b2}
+.portal-shell :is(.stories-switch,.media-switch){background:#111d30;border:1px solid #39496c;border-radius:14px}
+.portal-shell :is(.stories-switch button.active,.media-switch button.selected){background:linear-gradient(125deg,#634487,#382950);color:#f4e7ff;border-radius:10px;box-shadow:0 4px 16px #39285360}
+.portal-shell :is(.series-coverage,.stories-contents,.stories-reader-layout){color:#dbe2f4}
+.portal-shell :is(.reader-toolbar,.film-detail-top,.stories-reader-top){border-color:#354663}
+.portal-shell :is(.primary,.hub-hero-primary){background:linear-gradient(120deg,#e5d8ff,#cdb5fa);color:#231936;border:1px solid #dfcbff;border-radius:12px;font-weight:750}
+.portal-shell :is(.secondary,.hub-hero-secondary){background:#1c2840;border:1px solid #465575;color:#e2d9f9;border-radius:12px;font-weight:650}
+.portal-shell .primary:hover:not(:disabled){background:#efe4ff;box-shadow:0 4px 20px #9270e055}
+.portal-shell :is(.film-quiet,.stories-text-button,.hub-inline-link){color:#ccaeff}
+.portal-shell :is(.entry-row,.hub-plugin-card,.film-card,.stories-card):focus-visible{outline:2px solid #e0b9ff;outline-offset:3px}
+.portal-shell :is(.film-empty,.stories-empty,.hub-empty,.history-note){color:#b3c0d9}
+.portal-shell .module-icon.purple{color:#d0acff}
+.portal-shell .module-icon.blue{color:#9fcfff}
+.portal-shell .module-icon.green{color:#87e1c3}
+.portal-shell .module-icon.pink{color:#f7b1d9}
+.portal-shell .module-icon.orange{color:#ffca91}
+@media(max-width:800px){
+ .portal-shell :is(.film-filters,.stories-filterbar,.series-filters){padding:10px;margin-block:12px 18px}
+ .portal-shell :is(.film-grid,.stories-grid,.hub-plugin-grid){gap:11px}
+ .portal-shell :is(.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card){border-radius:13px}
+ .portal-shell :is(.page-heading,.film-intro,.stories-intro) h1{font-size:clamp(22px,5.8vw,28px)}
+ .portal-shell :is(.film-stats>div,.stories-stats>div){padding:13px}
+}
+@media(prefers-reduced-motion:reduce){
+ .portal-shell :is(.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card,.stories-category){transition:none}
+ .portal-shell :is(.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card,.stories-category):hover{transform:none}
+}

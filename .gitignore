@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.gradle/
+build/
+app/build/
+app/src/main/assets/www/
+local.properties
+*.jks
+*.keystore
+*.apk
+*.aab
+.env*
+!.env.example
+.scratch/
+playwright-report/
+test-results/

@@ -1,0 +1,122 @@
+/* Nexus Hub Register – uses existing Chroma MaterialIcon and obsidian/neon surfaces. */
+.portal-shell .nh-register-home-card{grid-column:1/-1;min-height:106px}
+.portal-shell .nh-register-home-card .nh-module-copy>span{max-width:none}
+.portal-shell .nh-register-shortcut{width:100%;min-height:72px;display:flex;align-items:center;gap:15px;text-align:left;padding:13px 18px;margin:0 0 17px;border:1px solid #a78bfa44;border-radius:16px;background:radial-gradient(ellipse at 0 50%,#55368522,transparent 60%),linear-gradient(135deg,#121016,#0b0b0e);box-shadow:inset 0 1px #ffffff0a;color:#f4f4f5;cursor:pointer;transition:border-color .2s,transform .2s}
+.portal-shell .nh-register-shortcut:hover{border-color:#c4b5fd88;transform:translateY(-1px)}
+.portal-shell .nh-register-shortcut-copy{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
+.portal-shell .nh-register-shortcut-copy strong{font-size:16px;font-weight:730}
+.portal-shell .nh-register-shortcut-copy small{font-size:11px;color:#9b94a9}
+.portal-shell .nh-register-shortcut>svg:last-child{color:#a78bfa}
+.portal-shell .nh-register-page{max-width:1050px;margin:0 auto;padding-bottom:110px;color:#f4f4f5;min-width:0}
+.portal-shell .nh-register-heading{display:flex;align-items:center;gap:17px;margin:4px 0 24px}
+.portal-shell .nh-register-heading h1{font-size:clamp(26px,4vw,34px);letter-spacing:-.8px;line-height:1.2;margin:5px 0}
+.portal-shell .nh-register-heading p{font-size:12px;line-height:1.6;color:#a1a1aa}
+.portal-shell .nh-register-eyebrow{font-size:9px;letter-spacing:1.6px;color:#c4b5fd;font-weight:700}
+.portal-shell .nh-register-switch{display:grid;grid-template-columns:1fr 1fr;background:#09090c;border:1px solid #ffffff18;padding:5px;gap:5px;border-radius:14px;margin-bottom:14px}
+.portal-shell .nh-register-switch button{display:flex;align-items:center;justify-content:center;gap:9px;min-height:45px;border-radius:10px;color:#a1a1aa;font-size:13px;cursor:pointer}
+.portal-shell .nh-register-switch button.active{background:linear-gradient(125deg,#332145,#181126);border:1px solid #a78bfa62;box-shadow:inset 0 1px #ffffff16;color:#f0e7ff}
+.portal-shell .nh-register-tools{display:grid;grid-template-columns:minmax(0,2fr) minmax(170px,1fr);gap:11px;align-items:end;margin:0 0 13px}
+.portal-shell .nh-register-search{display:flex;align-items:center;gap:9px;padding:0 14px;height:47px;border:1px solid #ffffff25;border-radius:12px;background:#0b0b0e;color:#9991aa}
+.portal-shell .nh-register-search:focus-within{border-color:#a78bfa8c}
+.portal-shell .nh-register-search input{flex:1;min-width:0;width:100%;height:100%;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;color:#f4f4f5;font-size:13px}
+.portal-shell .nh-register-filter{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:10px;color:#b6a6ce}
+.portal-shell .nh-register-filter select{width:100%;height:47px;border:1px solid #ffffff25;background:#0b0b0e;border-radius:12px;padding:0 11px;font-size:12px;color:#f4f4f5}
+.portal-shell .nh-register-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;color:#a1a1aa;font-size:11px}
+.portal-shell .nh-register-summary button{display:inline-flex;align-items:center;gap:6px;min-height:33px;padding:5px 9px;border-radius:8px;color:#c4b5fd;font-size:11px;cursor:pointer}
+.portal-shell .nh-register-summary button:hover{background:#a78bfa13}
+.portal-shell .nh-register-list{overflow:hidden;border:1px solid #ffffff1d;border-radius:15px;background:linear-gradient(145deg,#0d0d12,#09090c)}
+.portal-shell .nh-register-row{display:grid;grid-template-columns:45px minmax(0,1fr) auto;align-items:center;gap:13px;padding:11px 13px;border-bottom:1px solid #ffffff0e;min-height:82px;transition:background .15s}
+.portal-shell .nh-register-row:last-child{border-bottom:0}
+.portal-shell .nh-register-row:hover{background:#ffffff06}
+.portal-shell .nh-register-row.modified{background:linear-gradient(90deg,#a78bfa17,#0e0c13)}
+.portal-shell .nh-register-poster{display:grid;place-items:center;width:45px;height:66px;border-radius:6px;overflow:hidden;background:#1a1522;border:1px solid #ffffff1b}
+.portal-shell .nh-register-poster img{width:100%;height:100%;display:block;object-fit:cover}
+.portal-shell .nh-register-poster-empty{display:grid;place-items:center;width:100%;height:100%;color:#8b739d}
+.portal-shell .nh-register-main{display:flex;flex-direction:column;min-width:0;gap:5px}
+.portal-shell .nh-register-name{display:flex;gap:8px;align-items:center;min-width:0;color:#f1edf6;font-size:13px;font-weight:720;line-height:1.4;overflow-wrap:anywhere}
+.portal-shell .nh-register-modified{color:#c4b5fd;background:#a78bfa1e;border:1px solid #a78bfa32;padding:1px 5px;font-size:9px;font-weight:600;border-radius:5px;white-space:nowrap}
+.portal-shell .nh-register-meta{font-size:10px;color:#85808f}
+.portal-shell .nh-register-rating{display:flex;align-items:center;gap:7px;min-width:0}
+.portal-shell .nh-register-stars{display:flex;gap:2px;align-items:center}
+.portal-shell .nh-register-star{position:relative;display:inline-block;width:19px;height:19px;color:#f5c866}
+.portal-shell .nh-register-star svg{position:absolute;inset:0;pointer-events:none}
+.portal-shell .nh-register-star-outline{color:#6b5943}
+.portal-shell .nh-register-star-filled{color:#f6c964;filter:drop-shadow(0 0 2px #c5863580)}
+.portal-shell .nh-register-half{position:absolute;top:-2px;bottom:-2px;width:50%;cursor:pointer;border:0;background:transparent!important;min-width:0;padding:0}
+.portal-shell .nh-register-half-1{left:0}
+.portal-shell .nh-register-half-2{right:0}
+.portal-shell .nh-register-half:focus-visible{outline:2px solid #facc15;outline-offset:1px}
+.portal-shell .nh-register-rating-number{font-size:10px;color:#c9ab75;white-space:nowrap}
+.portal-shell .nh-register-clear{display:grid;place-items:center;color:#7f7685;min-width:21px;height:25px;cursor:pointer}
+.portal-shell .nh-register-row-actions{display:flex;align-items:center;gap:9px}
+.portal-shell .nh-register-viewed{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;color:#85879b;cursor:pointer;transition:color .15s,background .15s}
+.portal-shell .nh-register-viewed.selected{color:#76d5eb;background:#76d5eb14;filter:drop-shadow(0 0 6px #5fd4ed40)}
+.portal-shell .nh-register-viewed:hover{color:#b8effb;background:#76d5eb1c}
+.portal-shell .nh-register-favorite{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;color:#8b8494;cursor:pointer}
+.portal-shell .nh-register-favorite.selected{color:#f472a0}
+.portal-shell .nh-register-favorite:hover{background:#f472a015}
+.portal-shell .nh-register-edit{display:flex;align-items:center;gap:6px;padding:9px 10px;border-radius:9px;border:1px solid #ffffff25;background:#ffffff08;color:#c4b5fd;font-size:11px;cursor:pointer}
+.portal-shell .nh-register-edit:hover{border-color:#a78bfa65;background:#a78bfa15}
+.portal-shell .nh-register-alert,.portal-shell .nh-register-success{display:flex;align-items:center;gap:10px;padding:13px;margin:8px 0 13px;border-radius:10px;font-size:12px;line-height:1.6}
+.portal-shell .nh-register-alert{border:1px solid #ef444477;background:#5c1d2829;color:#fecdd3}
+.portal-shell .nh-register-success{border:1px solid #59bd975c;background:#13372938;color:#9de9c2}
+.portal-shell .nh-register-empty{padding:38px 20px;text-align:center;color:#9993a3;font-size:12px}
+.portal-shell .nh-register-savebar{position:fixed;z-index:45;bottom:24px;left:calc(50% + 116px);transform:translateX(-50%);display:flex;align-items:center;gap:13px;max-width:min(780px,calc(100vw - 310px));width:max-content;min-width:490px;padding:13px 15px;background:#15101cf5;border:1px solid #a78bfa6e;backdrop-filter:blur(18px);border-radius:16px;box-shadow:0 18px 65px #000b,0 0 28px #a78bfa1e;color:#f4f4f5}
+.portal-shell .nh-register-savebar>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.portal-shell .nh-register-savebar strong{font-size:13px}
+.portal-shell .nh-register-savebar small{font-size:10px;color:#a1a1aa}
+.portal-shell .nh-register-savebar button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:42px;white-space:nowrap;font-size:11px;cursor:pointer}
+.portal-shell .nh-register-discard{color:#b8a9c5;padding:7px 9px}
+.portal-shell .nh-register-save{padding:8px 15px}
+.portal-shell .nh-register-modal-backdrop{position:fixed;inset:0;z-index:55;background:#000c;backdrop-filter:blur(8px);display:grid;place-items:center;padding:17px}
+.portal-shell .nh-register-modal{width:min(570px,100%);max-height:92dvh;overflow:auto;background:#101014;border:1px solid #a78bfa58;border-radius:18px;box-shadow:0 30px 80px #000b}
+.portal-shell .nh-register-modal-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:19px 20px;border-bottom:1px solid #ffffff16}
+.portal-shell .nh-register-modal-heading span{font-size:9px;letter-spacing:1.4px;color:#b99cf7}
+.portal-shell .nh-register-modal-heading h2{font-size:18px;margin-top:5px}
+.portal-shell .nh-register-modal-heading button{color:#aaa3b1;padding:6px}
+.portal-shell .nh-register-modal form{padding:20px}
+.portal-shell .nh-register-form-fields{display:grid;grid-template-columns:2fr 1fr;gap:13px}
+.portal-shell .nh-register-form-fields label{display:flex;flex-direction:column;gap:7px;font-size:11px;color:#d2c3e8;min-width:0}
+.portal-shell .nh-register-form-fields label small{color:#aaa2b0;font-size:10px}
+.portal-shell .nh-register-form-fields .nh-register-wide{grid-column:1/-1}
+.portal-shell .nh-register-form-fields :is(input,select,textarea){width:100%;min-width:0;padding:11px;border:1px solid #ffffff25;background:#0a0a0f;border-radius:9px;font:inherit;font-size:13px;color:#f4f4f5}
+.portal-shell .nh-register-form-fields textarea{resize:vertical;line-height:1.5}
+.portal-shell .nh-register-editor-note{font-size:11px;line-height:1.6;color:#9993a3;margin:14px 0}
+.portal-shell .nh-register-modal-actions{display:flex;justify-content:flex-end;gap:9px}
+.portal-shell .nh-register-modal-actions button{display:flex;align-items:center;gap:6px;min-height:42px;padding:10px 14px;font-size:12px}
+.portal-shell .nh-register-page :is(button,input,select,textarea):focus-visible,.portal-shell .nh-register-shortcut:focus-visible{outline:2px solid #c4b5fd;outline-offset:3px}
+@media(max-width:900px){.portal-shell .nh-register-savebar{left:50%;max-width:calc(100vw - 40px)}}
+@media(max-width:600px){
+ .portal-shell .nh-register-home-card{min-height:92px!important;display:grid!important;grid-template-columns:45px minmax(0,1fr) 20px!important;align-items:center!important;gap:9px!important;justify-content:initial!important}
+ .portal-shell .nh-register-shortcut{min-height:65px;padding:11px 13px;gap:12px}
+ .portal-shell .nh-register-heading{gap:13px;margin-bottom:17px}
+ .portal-shell .nh-register-heading .nh-material-icon{flex-shrink:0}
+ .portal-shell .nh-register-heading h1{font-size:27px}
+ .portal-shell .nh-register-heading p{font-size:11px}
+ .portal-shell .nh-register-tools{grid-template-columns:1fr}
+ .portal-shell .nh-register-filter{gap:6px}
+ .portal-shell .nh-register-row{grid-template-columns:40px minmax(0,1fr) 35px;gap:9px;padding:9px 8px;min-height:76px}
+ .portal-shell .nh-register-poster{width:40px;height:60px}
+ .portal-shell .nh-register-name{font-size:12px;gap:5px}
+ .portal-shell .nh-register-meta{font-size:9px}
+ .portal-shell .nh-register-row-actions{flex-direction:column;gap:1px}
+ .portal-shell .nh-register-favorite,.portal-shell .nh-register-viewed{height:29px;width:30px}
+ .portal-shell .nh-register-edit{width:31px;height:31px;justify-content:center;padding:0}
+ .portal-shell .nh-register-edit span{display:none}
+ .portal-shell .nh-register-rating{gap:4px}
+ .portal-shell .nh-register-stars{gap:0}
+ .portal-shell .nh-register-star{width:17px;height:18px}
+ .portal-shell .nh-register-star svg{width:17px;height:17px}
+ .portal-shell .nh-register-rating-number{font-size:9px}
+ .portal-shell .nh-register-clear{min-width:17px}
+ .portal-shell .nh-register-modified{font-size:8px;padding:1px 3px}
+ .portal-shell .nh-register-page{padding-bottom:155px}
+ .portal-shell .nh-register-savebar{bottom:calc(76px + env(safe-area-inset-bottom));left:50%;width:calc(100vw - 22px);max-width:none;min-width:0;gap:6px;padding:10px 11px;border-radius:13px}
+ .portal-shell .nh-register-savebar strong{font-size:11px}
+ .portal-shell .nh-register-savebar small{font-size:9px}
+ .portal-shell .nh-register-savebar button{min-height:39px;font-size:10px}
+ .portal-shell .nh-register-discard{padding:5px}
+ .portal-shell .nh-register-save{padding:8px}
+ .portal-shell .nh-register-modal form{padding:13px}
+ .portal-shell .nh-register-modal-heading{padding:15px}
+}

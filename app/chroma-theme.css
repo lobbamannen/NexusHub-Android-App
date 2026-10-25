@@ -1,0 +1,145 @@
+/* Nexus Hub — the approved V3 colour-test translated across the whole app.
+   Structural layouts, data, navigation and interactive states stay with their views. */
+body:has(.nh-chroma-site){background:#000}
+.portal-shell.nh-chroma-site{
+ --ctrl-glow:1;--ctrl-border:1;--font-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--font-sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+ --nh-bg:#060407;--nh-surface:#0b0b0e;--nh-surface-raised:#101015;--nh-border:#ffffff13;--nh-border-active:#7354b5;--nh-text:#f4f4f5;--nh-muted:#93939e;--nh-accent:#c084fc;--nh-blue:#7dd3fc;--nh-green:#74e2ad;--nh-pink:#f472b6;--nh-orange:#fda4af;
+ --bg:#060407;--surface:#0b0b0e;--raised:#101015;--line:#ffffff15;--text:#f4f4f5;--muted:#93939e;--purple:#c084fc;--blue:#7dd3fc;--pink:#f472b6;
+ color:#f4f4f5;font-family:var(--font-sans);-webkit-font-smoothing:antialiased;isolation:isolate;
+}
+.portal-shell.nh-chroma-site .workspace{background:#000;min-height:100svh}
+/* Shared chrome stays black while module light belongs to the content stage. */
+.portal-shell.nh-chroma-site :is(.topbar,.sidebar,.bottom-nav){background:#08080a;border-color:#ffffff13;box-shadow:none}
+.portal-shell.nh-chroma-site .topbar{border-bottom-color:rgba(168,85,247,.25)}
+.portal-shell.nh-chroma-site .brand b{color:#c084fc}
+.portal-shell.nh-chroma-site .sidebar:before{background:linear-gradient(90deg,transparent,#4f46e555,#be185d44,transparent)}
+.portal-shell.nh-chroma-site .nav-item{color:#a1a1aa;border-color:transparent}
+.portal-shell.nh-chroma-site .nav-item:hover{background:#ffffff06;border-color:#ffffff13;color:#f4f4f5}
+.portal-shell.nh-chroma-site .nav-item.active{background:linear-gradient(110deg,#1e1032,#0b0b0e);border-color:#7553b74d;color:#d8b4fe}
+.portal-shell.nh-chroma-site .bottom-nav{border-top-color:rgba(168,85,247,.25)}
+.portal-shell.nh-chroma-site .bottom-nav button{color:#71717a}
+.portal-shell.nh-chroma-site .bottom-nav button.active{color:#c084fc}
+.portal-shell.nh-chroma-site .bottom-nav .add-nav>span{background:radial-gradient(circle at 50% 30%,#26173e,#0e0a18 75%);border-color:rgba(167,139,250,.65);box-shadow:0 8px 18px #000d,0 -2px 16px #8b5cf659;color:#e9d5ff}
+.portal-shell.nh-chroma-site .private-pill{background:#091310;border-color:#74e2ad26;color:#8cdbb5}
+.portal-shell.nh-chroma-site .icon-button{color:#a1a1aa}
+.portal-shell.nh-chroma-site .icon-button:hover{background:#ffffff06;border-color:#ffffff13;color:#e4e4e7}
+.portal-shell.nh-chroma-site :is(.side-label,.breadcrumb,.profile small,.private-note small){color:#71717a}
+.portal-shell.nh-chroma-site :is(.breadcrumb span,.profile strong){color:#d4d4d8}
+/* Page light follows the existing main icon; the black chrome and fade geometry stay shared. */
+.portal-shell.nh-chroma-site{--nh-page-glow-rgb:150,91,245}
+.portal-shell.nh-chroma-site[data-module-tone="ruby"]{--nh-page-glow-rgb:220,38,68}
+.portal-shell.nh-chroma-site[data-module-tone="blue"]{--nh-page-glow-rgb:51,150,244}
+.portal-shell.nh-chroma-site[data-module-tone="pink"]{--nh-page-glow-rgb:217,70,188}
+.portal-shell.nh-chroma-site[data-module-tone="green"]{--nh-page-glow-rgb:30,186,120}
+.portal-shell.nh-chroma-site[data-module-tone="orange"]{--nh-page-glow-rgb:249,115,22}
+.portal-shell.nh-chroma-site:not(.nh-locked-home) main{
+ background:radial-gradient(ellipse 75% 35% at 45% 0%,rgba(var(--nh-page-glow-rgb),.28),transparent 70%),radial-gradient(ellipse 35% 60% at 0% 65%,rgba(var(--nh-page-glow-rgb),.32),transparent 70%),radial-gradient(ellipse 65% 40% at 30% 100%,rgba(var(--nh-page-glow-rgb),.52),transparent 75%),radial-gradient(ellipse 60% 40% at 80% 100%,rgba(var(--nh-page-glow-rgb),.45),transparent 75%),#060407;
+ box-shadow:0 25px 70px #000f;
+}
+.portal-shell.nh-chroma-site:not(.nh-locked-home) :is(.nh-module-dashboard,.hub-plugin-explorer,.reader,.stories-reader-article,.film-detail,.film-form,.stories-reader-layout,.hub-inbox-drop,.hub-discovery-banner){
+ background:#08080a;border:1px solid #ffffff13;box-shadow:0 20px 50px #000d,inset 0 1px #ffffff0a;border-radius:16px;
+}
+.portal-shell.nh-chroma-site:not(.nh-locked-home) :is(.panel,.settings-panel,.film-detail-sections section,.series-season-overview,.series-provider,.film-viewing-edit,.film-stats>div,.stories-stats>div,.mirror-stats>div,.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card,.stories-category,.nh-module-stat,.nh-media-quick-link,.nh-module-category-card,.nh-module-search-panel,.nh-discovery,.nh-genre-subgenre-panel,.nh-genre-results-filter,.nh-genre-category-unified,.nh-settings-action,.nh-settings-section,.nh-watchlist-items button,.entry-row,.category-card){
+ background:#0b0b0e;border-color:rgba(255,255,255,.065);box-shadow:inset 0 1px rgba(255,255,255,.04);color:#f4f4f5;
+}
+.portal-shell.nh-chroma-site:not(.nh-locked-home) :is(.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card,.nh-module-category-card,.nh-settings-action,.category-card){position:relative;isolation:isolate;overflow:hidden}
+.portal-shell.nh-chroma-site:not(.nh-locked-home) :is(.film-card,.stories-card,.hub-plugin-card,.hub-discovery-card,.nh-module-category-card,.nh-settings-action,.entry-row,.category-card):hover{border-color:#ffffff26;box-shadow:inset 0 1px #ffffff0a,0 12px 25px #0009}
+.portal-shell.nh-chroma-site :is(.nh-module-heading-icon,.nh-category-icon,.hub-plugin-icon,.module-icon,.entry-icon,.hub-inbox-drop-icon){background:none;border:0;box-shadow:none;overflow:visible;flex:none}
+.portal-shell.nh-chroma-site .nh-module-heading-icon{width:53px;height:53px}
+.portal-shell.nh-chroma-site .nh-category-icon .nh-material-icon{width:var(--material-size);height:var(--material-size)}
+.portal-shell.nh-chroma-site:not(.nh-locked-home) :is(.nh-module-dashboard-title h1,.film-intro h1,.stories-intro h1,.page-heading h1,.reader h1,.stories-reader-article h1,.film-detail h1){color:#f4f4f5}
+.portal-shell.nh-chroma-site:not(.nh-locked-home) :is(.nh-module-stat strong,.nh-media-quick-link strong,.film-stats strong,.stories-stats strong,.mirror-stats strong){font-family:var(--font-mono);color:#f4f4f5;font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.portal-shell.nh-chroma-site :is(.nh-module-eyebrow,.eyebrow,.stories-kicker,.hub-section-kicker){color:#a78bfa}
+.portal-shell.nh-chroma-site :is(.nh-module-dashboard-title p,.nh-module-stat>span:not(.nh-material-icon),.nh-category-copy small,.nh-module-category-head p,.nh-discovery-small-note,.nh-catalog-status small,.nh-genre-guide,.nh-genre-subgenre-panel p,.nh-genre-results-heading span,.hub-plugin-subtitle,.hub-plugin-card-footer,.portal-source,.film-muted,.stories-source-note,.history-note,.film-source,.stories-disclaimer,.entry-text small,.entry-text p,.nh-settings-action small){color:#93939e}
+.portal-shell.nh-chroma-site :is(.nh-category-copy strong,.hub-plugin-card h3,.hub-plugin-card strong,.entry-text strong,.nh-settings-action strong,.film-card h3,.stories-card h3){color:#f4f4f5}
+.portal-shell.nh-chroma-site :is(.nh-module-stat,.nh-media-quick-link){position:relative;isolation:isolate;overflow:hidden}
+.portal-shell.nh-chroma-site :is(.nh-module-stat,.nh-media-quick-link)>.nh-material-icon{z-index:1}
+/* All search, filter, read and edit controls inherit the same dark glass. */
+.portal-shell.nh-chroma-site:not(.nh-locked-home) :is(.searchbar,.nh-discovery-search,.film-filters,.stories-filterbar,.series-filters,.stories-switch,.media-switch,.nh-story-mode-tabs,.nh-category-tabs,.reader-controls details,.stories-contents){background:#09090c;border-color:#ffffff16;box-shadow:inset 0 1px #ffffff06}
+.portal-shell.nh-chroma-site :is(input,textarea,select){background:#08080c;border-color:#ffffff20;color:#e4e4e7;box-shadow:inset 0 1px #ffffff05}
+.portal-shell.nh-chroma-site :is(input,textarea)::placeholder{color:#71717a}
+.portal-shell.nh-chroma-site :is(input,textarea,select):focus{border-color:#a78bfa8c;box-shadow:0 0 0 3px #4f46e51c}
+.portal-shell.nh-chroma-site .nh-discovery-search input,.portal-shell.nh-chroma-site .searchbar input{background:none;border:0;box-shadow:none}
+.portal-shell.nh-chroma-site :is(.secondary,.nh-category-expand,.nh-dashboard-refresh,.nh-discovery-options summary,.nh-genre-expand,.nh-genre-subgenres button,.nh-genre-results-chips button,.pagination button,.film-quiet,.stories-filter-chip,.nh-media-quick-link){background:#0e0b15;color:#d4d4d8;border:1px solid #ffffff1c;box-shadow:inset 0 1px #ffffff06}
+.portal-shell.nh-chroma-site :is(.primary,.nh-discovery-main-action,.hub-hero-primary){
+ background:radial-gradient(ellipse at 15% 0%,#24205288,transparent 60%),linear-gradient(170deg,#150d22,#09060f 65%,#240b26);color:#e9d5ff;border:1px solid #8b5cf670;box-shadow:0 8px 18px #000b,inset 0 1px #a78bfa50,0 0 14px #6d28d91c;
+}
+.portal-shell.nh-chroma-site :is(.primary,.nh-discovery-main-action):hover:not(:disabled){background:linear-gradient(170deg,#211531,#0e0815 65%,#2c0d2c);box-shadow:0 10px 22px #000c,0 0 16px #7c3aed30;border-color:#c084fcaa}
+.portal-shell.nh-chroma-site :is(.stories-switch button.active,.media-switch button.selected,.nh-story-mode-tabs button.active,.nh-category-tabs button.active,.nh-discovery-options[open]>summary,.nh-genre-subgenres button.active,.nh-genre-subgenres button[aria-pressed="true"],.nh-module-category-card.selected,.nh-media-quick-link.active){background:linear-gradient(135deg,#1c1130,#09080e 70%);border-color:#a78bfa70;color:#e9d5ff;box-shadow:inset 0 1px #c084fc22,0 4px 14px #0008}
+.portal-shell.nh-chroma-site .nh-genre-category-unified>.nh-genre-expand{background:#0c0a10;border-top-color:#ffffff13;color:#a1a1aa}
+.portal-shell.nh-chroma-site :is(.nh-genre-subgenres button small,.nh-genre-results-chips button small,.hub-plugin-card-tag,.film-status,.stories-rating,.nh-category-tabs button small){background:#1b1022;border-color:#8b5cf630;color:#c4b5fd}
+.portal-shell.nh-chroma-site :is(.nh-category-arrow,.nh-details-chevron,.entry-row>svg:last-child){color:#71717a}
+.portal-shell.nh-chroma-site :is(.film-poster,.stories-card-cover,.series-poster){background:#06070b;border-color:#ffffff13}
+.portal-shell.nh-chroma-site :is(.film-viewing,.series-coverage,.series-season,.series-season-card,.film-detail-meta,.stories-reader-top,.reader-toolbar,.film-detail-top,.attachment,.source-info,.stories-github-status,.film-source,.nh-watchlist-group){border-color:#ffffff16}
+.portal-shell.nh-chroma-site .film-viewing{background:#09090d}
+.portal-shell.nh-chroma-site .film-poster-fallback{background:radial-gradient(ellipse at 50% 25%,#2c103688,transparent 65%),#08080b;color:#a78bfa}
+.portal-shell.nh-chroma-site .prose{color:#d4d4d8}
+.portal-shell.nh-chroma-site .prose :is(h1,h2,h3,h4,strong){color:#f4f4f5}
+.portal-shell.nh-chroma-site .prose :is(code,pre),.portal-shell.nh-chroma-site .stories-reader-article :is(code,pre){background:#08080a;border-color:#ffffff13;color:#c4b5fd}
+.portal-shell.nh-chroma-site .prose blockquote{background:#0b0811;border-left-color:#6d28d9;color:#a1a1aa}
+.portal-shell.nh-chroma-site :is(.prose a,.stories-text-button,.text-button,.hub-inline-link,.nh-watchlist-open){color:#c4b5fd}
+/* Menus, upload, record editing, inspector and the legacy administration are included. */
+.portal-shell.nh-chroma-site :is(.menu-sheet,.editor-modal,.upload-modal,.film-form,.mirror-inspector){background:#0b0b0e;color:#f4f4f5;border:1px solid #ffffff1c;box-shadow:0 30px 80px #000e,inset 0 1px #ffffff0a}
+.portal-shell.nh-chroma-site :is(.modal-heading,.menu-sheet .modal-heading,.film-form-heading){background:#0b0b0ef5;border-color:#ffffff16}
+.portal-shell.nh-chroma-site .modal-backdrop{background:#000c;backdrop-filter:blur(12px)}
+.portal-shell.nh-chroma-site :is(.menu-sheet .hub-menu-upload,.menu-sheet .nh-menu-settings){background:linear-gradient(120deg,#1e1030,#0b080e);border-color:#8b5cf640;color:#d8b4fe}
+.portal-shell.nh-chroma-site :is(.nh-settings-section>summary,.nh-settings-section[open]>summary){background:#0b0b0e;border-color:#ffffff13;color:#e4e4e7}
+.portal-shell.nh-chroma-site :is(.nh-menu-section-title,.nh-menu-private-note,.nh-settings-verification,.private-note){color:#93939e;border-color:#ffffff13}
+.portal-shell.nh-chroma-site :is(.dropzone,.hub-inbox-drop){background:radial-gradient(ellipse at 15% 35%,#3b166344,transparent 42%),#08080a;border-color:#8b5cf640;color:#c4b5fd}
+.portal-shell.nh-chroma-site :is(.info-note,.nh-dashboard-note){background:#13101b;border-color:#a78bfa33;color:#c4b5fd}
+.portal-shell.nh-chroma-site :is(.error-banner,.film-error,.hub-notice.error){background:#1a080f;border-color:#e11d4840;color:#fda4af}
+.portal-shell.nh-chroma-site :is(.film-success,.hub-notice.success,.series-read-only){background:#08140f;border-color:#74e2ad30;color:#8cdbb5}
+.portal-shell.nh-chroma-site :is(.film-status.seen,.nh-status-line,.nh-sync-state span){color:#74e2ad}
+.portal-shell.nh-chroma-site :is(button,a,input,select,textarea,summary):focus-visible{outline:2px solid #c084fc;outline-offset:3px}
+/* Every heading uses the shared 38px material, including ruby on mobile. */
+@media(max-width:800px){
+ .portal-shell.nh-chroma-site :is(.nh-module-heading-icon,.page-heading .module-icon.large) .nh-material-icon{
+  --material-size:42px!important;--material-scale:1.1052631579!important;
+  --material-glow-size:89.79310345px!important;--material-blur:8.68965517px!important;
+ }
+}
+@media(prefers-reduced-motion:reduce){.portal-shell.nh-chroma-site *{scroll-behavior:auto!important}.portal-shell.nh-chroma-site :is(.film-card,.stories-card,.nh-module-category-card,.hub-plugin-card){transition:none}.portal-shell.nh-chroma-site :is(.film-card,.stories-card,.nh-module-category-card,.hub-plugin-card):hover{transform:none}}
+.portal-shell.nh-chroma-site .hub-plugin-icon{width:54px;height:54px}
+.portal-shell.nh-chroma-site .page-heading .module-icon.large{width:62px;height:62px;display:grid;place-items:center;background:none;border:0;box-shadow:none}
+.portal-shell.nh-chroma-site :is(.menu-sheet,.sidebar) .nav-item>.nh-material-icon{margin-right:1px}
+.portal-shell.nh-chroma-site .menu-sheet .nav-item .nh-material-icon svg{margin-left:0}
+.portal-shell.nh-chroma-site .hub-plugin-watermark{color:#c084fc;opacity:.055}
+.portal-shell.nh-chroma-site .hub-discovery-glow{opacity:.18}
+.portal-shell.nh-chroma-site .entry-row{overflow:hidden}
+.portal-shell.nh-chroma-site .nh-settings-action>.nh-material-icon+span{min-width:0}
+.portal-shell.nh-chroma-site .nh-module-stat>.nh-material-icon{margin-bottom:2px}
+@media(max-width:800px){.portal-shell.nh-chroma-site .hub-plugin-icon{width:42px;height:42px}.portal-shell.nh-chroma-site .hub-plugin-icon .nh-material-icon{--material-size:36px!important;--material-scale:.9474!important}}
+.portal-shell.nh-chroma-site :is(.nh-tool-action,.series-wishlist-toggle,.stories-save,.stories-mark,.reader-controls button,.film-detail-actions button,.film-actions button,.stories-contents button){background:#0e0b15;border-color:#ffffff1c;color:#c4b5fd;box-shadow:inset 0 1px #ffffff06}
+.portal-shell.nh-chroma-site :is(.nh-tool-action:hover,.series-wishlist-toggle:hover,.stories-save:hover,.stories-mark:hover){background:#1a1023;border-color:#a78bfa65}
+.portal-shell.nh-chroma-site :is(.nh-settings-verification,.nh-menu-private-note,.stories-github-status,.series-coverage){background:#08100e;border-color:#74e2ad24;color:#a1c7b6}
+.portal-shell.nh-chroma-site :is(.stories-github-status.error,.stories-error,.stories-warning,.stories-issues-toggle,.stories-issues-list){background:#17090e;border-color:#e11d4838;color:#fda4af}
+.portal-shell.nh-chroma-site .menu-sheet .nh-menu-settings{background:linear-gradient(120deg,#1e1030,#0b080e)!important;border-color:#8b5cf640!important;color:#d8b4fe!important}
+.portal-shell.nh-chroma-site :is(.film-detail-meta,.film-viewing-header,.series-season-overview summary,.stories-reader-controls,.mirror-inspector-section,.mirror-inspector-summary){background:#09090d;border-color:#ffffff13}
+.portal-shell.nh-chroma-site :is(.stories-read-toggle.selected,.stories-save.selected,.series-wishlist-toggle.selected,.film-favorite-toggle.selected){background:#26101d;border-color:#be185d70;color:#f9a8d4}
+.portal-shell.nh-chroma-site .entry-with-check{border-color:#ffffff13}
+.portal-shell.nh-chroma-site .nh-discovery-options{border-color:#ffffff13}
+.portal-shell.nh-chroma-site .story-cover{background:#08080a;border-color:#ffffff13}
+.portal-shell.nh-chroma-site .story-cover:before{border-color:#ffffff10}
+.portal-shell.nh-chroma-site .story-cover:after{background:linear-gradient(transparent 40%,#08080acc 100%)}
+.portal-shell.nh-chroma-site .story-cover-circle{border-color:#ffffff08;box-shadow:0 0 0 23px #ffffff02,0 0 0 46px #ffffff01}
+.portal-shell.nh-chroma-site .story-cover-top{color:#71717a}
+.portal-shell.nh-chroma-site .story-cover-text small{color:#a1a1aa}
+.portal-shell.nh-chroma-site .story-cover-text strong{color:#f4f4f5}
+.portal-shell.nh-chroma-site .story-cover-art .nh-material-icon{z-index:2}
+.portal-shell.nh-chroma-site .hub-discovery-icon{background:none;border:0;box-shadow:none}
+.portal-shell.nh-chroma-site :is(.stories-reading-tools,.stories-reading-end,.stories-reader-summary,.stories-source-note){background:#0b0b0e;border-color:#ffffff13}
+.portal-shell.nh-chroma-site .mirror-inspector-backdrop{background:#000c;backdrop-filter:blur(12px)}
+.portal-shell.nh-chroma-site :is(.mirror-inspector-status,.mirror-inspector-error,.mirror-row-inspect,.mirror-alert-toolbar button){background:#17090e;border-color:#e11d4838;color:#fda4af}
+.portal-shell.nh-chroma-site .mirror-inspector-status.valid{background:#08100e;border-color:#74e2ad24;color:#a1c7b6}
+.portal-shell.nh-chroma-site .film-quiet{border-radius:10px}
+.portal-shell.nh-chroma-site .entry-icon{width:38px;height:38px;display:grid;place-items:center}
+/* Remaining utility and archive surfaces share the same obsidian material. */
+.portal-shell.nh-chroma-site :is(.portal-search-link,.portal-search-modes,.inbox-callout,.hub-plugin-summary,.hub-empty,.hub-loading-state,.overview-panel,.filter-panel,.graph-canvas,.graph-legend,.add-options,.modal-actions,.progress-float){background:#0b0b0e;border-color:#ffffff16;color:#d4d4d8}
+.portal-shell.nh-chroma-site :is(.filter-button,.chip,.segmented,.portal-toggle,.counter,.hub-hero-secondary){background:#100b17;border-color:#a78bfa30;color:#c4b5fd}
+.portal-shell.nh-chroma-site :is(.filter-button.active,.chip.active,.segmented button.active){background:linear-gradient(135deg,#21132f,#0b080f);border-color:#a78bfa75;color:#e9d5ff}
+.portal-shell.nh-chroma-site :is(.hub-module-card,.module-card,.hub-story-teaser){background:#0b0b0e;border-color:#ffffff13;box-shadow:inset 0 1px #ffffff08}
+.portal-shell.nh-chroma-site .series-season-ratings{border-color:#ffffff13}
+.portal-shell.nh-chroma-site .film-status.watching{background:#0d1023;color:#a5b4fc;border-color:#818cf840}
+.portal-shell.nh-chroma-site .film-status.planned{background:#180e21;color:#d8b4fe;border-color:#a78bfa40}
+.portal-shell.nh-chroma-site .film-status.stopped{background:#1a0910;color:#fda4af;border-color:#e11d4840}
+.portal-shell.nh-chroma-site .film-favorite-label{background:#210c18;color:#f9a8d4;border-color:#be185d50}

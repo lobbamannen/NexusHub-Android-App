@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {validateBackup,readNavigation} from '../lib/domain.mjs';
+const base=()=>({format:'nexus-backup',schema:1,entries:[{id:'a',title:'Åäö',body:'Full text',module:'databas',category:'AI',kind:'Dokument',tags:'[]',origin:'local',state:'klar',version:1,favorite:0,deleted:0,created_at:'2026-10-17',updated_at:'2026-10-17'}],files:[],relations:[],versions:[],activity:[],settings:[]});
+test('backup verifieras före några skrivningar',()=>{let b=base();assert.equal(validateBackup(b).entries.length,1);b.entries[0].tags='invalid';assert.throws(()=>validateBackup(b));});
+test('backup avvisar saknade relationer och dubbla ID',()=>{let b=base();b.relations=[{id:'r',source_id:'a',target_id:'b',type:'relaterar',note:'',created_at:'2026-10-17'}];assert.throws(()=>validateBackup(b));b=base();b.entries.push({...b.entries[0]});assert.throws(()=>validateBackup(b));});
+test('dokumentankare ändrar inte appnavigation',()=>{assert.equal(readNavigation('heading-25'),null);assert.equal(readNavigation('mysterier'),'mysterier');});

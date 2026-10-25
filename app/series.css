@@ -1,0 +1,39 @@
+.portal-shell .media-switch{display:flex;gap:7px;padding:6px;margin-bottom:22px;max-width:420px;border-radius:15px;border:1px solid #334056;background:#101a2a}
+.portal-shell .media-switch button{flex:1;min-height:46px;display:flex;align-items:center;justify-content:center;gap:10px;color:#a5b2c9;border-radius:10px;font-size:14px;font-weight:650;transition:background .17s,color .17s}
+.portal-shell .media-switch button.selected{background:linear-gradient(120deg,#624aab,#825ed0);color:#fff;box-shadow:0 5px 18px #0004}
+.portal-shell .media-switch button:focus-visible{outline:2px solid #d8c5ff;outline-offset:3px}
+.series-library .film-intro{margin-bottom:23px}.series-library .film-intro h1 svg{color:#cdb7ff}
+.series-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.series-filters .film-search{grid-column:1/-1}
+.series-flags{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}
+.series-card .series-flags{margin:12px 10px 0}.series-card .film-status{margin:0;white-space:normal}
+.series-heart,.series-favorite{color:#f4a3c3}.series-favorite{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:650}
+.series-read-only{color:#8d9fb8;font-size:12px}
+.series-season-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:26px 0}
+.series-season-overview>div{border:1px solid #304056;border-radius:13px;padding:16px;background:linear-gradient(155deg,#1c2b40,#141f30);display:flex;flex-direction:column;gap:8px;min-width:0}
+.series-season-overview small{font-size:12px;line-height:1.45;color:#afbdd0}.series-season-overview strong{font-size:28px;line-height:1.1;color:#e6deff}.series-season-overview span{font-size:12px;color:#95a9c1;line-height:1.5;overflow-wrap:anywhere}
+.series-coverage{display:flex;gap:9px;align-items:flex-start;border:1px solid #315a50;background:#17372d;border-radius:11px;padding:13px 16px;color:#b1e0cb;line-height:1.7;font-size:12px}
+.series-coverage svg{flex-shrink:0;margin-top:2px}.series-provider-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:11px}
+.series-provider{padding:14px;border:1px solid #334158;border-radius:11px;background:#101b2c}
+.series-provider strong{display:block;font-size:13px;margin-bottom:6px}.series-provider small{display:block;font-size:11px;line-height:1.65;color:#91a6c2;overflow-wrap:anywhere}
+.series-provider p{font-size:12px;line-height:1.65;margin:11px 0}.series-season-ratings{margin-top:14px;border-top:1px solid #354159;padding-top:13px}
+.series-season-ratings>strong{display:block;font-size:13px;margin-bottom:8px}.series-season-ratings>div{display:flex;gap:7px;flex-wrap:wrap}
+.series-season-ratings span{background:#242b43;color:#e7d9ff;padding:6px 10px;font-size:12px;border-radius:7px}
+.series-source-list{display:flex;flex-direction:column;gap:9px}.series-source-list a{display:flex;align-items:center;gap:8px;width:fit-content;font-size:12px;color:#d9c9ff;line-height:1.6;overflow-wrap:anywhere}
+.series-source-list a:focus-visible{outline:2px solid #bfaaff}.series-links{display:flex;gap:10px;flex-wrap:wrap}
+.series-links .film-imdb{margin-top:9px}.series-pager{display:flex;align-items:center;justify-content:center;gap:13px;flex-wrap:wrap;margin:25px 0;font-size:12px;color:#98a9c1}
+.series-library .film-source{display:flex;gap:7px;align-items:flex-start;flex-wrap:wrap}.series-library .film-source svg{flex-shrink:0}
+@media(max-width:720px){.series-season-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.series-season-overview>div:last-child{grid-column:1/-1}.series-provider-list{grid-template-columns:1fr}.series-library .film-intro h1{font-size:26px}.series-filters{gap:10px}.series-library .film-stats>div{padding:16px 12px}.series-library .film-stats span{font-size:11px}}
+@media(max-width:380px){.portal-shell .media-switch{max-width:none}.series-pager .secondary{padding:8px 11px;font-size:11px}.series-season-overview{grid-template-columns:1fr}.series-season-overview>div:last-child{grid-column:auto}}
+@media(prefers-reduced-motion:reduce){.portal-shell .media-switch button{transition:none}}
+
+
+/* Series watchlist is independent of season viewing history and Favorites. */
+.portal-shell .series-watchlist-action{display:flex;align-items:flex-start;flex-wrap:wrap;gap:7px 13px;margin:15px 0 12px}
+.portal-shell .series-wishlist-toggle{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:8px 13px;border:1px solid #8970c2;border-radius:10px;color:#d8b9f9;background:#242540;font-weight:680;font-size:12px}
+.portal-shell .series-wishlist-toggle.selected{background:#3c2c58;border-color:#b397e0;color:#f0dfff}
+.portal-shell .series-wishlist-toggle:disabled{opacity:.62;cursor:wait}
+.portal-shell .series-watchlist-action small{max-width:320px;align-self:center;color:#a6b6cc;font-size:10px;line-height:1.55}
+.portal-shell .series-wishlist-badge{display:inline-flex;align-items:center;gap:5px;color:#d5b8ff;font-size:11px;font-weight:680}
+.portal-shell .series-bookmark{color:#d4b9fb;flex:none}
+.portal-shell .series-wishlist-toggle:focus-visible{outline:2px solid #d9b8ff;outline-offset:3px}
+@media(max-width:700px){.portal-shell .series-watchlist-action{flex-direction:column;align-items:flex-start}}

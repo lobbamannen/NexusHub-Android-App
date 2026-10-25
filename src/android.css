@@ -1,0 +1,4 @@
+.android-onboarding{min-height:100svh;display:grid;place-items:center}
+.android-onboarding main{width:min(100%,560px);padding:24px}
+.android-onboarding .settings-panel{display:grid;gap:20px}
+.android-onboarding h1{margin-top:12px}

@@ -1,0 +1,76 @@
+/* Shared Gold Master material, extracted from the approved homepage.
+   Original 38px object, 10px corners, inset lights and gradient frame.
+   V5 halo: identical distribution/intensity; size follows the intended icon size.
+   Homepage retains its approved responsive scales and fixed 124px / 12px halo. */
+.portal-shell.nh-chroma-site .nh-material-icon{
+ --material-size:38px;--material-scale:1;--material-glow-size:81.24138px;--material-blur:7.86207px;
+ --glow-rgb:150,91,245;--material-hue:48deg;
+ position:relative;display:inline-grid;place-items:center;width:var(--material-size);height:var(--material-size);
+ flex:none;isolation:isolate;vertical-align:middle;overflow:visible;
+ background:none;border:0;border-radius:0;box-shadow:none;transform:none;perspective:none;
+}
+.portal-shell.nh-chroma-site .nh-material-icon::before{content:none}
+.portal-shell.nh-chroma-site .nh-material-icon::after{
+ content:"";position:absolute;left:50%;top:50%;width:var(--material-glow-size);height:var(--material-glow-size);
+ transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;z-index:-1;
+ background:radial-gradient(circle,rgba(var(--glow-rgb),.23) 0%,rgba(var(--glow-rgb),.115) 32%,rgba(var(--glow-rgb),.035) 56%,transparent 76%);
+ filter:blur(var(--material-blur));opacity:1;
+}
+.portal-shell.nh-chroma-site .nh-material-ruby{--glow-rgb:220,38,68;--material-hue:0deg}
+.portal-shell.nh-chroma-site .nh-material-blue{--glow-rgb:51,150,244;--material-hue:0deg}
+.portal-shell.nh-chroma-site .nh-material-pink{--glow-rgb:217,70,188;--material-hue:105deg}
+.portal-shell.nh-chroma-site .nh-material-green{--glow-rgb:30,186,120;--material-hue:-95deg}
+.portal-shell.nh-chroma-site .nh-material-violet{--glow-rgb:150,91,245;--material-hue:48deg}
+.portal-shell.nh-chroma-site .nh-material-icon .nh-icon-object{
+ width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+ position:absolute;left:50%;top:50%;margin:0;flex:none;
+ transform:translate(-50%,-50%) scale(var(--material-scale));
+ background:radial-gradient(ellipse at 28% 90%,rgba(30,58,214,.42),transparent 48%),radial-gradient(ellipse at 80% 12%,rgba(13,82,152,.25),transparent 42%),#050b14;
+ border:1px solid transparent;
+ box-shadow:0 0 12px rgba(24,135,215,.4),inset 2px 0 5px rgba(31,58,238,.42),inset -1px 0 3px rgba(67,211,247,.3);
+ filter:hue-rotate(var(--material-hue));
+}
+.portal-shell.nh-chroma-site .nh-material-blue .nh-icon-object,
+.portal-shell.nh-chroma-site .nh-material-ruby .nh-icon-object{filter:none}
+.portal-shell.nh-chroma-site .nh-material-icon .nh-icon-object::before{
+ content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;
+ background:linear-gradient(135deg,#5a8cff 0%,#1556ae 32%,#122650 53%,#6be5ff 78%,#c4f7ff 86%,#268bd4 100%);
+ -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+ -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
+}
+.portal-shell.nh-chroma-site .nh-material-ruby .nh-icon-object{
+ background:radial-gradient(ellipse at 28% 90%,rgba(178,23,59,.43),transparent 48%),radial-gradient(ellipse at 80% 12%,rgba(129,27,60,.24),transparent 42%),#100509;
+ box-shadow:0 0 12px rgba(208,32,68,.42),inset 2px 0 5px rgba(188,32,72,.40),inset -1px 0 3px rgba(255,157,165,.28);
+}
+.portal-shell.nh-chroma-site .nh-material-ruby .nh-icon-object::before{
+ background:linear-gradient(135deg,#ff7e91 0%,#b52c51 32%,#4a1028 53%,#ff8a99 78%,#ffced0 86%,#d74068 100%);
+}
+.portal-shell.nh-chroma-site .nh-material-icon .nh-icon-object .v3-glyph{
+ display:block;width:25px;height:25px;margin:0;stroke-width:1.65;filter:none;transform:none;
+}
+.portal-shell.nh-locked-home .nh-material-icon.nh-module-symbol{
+ --material-size:58px;--material-scale:1.5263;--material-glow-size:124px;--material-blur:12px;
+}
+.portal-shell.nh-locked-home .nh-material-icon.nh-module-symbol::after{content:""}
+@media(max-width:900px){.portal-shell.nh-locked-home .nh-material-icon.nh-module-symbol{--material-size:43px;--material-scale:1.13158}}
+@media(max-width:600px){.portal-shell.nh-locked-home .nh-material-icon.nh-module-symbol{--material-size:41px;--material-scale:1.07895}}
+
+/* Gold is an additional hue of the same locked 38px MaterialIcon system. */
+.portal-shell.nh-chroma-site .nh-material-gold{--glow-rgb:237,174,69;--material-hue:-170deg}
+/* The gold frame rotates the blue material; cancel that rotation on the
+   already-gold glyph so rating stars keep their intended gold gradient. */
+.portal-shell.nh-chroma-site .nh-material-gold .nh-icon-object .v3-glyph{filter:hue-rotate(170deg)}
+
+/* Cortex NeonOrange (#F97316), using the same premium material and V5 glow. */
+.portal-shell.nh-chroma-site .nh-material-orange{--glow-rgb:249,115,22;--material-hue:0deg}
+.portal-shell.nh-chroma-site .nh-material-orange .nh-icon-object{background:radial-gradient(ellipse at 28% 90%,rgba(249,115,22,.43),transparent 50%),radial-gradient(ellipse at 82% 12%,rgba(255,188,95,.25),transparent 45%),#140a04;box-shadow:0 0 13px rgba(249,115,22,.48),inset 2px 0 6px rgba(234,88,12,.43),inset -1px 0 4px rgba(255,216,152,.32);filter:none}
+.portal-shell.nh-chroma-site .nh-material-orange .nh-icon-object::before{background:linear-gradient(135deg,#FFD8A5 0%,#F97316 32%,#5A290B 53%,#FFB66C 78%,#FFF0D1 86%,#EA580C 100%)}
+.portal-shell.nh-locked-home .nh-module-card.nh-art-training{--nh-accent:#F97316}
+.portal-shell.nh-locked-home .nh-module-card.nh-art-training .nh-module-decoration{color:#F97316}
+
+/* Decorative silhouettes keep their existing subtle opacity and match their module icon. */
+.portal-shell.nh-locked-home .nh-art-cinema .nh-module-decoration{color:rgb(220,38,68)}
+.portal-shell.nh-locked-home :is(.nh-art-stories,.nh-art-knowledge) .nh-module-decoration{color:rgb(51,150,244)}
+.portal-shell.nh-locked-home .nh-art-plugins .nh-module-decoration{color:rgb(217,70,188)}
+.portal-shell.nh-locked-home .nh-art-files .nh-module-decoration{color:rgb(30,186,120)}
+.portal-shell.nh-locked-home .nh-art-upload .nh-module-decoration{color:rgb(150,91,245)}
