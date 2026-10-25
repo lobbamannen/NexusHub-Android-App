@@ -37,6 +37,16 @@ En sparning säkras lokalt innan GitHub-anropet startar. En verifierad GitHub-kv
 
 SHA-konflikter stoppas och kräver omläsning/beslut. Appen byter aldrig ut en gammal versionsnyckel för att tvinga igenom en gammal ändring. Osäkra kvittenser kan kontrolleras mot aktuell GitHub-data innan nytt försök. En ändring i Siten eller ChatGPT hanteras som en samtidig extern ändring.
 
+## Idéinkorg
+
+Öppna **+ → Ny idé** och skriv direkt utan titel eller kategori. Ett eget kort på startsidan visar antalet nya idéer och leder till hela inkorgen; den finns även i menyn. Öppna samma idé för att fortsätta skriva senare. Statusarna är **Ny**, **Undersöks**, **Genomförd** och **Avfärdad**; även genomförda och avfärdade idéer behålls.
+
+- Utkast sparas beständigt på telefonen medan du skriver. Stäng behåller utkastet; Ångra utkast kastar det och dess väntande sparförsök, men raderar inte en befintlig GitHub-version.
+- **Spara** skriver `Ideer/<UUID>.json` i Databas: schemaVersion, id, text, status, createdAt, updatedAt. ID och skapandetid behålls när idén utvecklas. Läs [lagringskontraktet](https://github.com/lobbamannen/Databas/blob/main/Ideer/README.md) före ändringar från ChatGPT.
+- **Utkast lokalt**, **Väntar på synk till GitHub**, **Konflikt** och **Sparad i GitHub** skiljs åt. Ingen automatisk köuppspelning sker. Försök igen återanvänder samma avsikt och SHA. Fortsätt skriva avbryter det väntande försöket och behåller texten som utkast.
+- En förlorad kvittens återläses innan nytt försök. Vid konflikt kan GitHub-versionen visas bredvid din lokala text; användaren väljer uttryckligen om den ska ersätta utkastet. Kopiera egen text före kassering om den ska kombineras med den andra versionen.
+- ChatGPT kan läsa idéerna direkt från GitHub. Att spara en idé startar inte automatiskt forskning eller genomförande. Android-delning ingår inte.
+
 ## Ekonomi: kvitton, kategorier och produktkunskap
 
 Ekonomi är en egen sida med tre undervyer: **Register** (budgetar och gemensamma köp), **Analys** (kategorisummor per verklig utbetalningsperiod) och **Kategorier & produkter** (redigerbar gemensam katalog). Samtliga är byggda på det befintliga svarta materialtemat med grön ikon och diskret grön bottenfade.
@@ -50,7 +60,9 @@ Ekonomi är en egen sida med tre undervyer: **Register** (budgetar och gemensamm
 
 ### Ett kvitto, en skrivning
 
-1. Robin skickar bild/PDF på kvitto till sin befintliga ChatGPT-chatt. **OCR och AI-förståelse sker där, inte i NexusHub-appen.**
+1. **Ansvarsfördelning:** ChatGPT tolkar och verifierar kvittot; NexusHub sköter kategorisering och analys. Chatten behöver inte fylla i artikelkategorier eller redigera katalogen vid varje köp.
+
+   Robin skickar bild/PDF på kvitto till sin befintliga ChatGPT-chatt. **OCR och AI-förståelse sker där, inte i NexusHub-appen.**
 2. Chatten verifierar butik, köpdatum, totalsumma, radbelopp, rabatter och pant och kontrollerar befintlig period mot dubbletter. Samma kvitto får inte ett nytt köp-ID vid omsändning. Särskilt säker kvittoreferens eller jämförelse av datum/butik/belopp/artiklar behövs för att upptäcka dubbletter med nya ID:n; GitHub hindrar automatiskt endast identiska post-ID:n vid appens egen sparning.
 3. Chatten skriver **en** ändring i lämplig periodfil efter kontroll av GitHub SHA. Den ska inte också skriva separata kopior av köpet i produkt- eller kategorikatalogen.
 4. NexusHub läser periodfiler + katalog och kategoriserar deterministiskt utan nätbaserad AI för varje visning. Kända exakta produkter matchas till produkt-ID, generella varunamn till produktgrupp; äldre etiketter används som reserv. Nya/oklara namn markeras för granskning.
@@ -64,6 +76,8 @@ En bred kvittotext som `VÅTSERVETTER` ger gruppen **Våtservetter** men inte et
 - Analys summerar artikelrader i heltalsöre och stämmer av dem mot köpens registrerade total. Rabatt som entydigt kopplas till en vara minskar den kategorin; otydliga bonusar och pant särredovisas. Ingen artikel läggs ovanpå köptotalen som en ny kostnad.
 - Köp utan artikelrader och beloppsavvikelser visas som **ospecificerat**, inte som säker mat-, godis- eller babykonsumtion. Budgetposter och interna kontoöverföringar räknas inte som extra gemensamma köp.
 - Historisk import (`Ekonomi/Import/`) behålls oförändrad som källa. Kategorikatalogen täcker 47 historiska artikelbeteckningar; den innehåller från början endast några få säkert identifierade exakta produkter. Katalogen kan utvecklas efterhand.
+- Prisjämförelser använder radbelopp efter säkert kopplad varurabatt, delat med angiven kvittomängd. Generella bonusar fördelas inte på påhittade produkter.
+- Avbryt i ekonomins editor annullerar motsvarande väntande sparförsök. När ett sparförsök gjorts låses målregister/grupp tills det avslutas eller avbryts. Orelaterade film-/berättelseutkast får inte radera ekonomins köposter.
 - Appens katalogredigering använder samma verifierade SHA och beständiga väntande sparningar som övriga ekonomiregister. Vid konflikt behövs omläsning; gammal data skrivs inte över automatiskt.
 
 ## Originaldesign

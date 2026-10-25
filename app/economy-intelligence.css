@@ -61,3 +61,7 @@
   .portal-shell .nh-eco-catalog-actions .primary{padding:10px 11px}
   .portal-shell .nh-eco-review-list>div{padding:11px 10px}
 }
+
+/* Fieldset preserves the existing field layout while blocking edits during writes. */
+.portal-shell fieldset.nh-economy-fields{margin:0;min-inline-size:0;border:0}
+.portal-shell .nh-economy-editor> :is(.nh-economy-error,.nh-eco-note){margin:8px 20px;font-size:12px;flex-shrink:0}

@@ -1,0 +1,22 @@
+import { github } from '@/lib/github';
+import { validateIdea } from '@/lib/ideas.mjs';
+const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
+export async function GET(request: Request) {
+    try {
+        const id = new URL(request.url).searchParams.get('id');
+        const data = id ? await github().readIdea(id) : await github().listIdeas();
+        return data ? json(data) : json({ error: 'Idén finns inte i GitHub.' }, 404);
+    } catch (error: any) { return json({ error: error.message }, error.status === 401 || error.status === 403 ? 403 : 503); }
+}
+export async function POST(request: Request) {
+    try {
+        const origin = request.headers.get('origin');
+        if (origin && origin !== new URL(request.url).origin) return json({ error: 'Otillåtet ursprung.' }, 403);
+        const raw = await request.text();
+        if (new TextEncoder().encode(raw).length > 350000) return json({ error: 'Idén är för stor.' }, 413);
+        let input: any;
+        try { input = JSON.parse(raw); validateIdea(input.idea); if (input.expectedSha !== null && !/^[a-f0-9]{40}$/.test(input.expectedSha || '')) throw Error('Ogiltig idéversion.'); }
+        catch (error: any) { return json({ error: error.message }, 400); }
+        return json(await github().saveIdea(input.idea, input.expectedSha));
+    } catch (error: any) { return json({ saved: false, error: error.message }, error.status === 409 || error.status === 422 ? 409 : error.status === 401 || error.status === 403 ? 403 : 503); }
+}

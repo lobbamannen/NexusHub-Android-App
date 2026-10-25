@@ -8,6 +8,8 @@ import { usePosterRevision } from '@/components/repository-poster';
 import './home-dashboard.css';
 import { seriesIsWatchlisted } from '@/lib/media-discovery.mjs';
 type Props = {
+    ideaCount: number | null;
+    ideasStale: boolean;
     catalog: any;
     pluginRepo: any;
     stories: any[];
@@ -18,7 +20,7 @@ type Props = {
     onOpenStory: (path: string) => void;
     onOpenFile: (item: any) => void;
 };
-export default function HomeDashboard({ catalog, pluginRepo, stories, recentFiles, commits, onNavigate, onOpenMedia, onOpenStory, onOpenFile }: Props) {
+export default function HomeDashboard({ ideaCount, ideasStale, catalog, pluginRepo, stories, recentFiles, commits, onNavigate, onOpenMedia, onOpenStory, onOpenFile }: Props) {
     const [posterRevision, refreshPosters] = usePosterRevision();
     const [now, setNow] = useState<Date | null>(null);
     useEffect(() => {
@@ -68,6 +70,8 @@ export default function HomeDashboard({ catalog, pluginRepo, stories, recentFile
     // Same document scope as the Knowledge Bank overview.
     const knowledgeFiles = catalog ? catalog.documents.filter((d: any) => d.module === 'databas' && !d.technical && !d.asset).length : null;
     const counts = {
+        ideas: ideaCount,
+        ideasStale,
         files: typeof catalog?.fileCount === 'number' ? catalog.fileCount : null,
         knowledgeFiles,
         stories: catalog ? stories.length : null,

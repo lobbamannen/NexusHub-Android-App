@@ -1,5 +1,8 @@
 'use client';
 
+import EconomySyncNote, { type EconomyDraftTarget } from '@/components/economy/EconomySyncNote';
+import { cancelQueuedEdits } from '@/platform/outbox';
+import { parseReceiptAliases } from '@/lib/economy-catalog.mjs';
 import React, { useEffect, useMemo, useState } from 'react';
 import { BadgeCheck, BarChart3, ChevronDown, ChevronRight, Edit3, FolderTree, Loader2, Package, Plus, Save, Search, Tags, X } from 'lucide-react';
 import { useBackHandler } from '@/components/NativeBackBridge';
@@ -59,7 +62,7 @@ export function EconomyInsights({ files, catalog, onCatalog }: { files: any[]; c
       {active.unknownArticles.length ? <div className="nh-eco-review-list">{active.unknownArticles.slice(0,25).map(item => <div key={normalizeReceiptName(item.name)}><span>{item.name}<small>{item.count} rad{item.count === 1 ? '' : 'er'}</small></span><strong>{kronor(item.amountOre)}</strong></div>)}</div> : <p className="nh-eco-note">Alla artikelrader har en känd produktgrupp eller historisk kategori.</p>}
       <button className="nh-eco-text-button" type="button" onClick={onCatalog}><Tags size={17}/> Öppna Kategorier & produkter <ChevronRight size={17}/></button>
       <div className="nh-eco-panel-heading"><h3>Prisjämförelser</h3><small>Endast samma exakt identifierade produkt</small></div>
-      {active.priceComparisons.length ? <div className="nh-eco-review-list">{active.priceComparisons.map(item => <div key={item.productId}><span>{item.name}<small>{item.samples} jämförbara köp</small></span><strong>{kronor(item.minUnitOre)} – {kronor(item.maxUnitOre)}</strong></div>)}</div> : <p className="nh-eco-note">Ännu för få säkert identifierade återkommande produkter för tillförlitlig prisjämförelse.</p>}
+      {active.priceComparisons.length ? <div className="nh-eco-review-list">{active.priceComparisons.map(item => <div key={item.productId}><span>{item.name}<small>{item.samples} jämförbara köp</small></span><strong>{kronor(item.minUnitOre)} – {kronor(item.maxUnitOre)}<small>per angiven kvittomängd · efter kopplad varurabatt</small></strong></div>)}</div> : <p className="nh-eco-note">Ännu för få säkert identifierade återkommande produkter för tillförlitlig prisjämförelse.</p>}
     </>}
     <p className="nh-eco-footnote">Budgetposter är planerade belopp, inte extra registrerade köp. Pant och generella rabatter särredovisas när de inte kan knytas säkert till en artikel.</p>
   </div>;
@@ -78,16 +81,32 @@ function formFor(kind: Kind, value?: Category | Group | Product): Edit {
     packageValue: obj.package?.value ? String(obj.package.value) : '', packageUnit: obj.package?.unit || 'st', isNew: !value };
 }
 
-export function EconomyCatalog({ catalog, files, save, onDirtyChange }: { catalog: EconomyCatalogSnapshot | null; files: any[]; save: SaveEntry; onDirtyChange: (editing: boolean) => void }) {
+export function EconomyCatalog({ catalog, files, save, onDirtyChange }: { catalog: EconomyCatalogSnapshot | null; files: any[]; save: SaveEntry; onDirtyChange: (editing: boolean, target?: EconomyDraftTarget | null) => void }) {
   const [tab, setTab] = useState<Kind>('category');
   const [editing, setEditing] = useState<Edit | null>(null);
   const [linkName, setLinkName] = useState('');
   const [linkGroup, setLinkGroup] = useState('');
+  const [linkLocked, setLinkLocked] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  useEffect(() => { onDirtyChange(!!editing || !!linkName || working); return () => onDirtyChange(false); }, [editing, linkName, working, onDirtyChange]);
-  useBackHandler(120, () => { if (!editing && !linkName) return false; if (!working) {setEditing(null);setLinkName('');setError('');} return true; });
+  useEffect(() => {
+    const kind = editing?.kind || 'group';
+    const path = kind === 'product' ? catalog?.products.path : catalog?.categories.path;
+    const id = editing?.id || linkGroup;
+    onDirtyChange(!!editing || !!linkName || working, path && id ? {path,id,kind} : null);
+    return () => onDirtyChange(false);
+  }, [editing, linkName, linkGroup, working, onDirtyChange, catalog]);
+  const cancelEdit = async () => {
+    if(working || !catalog)return;
+    const kind=editing?.kind||'group', id=editing?.id||linkGroup;
+    const path=kind==='product'?catalog.products.path:catalog.categories.path;
+    setWorking(true);
+    try { if(id) await cancelQueuedEdits('economy',{path,id,kind}); setEditing(null);setLinkName('');setLinkLocked(false);setError(''); }
+    catch(e:any){setError('Sparförsöket kunde inte avbrytas. '+e.message);}
+    finally{setWorking(false);}
+  };
+  useBackHandler(120, () => { if (!editing && !linkName) return false; if (!working) void cancelEdit(); return true; });
   const cat = catalog?.categories.data, products = catalog?.products.data;
   const dashboard = useMemo(() => catalog ? buildEconomyDashboard(files, cat, products) : {periods:[]}, [files, catalog, cat, products]);
   const groups = cat?.groups || [], cats = cat?.categories || [];
@@ -98,13 +117,14 @@ export function EconomyCatalog({ catalog, files, save, onDirtyChange }: { catalo
     const key = normalizeReceiptName(item.name), old = unknown.get(key);
     unknown.set(key,{name:item.name,count:(old?.count||0)+item.count});
   }
-  const perform = async (kind:Kind, entry:Category|Group|Product) => { setWorking(true);setError('');try {await save(kind,entry);setEditing(null);setLinkName('');}catch(e:any){setError(e.message||'Kunde inte spara.');}finally{setWorking(false);} };
+  const perform = async (kind:Kind, entry:Category|Group|Product) => { setWorking(true);setError('');try {await save(kind,entry);setEditing(null);setLinkName('');setLinkLocked(false);}catch(e:any){setError(e.message||'Kunde inte spara.');}finally{setWorking(false);} };
   const submit = (event:React.FormEvent) => {
     event.preventDefault();if(!editing||!catalog||working)return;
     const name=editing.name.trim();if(!name){setError('Ange ett namn.');return;}
     const ids=(editing.kind==='category'?cats:editing.kind==='group'?groups:products?.products||[]).map(item=>item.id);
-    const id=editing.isNew?newId(name,ids):editing.id;
-    const aliases=editing.aliases.split(/[\n,]+/).map(value=>value.trim()).filter(Boolean);
+    const id=editing.id||newId(name,ids);
+    setEditing({...editing,id});
+    const aliases=parseReceiptAliases(editing.aliases);
     if(editing.kind==='category') void perform('category',{id,name});
     else if(editing.kind==='group') void perform('group',{id,name,category_id:editing.parentId||cats[0]?.id||'',aliases});
     else {
@@ -118,6 +138,7 @@ export function EconomyCatalog({ catalog, files, save, onDirtyChange }: { catalo
     if(!group){setError('Välj vilken produktgrupp artikeln tillhör.');return;}
     const alias=linkName.trim();
     if(group.aliases.some(value=>normalizeReceiptName(value)===normalizeReceiptName(alias))){setLinkName('');return;}
+    setLinkLocked(true);
     void perform('group',{...group,aliases:[...group.aliases,alias]});
   };
   return <div className="nh-eco-catalog nh-economy-register">
@@ -127,29 +148,30 @@ export function EconomyCatalog({ catalog, files, save, onDirtyChange }: { catalo
       <div><small>Produktgrupper</small><strong>{groups.length}</strong></div>
       <div><small>Säkra produkter</small><strong>{products?.products.length||0}</strong></div>
     </div>
-    <div className="nh-economy-tabs" role="group" aria-label="Välj katalognivå">{([['category','Kategorier'],['group','Produktgrupper'],['product','Produkter']] as const).map(([value,name])=><button key={value} type="button" className={tab===value?'active':''} aria-pressed={tab===value} onClick={()=>{setTab(value);setQuery('');setEditing(null);}}>{name}</button>)}</div>
-    <div className="nh-eco-catalog-actions"><label className="nh-economy-search"><Search size={17}/><input placeholder="Sök kategorier och artikelnamn…" value={query} onChange={event=>setQuery(event.target.value)}/></label><button type="button" className="primary" disabled={!catalog||working} onClick={()=>setEditing(formFor(tab))}><Plus size={16}/>Lägg till</button></div>
+    <div className="nh-economy-tabs" role="group" aria-label="Välj katalognivå">{([['category','Kategorier'],['group','Produktgrupper'],['product','Produkter']] as const).map(([value,name])=><button key={value} type="button" className={tab===value?'active':''} aria-pressed={tab===value} disabled={working||!!editing||!!linkName} onClick={()=>{setTab(value);setQuery('');setEditing(null);}}>{name}</button>)}</div>
+    <div className="nh-eco-catalog-actions"><label className="nh-economy-search"><Search size={17}/><input placeholder="Sök kategorier och artikelnamn…" value={query} onChange={event=>setQuery(event.target.value)}/></label><button type="button" className="primary" disabled={!catalog||working||!!editing||!!linkName} onClick={()=>setEditing(formFor(tab))}><Plus size={16}/>Lägg till</button></div>
     {error&&<p className="nh-economy-error" role="alert">{error}</p>}
-    <div className="nh-eco-catalog-list">{list.map(entry => <button key={entry.id} type="button" onClick={()=>{setError('');setEditing(formFor(tab,entry));}}>
+    <div className="nh-eco-catalog-list">{list.map(entry => <button key={entry.id} type="button" disabled={working||!!editing||!!linkName} onClick={()=>{setError('');setEditing(formFor(tab,entry));}}>
       <span className="nh-eco-catalog-icon">{tab==='category'?<FolderTree size={18}/>:tab==='group'?<Tags size={18}/>:<Package size={18}/>}</span>
       <span><strong>{entry.name}</strong><small>{tab==='category' ? `${groups.filter(group=>group.category_id===entry.id).length} produktgrupper` : tab==='group' ? `${cats.find(cat=>cat.id===(entry as Group).category_id)?.name||'Okänd kategori'} · ${(entry as Group).aliases.length} namnkopplingar` : `${groups.find(group=>group.id===(entry as Product).group_id)?.name||'Okänd grupp'} · ${(entry as Product).aliases.length} kvittonamn`}</small></span>
       <Edit3 size={16}/>
     </button>)}{!list.length&&<p className="nh-eco-note">Inga träffar.</p>}</div>
     <div className="nh-eco-panel-heading"><h3>Artiklar att lära in</h3><small>Okända artikelnamn från sparade kvitton</small></div>
-    {unknown.size?<div className="nh-eco-review-list">{Array.from(unknown.entries()).slice(0,40).map(([key,item])=><div key={key}><span>{item.name}<small>{item.count} förekomster</small></span><button className="nh-eco-small-button" type="button" onClick={()=>{setLinkName(item.name);setLinkGroup(groups[0]?.id||'');setEditing(null);}}>Koppla</button></div>)}</div>:<p className="nh-eco-note">Inga omatchade artikelnamn just nu. Vissa historiska generella kategorier kan fortfarande behöva förfinas.</p>}
-    {linkName&&<div className="nh-eco-inline-form"><h3>Koppla kvittonamn</h3><p><strong>{linkName}</strong> ska tillhöra vilken produktgrupp?</p><label>Produktgrupp<select value={linkGroup} onChange={event=>setLinkGroup(event.target.value)}>{groups.map(group=><option key={group.id} value={group.id}>{cats.find(cat=>cat.id===group.category_id)?.name} · {group.name}</option>)}</select></label><div className="nh-eco-form-buttons"><button type="button" onClick={()=>setLinkName('')} disabled={working}>Avbryt</button><button type="button" className="primary" onClick={link} disabled={working}>{working?<Loader2 className="spin" size={16}/>:<Save size={16}/>}Spara koppling</button></div></div>}
+    {unknown.size?<div className="nh-eco-review-list">{Array.from(unknown.entries()).slice(0,40).map(([key,item])=><div key={key}><span>{item.name}<small>{item.count} förekomster</small></span><button className="nh-eco-small-button" type="button" disabled={working||!!editing||!!linkName} onClick={()=>{setLinkName(item.name);setLinkGroup(groups[0]?.id||'');setEditing(null);}}>Koppla</button></div>)}</div>:<p className="nh-eco-note">Inga omatchade artikelnamn just nu. Vissa historiska generella kategorier kan fortfarande behöva förfinas.</p>}
+    {linkName&&<div className="nh-eco-inline-form"><h3>Koppla kvittonamn</h3><p><strong>{linkName}</strong> ska tillhöra vilken produktgrupp?</p><label>Produktgrupp<select value={linkGroup} disabled={working||linkLocked} onChange={event=>setLinkGroup(event.target.value)}>{groups.map(group=><option key={group.id} value={group.id}>{cats.find(cat=>cat.id===group.category_id)?.name} · {group.name}</option>)}</select></label><EconomySyncNote target={{path:catalog!.categories.path,id:linkGroup,kind:'group'}}/><div className="nh-eco-form-buttons"><button type="button" onClick={()=>void cancelEdit()} disabled={working}>Avbryt</button><button type="button" className="primary" onClick={link} disabled={working}>{working?<Loader2 className="spin" size={16}/>:<Save size={16}/>}Spara koppling</button></div></div>}
     <p className="nh-eco-footnote">Att ändra en kategori eller koppla ett kvittonamn påverkar analysen direkt, inte originalkvittot. För exakt prisjämförelse används endast säkra produktidentiteter; generella namn förblir produktgrupper.</p>
     {editing&&<div className="nh-economy-overlay" role="presentation"><form className="nh-economy-editor" onSubmit={submit} aria-label="Redigera katalogpost">
-      <div className="nh-economy-editor-head"><div><p className="eyebrow">KATALOG · {editing.kind==='category'?'KATEGORI':editing.kind==='group'?'PRODUKTGRUPP':'PRODUKT'}</p><h2>{editing.isNew?'Ny post':'Redigera post'}</h2></div><button type="button" aria-label="Stäng redigering" onClick={()=>setEditing(null)} disabled={working}><X size={20}/></button></div>
-      <div className="nh-economy-fields">
+      <div className="nh-economy-editor-head"><div><p className="eyebrow">KATALOG · {editing.kind==='category'?'KATEGORI':editing.kind==='group'?'PRODUKTGRUPP':'PRODUKT'}</p><h2>{editing.isNew?'Ny post':'Redigera post'}</h2></div><button type="button" aria-label="Stäng redigering" onClick={()=>void cancelEdit()} disabled={working}><X size={20}/></button></div>
+      <fieldset className="nh-economy-fields" disabled={working}>
         <label>Namn<input value={editing.name} required maxLength={120} onChange={event=>setEditing({...editing,name:event.target.value})}/></label>
         {editing.kind==='group'&&<label>Huvudkategori<select value={editing.parentId||cats[0]?.id||''} onChange={event=>setEditing({...editing,parentId:event.target.value})}>{cats.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select></label>}
         {editing.kind==='product'&&<label>Produktgrupp<select value={editing.parentId||groups[0]?.id||''} onChange={event=>setEditing({...editing,parentId:event.target.value})}>{groups.map(group=><option key={group.id} value={group.id}>{cats.find(cat=>cat.id===group.category_id)?.name} · {group.name}</option>)}</select></label>}
         {editing.kind!=='category'&&<label>Kvittonamn som ska kännas igen (ett per rad)<textarea value={editing.aliases} placeholder="Precis så som det står på kvittot" onChange={event=>setEditing({...editing,aliases:event.target.value})}/></label>}
         {editing.kind==='product'&&<div className="nh-eco-package"><label>Förpackningsstorlek (om säker)<input type="number" min="0.001" step="any" value={editing.packageValue} onChange={event=>setEditing({...editing,packageValue:event.target.value})}/></label><label>Enhet<select value={editing.packageUnit} onChange={event=>setEditing({...editing,packageUnit:event.target.value})}>{['st','g','kg','ml','l'].map(unit=><option key={unit}>{unit}</option>)}</select></label></div>}
-      </div>
+      </fieldset>
+      <EconomySyncNote target={{path:editing.kind==='product'?catalog!.products.path:catalog!.categories.path,id:editing.id,kind:editing.kind}}/>
       {error&&<p className="nh-economy-error" role="alert">{error}</p>}
-      <div className="nh-economy-editor-actions"><button type="button" className="secondary" onClick={()=>setEditing(null)} disabled={working}>Avbryt</button><button type="submit" className="primary" disabled={working}>{working?<Loader2 className="spin" size={16}/>:<Save size={16}/>}Spara i GitHub</button></div>
+      <div className="nh-economy-editor-actions"><button type="button" className="secondary" onClick={()=>void cancelEdit()} disabled={working}>Avbryt</button><button type="submit" className="primary" disabled={working}>{working?<Loader2 className="spin" size={16}/>:<Save size={16}/>}Spara i GitHub</button></div>
     </form></div>}
   </div>;
 }

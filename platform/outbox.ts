@@ -1,3 +1,5 @@
+import { queuedEditMatches } from '@/lib/draft-scope.mjs';
+import { sameIdea } from '@/lib/ideas.mjs';
 import { durableGet, durableSet, durableDelete, durableEntries } from './local-store';
 import { catalogReconciledReceipt } from '@/lib/economy-catalog.mjs';
 
@@ -20,7 +22,7 @@ function completed(item: PendingWrite) { if (typeof window !== 'undefined') wind
 export function noteGithubFailure() { if (observing) networkFailure = true; }
 export function configureOutbox(handler: Dispatcher) { dispatch = handler; }
 export function isQueuedMutation(request: Request) {
-  return request.method === 'POST' && /^\/api\/(films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
+  return request.method === 'POST' && /^\/api\/(ideas|films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
 }
 async function locked<T>(work: () => Promise<T>): Promise<T> {
   const run = async (): Promise<T> => {
@@ -35,19 +37,13 @@ export async function pendingWrites(): Promise<PendingWrite[]> {
 export async function discardPendingWrite(id: string): Promise<void> {
   await locked(async () => { await durableDelete(PREFIX + id); changed(); });
 }
-export type DraftScope = 'media' | 'film' | 'stories' | 'all-drafts';
+export type DraftScope = 'media' | 'film' | 'stories' | 'economy' | 'all-drafts';
 /** Cancel only explicit editor drafts. Direct saved/read flags and uploads are retained. */
-export async function cancelQueuedEdits(scope: DraftScope): Promise<void> {
+export async function cancelQueuedEdits(scope: DraftScope, target: { path: string; id: string; kind?: string } | null = null): Promise<void> {
   await locked(async () => {
     let removed = false;
     for (const item of await pendingWrites()) {
-      const media = item.path === '/api/media-register';
-      const film = item.path === '/api/films';
-      let stories = item.path === '/api/story-register';
-      if (item.path === '/api/story-status' && item.body.kind === 'json') {
-        try { stories = JSON.parse(item.body.text)?.action === 'batch'; } catch { /* Preserve unknown requests. */ }
-      }
-      const matchesScope = scope === 'media' ? media : scope === 'film' ? film : scope === 'stories' ? stories : media || film || stories;
+      const matchesScope = queuedEditMatches(item, scope, target);
       if (matchesScope) { await durableDelete(PREFIX + item.id); removed = true; }
     }
     if (removed) changed();
@@ -97,6 +93,12 @@ function matches(row: any, patch: any) { return !!row && Object.keys(patch).ever
 async function reconcile(item: PendingWrite): Promise<Response | null> {
   if (item.body.kind !== 'json' || item.path.startsWith('/api/files')) return null;
   let input: any; try { input = JSON.parse(item.body.text); } catch { return null; }
+  if (item.path === '/api/ideas') {
+    const response = await dispatch(new Request(new URL('/api/ideas?id=' + encodeURIComponent(input.idea?.id || ''), location.origin)));
+    if (!response.ok) return null;
+    const data = await response.json();
+    return sameIdea(data.idea, input.idea) ? Response.json({ ...data, saved: true, reconciled: true, source: 'github' }) : null;
+  }
   const endpoint = item.path === '/api/media-register' ? '/api/' + input.kind : item.path;
   const response = await dispatch(new Request(new URL(endpoint, location.origin)));
   if (!response.ok) return null;
@@ -202,5 +204,19 @@ export async function retryPendingWrites(id?: string): Promise<PendingWrite[]> {
       await execute(item);
     }
     return pendingWrites();
+  });
+}
+
+/** A new explicit save replaces older pending edits to this same economy entry.
+ * An identical retry retains uncertainty and its original SHA for reconciliation. */
+export async function cancelSupersededEconomyWrites(input: any): Promise<void> {
+  const target = { path: input.path, id: input.entry?.id || input.id, ...(input.kind ? { kind: input.kind } : {}) };
+  await locked(async () => {
+    for (const item of await pendingWrites()) {
+      if (!queuedEditMatches(item, 'economy', target) || item.body.kind !== 'json') continue;
+      if (JSON.stringify(canonical(JSON.parse(item.body.text))) !== JSON.stringify(canonical(input))) {
+        await durableDelete(PREFIX + item.id); changed();
+      }
+    }
   });
 }

@@ -1,8 +1,10 @@
 'use client';
 import React from 'react';
 import MaterialIcon from '@/components/MaterialIcon';
-import { BookOpen, Clapperboard, Database, FolderOpen, Bookmark, Puzzle, Dumbbell, Coins, ChevronRight } from 'lucide-react';
+import { BookOpen, Clapperboard, Database, FolderOpen, Bookmark, Puzzle, Dumbbell, Coins, ChevronRight, Lightbulb } from 'lucide-react';
 type Counts = {
+    ideas: number | null;
+    ideasStale: boolean;
     files: number | null;
     knowledgeFiles: number | null;
     stories: number | null;
@@ -23,15 +25,16 @@ const modules = [
     { id: 'ekonomi', title: 'Ekonomi', description: 'Budget, räkningar och gemensamma köp', icon: Coins, tone: 'green', art: 'economy' },
     { id: 'traning', title: 'Träning', description: 'Din träning och utveckling', icon: Dumbbell, tone: 'orange', art: 'training' },
     { id: 'filer', title: 'Utforska filer', description: 'Sök och bläddra i GitHub-databasen', icon: FolderOpen, tone: 'blue', art: 'files' },
+    { id: 'ideer', title: 'Idéinkorg', description: 'Fånga tanken. Utveckla den senare.', icon: Lightbulb, tone: 'orange', art: 'ideas' },
     { id: 'villse', title: 'Vill se', description: 'Filmer och serier på din lista', icon: Bookmark, tone: 'purple', art: 'upload' }
 ] as const;
 export default function ModuleGrid({ counts, onNavigate }: Props) {
     const formatted = (n: number | null) => typeof n === 'number' ? n.toLocaleString('sv-SE') : null;
     const films = formatted(counts.films), series = formatted(counts.series), stories = formatted(counts.stories), plugins = formatted(counts.plugins), watchlist = formatted(counts.watchlist), knowledgeFiles = formatted(counts.knowledgeFiles), files = formatted(counts.files);
-    const details: Record<string, string | null> = { filmer: films !== null && series !== null ? films + ' filmer · ' + series + ' serier' : null, berattelser: stories !== null ? stories + ' berättelser' : null, databas: knowledgeFiles !== null ? knowledgeFiles + ' dokument' : null, filer: files !== null ? files + ' filer' : null, plugins: plugins !== null ? plugins + ' pluginpaket' : null, villse: watchlist !== null ? watchlist + ' objekt' : null };
+    const details: Record<string, string | null> = { ideer: counts.ideas === null ? 'Kunde inte verifiera antal' : counts.ideas.toLocaleString('sv-SE') + ' nya idéer' + (counts.ideasStale ? ' · lokal vy' : ''), filmer: films !== null && series !== null ? films + ' filmer · ' + series + ' serier' : null, berattelser: stories !== null ? stories + ' berättelser' : null, databas: knowledgeFiles !== null ? knowledgeFiles + ' dokument' : null, filer: files !== null ? files + ' filer' : null, plugins: plugins !== null ? plugins + ' pluginpaket' : null, villse: watchlist !== null ? watchlist + ' objekt' : null };
     return <section className="nh-modules" aria-label="Utforska Nexus Hub">
   <div className="nh-module-grid">{modules.map(({ id, title, description, icon: Icon, tone, art }) => <button type="button" key={id} className={'nh-module-card nh-tone-' + tone + ' nh-art-' + art} onClick={() => onNavigate(id)}>
-    <MaterialIcon size="module" tone={id === 'filmer' ? 'ruby' : id === 'plugins' ? 'pink' : id === 'filer' || id === 'ekonomi' ? 'green' : id === 'villse' ? 'violet' : id === 'traning' ? 'orange' : 'blue'} className="nh-module-symbol">
+    <MaterialIcon size="module" tone={id === 'filmer' ? 'ruby' : id === 'plugins' ? 'pink' : id === 'filer' || id === 'ekonomi' ? 'green' : id === 'villse' ? 'violet' : id === 'traning' || id === 'ideer' ? 'orange' : 'blue'} className="nh-module-symbol">
      <Icon size={35} aria-hidden="true"/>
     </MaterialIcon>
     <span className="nh-module-copy"><strong>{title}</strong><span>{description}</span>{details[id] && <span className="nh-module-count">{details[id]}</span>}</span>

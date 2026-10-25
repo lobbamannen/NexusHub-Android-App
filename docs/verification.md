@@ -1,5 +1,17 @@
 # Verifiering 2026-10-25
 
+## Idéinkorg och ekonomirättningar – 2026-10-25
+
+- Tidigare opublicerad idéimplementation förenades med ekonomi-main `c51e1a1`. Startsideskort, plusmeny, inkorg, redigering av samma idé och statusarna Ny/Undersöks/Genomförd/Avfärdad är implementerade. Databasens nya `Ideer/README.md` och `schema.json` beskriver kontraktet; inga påhittade idéposter skapas vid installation.
+- 34 riktade tester för idé- och ekonomidomänen passerar, inklusive nya regressioner för kommaalias, nettopris efter varurabatt och exakt avgränsad annullering. De tre ekonomiregressionerna kördes först röda och sedan gröna.
+- Chromium i mobilstorlek 412×915 med verklig IndexedDB/WASM och isolerad GitHub-transport: skapa idé utan titel, behåll utkast över omladdning, fortsätt skriva i samma fil, samtliga statusar och filter, väntande sparning över omstart, uttryckligt återförsök, SHA-konflikt utan överskrivning, visning/val av GitHub-version, Ångra och förlorad PUT-kvittens utan dubbelskrivning. Inga riktiga innehållsregister användes för testskrivningar.
+- Samma browserkörning verifierade ekonomi: synligt sparfel inne i editorn, väntande status, Avbryt tömmer rätt köpost, film-/berättelsekassering behåller orelaterad ekonomi, målregister låses efter ett sparförsök, gruppbyte låses efter misslyckad aliaskoppling, annullering lämnar ingen dold köpost och oförändrat kommaalias bevaras genom verklig katalogeditor/route/PUT.
+- Kodgranskningen hittade och föranledde rättningar av tidig listläsning kring idésparning, annulleringsomfång och målbyte efter ett sparförsök. Original-CSS/resurser är bevarade; home-komponenternas uttryckliga idéadapter är dokumenterad i designkontrollen.
+- Hela Node-sviten: 122 godkända av 131, samma nio historiska fel som den föregående verifierade versionen: affischimport (2), mirror.test (1), serie-UI (4), Site-integritet (1), upload-api.test (1). Dessa är inte nya fel från idé-/ekonomirättningarna.
+- TypeScript, produktionsbygge och designkontroll passerar lokalt. Actions kör nu även typecheck, designkontroll och de riktade idé-/ekonomitesterna före APK-bygget. Byggstatus och publicerad installationsfil ska verifieras separat efter push.
+- Ej utfört här: installation av denna nya APK på Robins Samsung eller test med hans riktiga token. Stabil paketidentitet, signeringsflöde och lagringsidentitet har inte ändrats.
+
+
 ## Intelligent ekonomi och artikelkatalog – tillägg 2026-10-25
 
 Den nya ekonomifunktionen är en **ren läsprojektion** av periodfilerna plus två centrala katalogfiler. Ingen av de äldre 24 köpposterna eller de 156 importerade artikelraderna ändrades vid införandet.

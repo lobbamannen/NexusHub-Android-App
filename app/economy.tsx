@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import EconomySyncNote, { type EconomyDraftTarget } from '@/components/economy/EconomySyncNote';
+import { cancelQueuedEdits, cancelSupersededEconomyWrites } from '@/platform/outbox';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, BadgeCheck, BarChart3, ChevronDown, ChevronRight, Coins, LibraryBig, Edit3, Loader2, Plus, RefreshCw, Save, Search, Tags, X } from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
@@ -13,7 +15,7 @@ type BudgetEntry = { id: string; name: string; type: string; monthly_amount_sek:
 type Purchase = { id: string; date: string | null; description: string; category: string; amount_sek: number; status?: string; paid_by?: string | null; articles?: Article[]; article_reconciliation?: string };
 type EconomyFile = { path: string; sha: string; data: { entries?: BudgetEntry[]; purchases?: Purchase[]; period?: { label?: string; start_date?: string; end_date?: string | null } } };
 type Row = { key: string; source: EconomyFile; kind: 'budget' | 'purchase'; person: 'Robin' | 'Rebecca' | 'Gemensamt'; entry: BudgetEntry | Purchase };
-type Form = { row: Row | null; kind: 'budget' | 'purchase'; person: 'Robin' | 'Rebecca' | 'Gemensamt'; file: EconomyFile; id: string; name: string; type: string; amount: string; date: string; category: string; status: string; articles: Article[] };
+type Form = { attempted: boolean; row: Row | null; kind: 'budget' | 'purchase'; person: 'Robin' | 'Rebecca' | 'Gemensamt'; file: EconomyFile; id: string; name: string; type: string; amount: string; date: string; category: string; status: string; articles: Article[] };
 const money = (n: number) => n.toLocaleString('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 2 });
 const makeId = () => 'manual-' + crypto.randomUUID();
 const numeric = (value: string) => Number(value.replace(/\s/g, '').replace(',', '.'));
@@ -22,7 +24,7 @@ function personFor(path: string): Row['person'] { return path.includes('/Robin/'
 function createForm(file: EconomyFile, row: Row | null): Form {
   const kind = file.data.entries ? 'budget' : 'purchase';
   const entry: any = row?.entry;
-  return { row, kind, person: personFor(file.path), file, id: entry?.id || makeId(),
+  return { attempted: false, row, kind, person: personFor(file.path), file, id: entry?.id || makeId(),
     name: entry?.name || entry?.description || '', type: entry?.type || 'Fast utgift',
     amount: entry ? String(kind === 'budget' ? entry.monthly_amount_sek : entry.amount_sek) : '',
     date: entry?.date || new Date().toLocaleDateString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/-(\d{2})-(\d{2})$/, '-$1-$2'),
@@ -34,11 +36,13 @@ async function json(response: Response) {
   if (!response.ok) throw new Error(data.error || 'Kunde inte läsa GitHub.');
   return data;
 }
-export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boolean, busy?: boolean) => void }) {
+export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boolean, busy?: boolean, discard?: () => Promise<void>) => void }) {
   const [screen, setScreen] = useState<'overview' | 'register' | 'analysis' | 'catalog'>('overview');
   const [files, setFiles] = useState<EconomyFile[]>([]);
   const [catalog, setCatalog] = useState<EconomyCatalogSnapshot | null>(null);
   const [catalogEditing, setCatalogEditing] = useState(false);
+  const [catalogTarget, setCatalogTarget] = useState<EconomyDraftTarget | null>(null);
+  const catalogDirty = useCallback((editing: boolean, target: EconomyDraftTarget | null = null) => {setCatalogEditing(editing);setCatalogTarget(target);},[]);
   const [catalogSaving, setCatalogSaving] = useState(false);
   const [offlineCopy, setOfflineCopy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -67,8 +71,19 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
     window.addEventListener('nexus-write-completed', onCompleted);
     return () => window.removeEventListener('nexus-write-completed', onCompleted);
   }, [form, catalogEditing, catalogSaving, saving]);
-  useEffect(() => { onDirtyChange?.(!!form || catalogEditing, saving || catalogSaving); return () => onDirtyChange?.(false, false); }, [form, saving, catalogEditing, catalogSaving, onDirtyChange]);
-  useBackHandler(120, () => { if (!form) return false; if (!saving) setForm(null); return true; });
+  useEffect(() => {
+    const target = form ? {path: form.file.path, id: form.id} : catalogTarget;
+    onDirtyChange?.(!!form || catalogEditing, saving || catalogSaving, async () => { if(target) await cancelQueuedEdits('economy',target); });
+    return () => onDirtyChange?.(false, false);
+  }, [form, saving, catalogEditing, catalogSaving, catalogTarget, onDirtyChange]);
+  const closeForm = async () => {
+    if (!form || saving) return;
+    setSaving(true);
+    try { await cancelQueuedEdits('economy', { path: form.file.path, id: form.id }); setForm(null); setError(''); }
+    catch (e: any) { setError('Sparförsöket kunde inte avbrytas. ' + e.message); }
+    finally { setSaving(false); }
+  };
+  useBackHandler(120, () => { if (!form) return false; if (!saving) void closeForm(); return true; });
   useBackHandler(90, () => { if (screen === 'overview' || form || catalogEditing) return false; setScreen('overview'); window.scrollTo(0, 0); return true; });
   const rows = useMemo<Row[]>(() => files.flatMap(file => (file.data.entries || file.data.purchases || []).map(entry => ({
     key: file.path + ':' + entry.id, source: file, kind: file.data.entries ? 'budget' as const : 'purchase' as const,
@@ -97,15 +112,15 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
     e.preventDefault(); if (!form || saving) return;
     if (!validAmount(form.amount)) { setError('Ange ett giltigt belopp i kronor.'); return; }
     if (!form.name.trim()) { setError('Namn eller beskrivning saknas.'); return; }
-    setError(''); setSaving(true);
+    setError(''); setSaving(true); setForm(current => current ? {...current, attempted:true} : current);
     try {
       const changes: Record<string, any> = form.kind === 'budget'
         ? { name: form.name.trim(), type: form.type.trim(), monthly_amount_sek: numeric(form.amount) }
         : { description: form.name.trim(), category: form.category.trim(), date: form.date || null,
             amount_sek: numeric(form.amount), status: form.status.trim(), articles: form.articles };
-      const result = await json(await fetch('/api/economy', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: form.file.path, expectedSha: form.file.sha, action: form.row ? 'update' : 'create',
-          id: form.id, changes }) }));
+      const input = { path: form.file.path, expectedSha: form.file.sha, action: form.row ? 'update' : 'create', id: form.id, changes };
+      await cancelSupersededEconomyWrites(input);
+      const result = await json(await fetch('/api/economy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) }));
       setFiles(previous => previous.map(file => file.path === result.path ? { ...file, sha: result.sha, data: result.data } : file));
       setNotice('Sparat och verifierat i GitHub.');
       setForm(null);
@@ -119,8 +134,9 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
     const file = catalog[slot];
     setCatalogSaving(true);
     try {
-      const result = await json(await fetch('/api/economy', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: file.path, expectedSha: file.sha, action: 'upsert', kind, entry }) }));
+      const input = { path: file.path, expectedSha: file.sha, action: 'upsert', kind, entry };
+      await cancelSupersededEconomyWrites(input);
+      const result = await json(await fetch('/api/economy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) }));
       if (!result.saved || !result.sha || !result.data) throw Error('GitHub bekräftade inte katalogändringen.');
       setCatalog(previous => previous ? { ...previous, [slot]: { path: result.path, sha: result.sha, data: result.data } } : previous);
       setNotice('Katalogändringen är sparad i GitHub.');
@@ -185,15 +201,15 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
         })}
       </div> : <div className="nh-economy-empty">Inga ekonomiposter matchar filtreringen.</div>}
     </div> : screen === 'analysis' ? <EconomyInsights files={files} catalog={catalog} onCatalog={() => {setScreen('catalog');window.scrollTo(0,0);}} /> :
-      <><EconomyCatalog files={files} catalog={catalog} save={saveCatalogEntry} onDirtyChange={setCatalogEditing}/>
+      <><EconomyCatalog files={files} catalog={catalog} save={saveCatalogEntry} onDirtyChange={catalogDirty}/>
         {notice && <div role="status" className="nh-economy-success"><BadgeCheck size={18}/>{notice}<button type="button" onClick={() => setNotice('')} aria-label="Stäng meddelande"><X size={15}/></button></div>}
         {error && <div role="alert" className="nh-economy-error">{error}</div>}
       </>}
     </>}
     {form && <div className="nh-economy-overlay" role="presentation"><form className="nh-economy-editor" onSubmit={save} aria-label={form.row ? 'Redigera ekonomipost' : 'Skapa ekonomipost'}>
-      <div className="nh-economy-editor-head"><div><p className="eyebrow">{form.person} · {form.kind === 'budget' ? 'FAST BUDGET' : 'RÖRLIGT KÖP'}</p><h2>{form.row ? 'Redigera post' : 'Ny post'}</h2></div><button type="button" aria-label="Stäng formulär" onClick={() => setForm(null)} disabled={saving}><X size={21}/></button></div>
-      <div className="nh-economy-fields">
-        {!form.row && <label>Vilket register?<select value={form.file.path} onChange={e => { const file = files.find(item => item.path === e.target.value); if (file) setForm(createForm(file, null)); }} disabled={saving}>{files.filter(file => !!file.data.entries || !!file.data.purchases).map(file => <option key={file.path} value={file.path}>{personFor(file.path)}{file.data.period?.label ? ' · ' + file.data.period.label : ''}</option>)}</select></label>}
+      <div className="nh-economy-editor-head"><div><p className="eyebrow">{form.person} · {form.kind === 'budget' ? 'FAST BUDGET' : 'RÖRLIGT KÖP'}</p><h2>{form.row ? 'Redigera post' : 'Ny post'}</h2></div><button type="button" aria-label="Stäng formulär" onClick={() => void closeForm()} disabled={saving}><X size={21}/></button></div>
+      <fieldset className="nh-economy-fields" disabled={saving}>
+        {!form.row && <label>Vilket register?<select value={form.file.path} onChange={e => { const file = files.find(item => item.path === e.target.value); if (file) setForm(createForm(file, null)); }} disabled={saving || form.attempted}>{files.filter(file => !!file.data.entries || !!file.data.purchases).map(file => <option key={file.path} value={file.path}>{personFor(file.path)}{file.data.period?.label ? ' · ' + file.data.period.label : ''}</option>)}</select></label>}
         <label>{form.kind === 'budget' ? 'Post' : 'Butik eller beskrivning'}<input required maxLength={280} value={form.name} onChange={e => set({name:e.target.value})}/></label>
         {form.kind === 'budget' ? <label>Typ<input required maxLength={100} value={form.type} onChange={e => set({type:e.target.value})}/></label> : <>
           <label>Kategori<input required maxLength={160} value={form.category} onChange={e => set({category:e.target.value})}/></label>
@@ -208,8 +224,10 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
           <button type="button" className="secondary" onClick={() => set({articles:[...form.articles,{name:'',line_amount_sek:0}]})}><Plus size={15}/>Lägg till artikelrad</button>
           <p>Artikelsumma: {money(articleSum(form.articles))}{form.articles.length && validAmount(form.amount) && Math.abs(articleSum(form.articles)-numeric(form.amount))>.01?' · Skiljer sig från köpbeloppet':''}</p></>}
         </div>}
-      </div>
-      <div className="nh-economy-editor-actions"><button type="button" className="secondary" onClick={() => setForm(null)} disabled={saving}><ArrowLeft size={16}/>Avbryt</button><button type="submit" className="primary" disabled={saving}>{saving ? <Loader2 className="spin" size={17}/> : <Save size={17}/>}Spara i GitHub</button></div>
+      </fieldset>
+      {error && <p className="nh-economy-error" role="alert">{error}</p>}
+      <EconomySyncNote target={{path: form.file.path, id: form.id}}/>
+      <div className="nh-economy-editor-actions"><button type="button" className="secondary" onClick={() => void closeForm()} disabled={saving}><ArrowLeft size={16}/>Avbryt</button><button type="submit" className="primary" disabled={saving}>{saving ? <Loader2 className="spin" size={17}/> : <Save size={17}/>}Spara i GitHub</button></div>
     </form></div>}
   </section>;
 }

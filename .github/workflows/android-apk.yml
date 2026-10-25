@@ -33,6 +33,9 @@ jobs:
       - name: Build original React UI
         run: |
           npm ci
+          npm run check
+          npm run check:design
+          node --test tests/ideas.test.mjs tests/economy-*.test.mjs
           npm run build
       - name: Restore stable private signing identity
         env:
