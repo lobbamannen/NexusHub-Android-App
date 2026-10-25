@@ -1,0 +1,61 @@
+/* Nexus Hub · Economy. Uses the existing chroma materials, scoped to this module. */
+.portal-shell .nh-economy{--ec:#74e4b3;--ec-soft:#b2f5d8;--ec-line:#5bba9960;min-width:0;display:grid;gap:24px;margin:0 auto 38px;max-width:1160px}
+.portal-shell .nh-economy-hero{position:relative;display:flex;align-items:center;gap:17px;padding:26px 24px;border:1px solid var(--ec-line);border-radius:26px;background:radial-gradient(ellipse at 5% 0%,#3e9b7744,transparent 56%),linear-gradient(130deg,#1a2733,#101b27 67%,#101b25);box-shadow:0 22px 65px #0208114d,inset 0 1px #ffffff13;overflow:hidden}
+.portal-shell .nh-economy-hero:after{content:"";position:absolute;inset:auto -10% -65% 15%;height:170px;background:radial-gradient(ellipse,#49b98b28,transparent 72%);pointer-events:none}
+.portal-shell .nh-economy-hero h1{font-size:clamp(27px,5vw,37px);letter-spacing:-1.1px;margin:3px 0 5px;color:#f4fff9}
+.portal-shell .nh-economy-hero .eyebrow{color:var(--ec);font-size:10px;letter-spacing:1.8px;font-weight:800;margin:0}
+.portal-shell .nh-economy-hero p:last-child{color:#b3c7c2;font-size:13px;margin:0;line-height:1.5}
+.portal-shell .nh-economy-refresh{margin-left:auto;background:#17382e;border:1px solid #4c9b7a55;border-radius:14px;display:grid;place-items:center;min-width:42px;height:42px;color:var(--ec);cursor:pointer}
+.portal-shell .nh-economy-register{border:1px solid #324b51;border-radius:24px;padding:23px;background:linear-gradient(150deg,#152535,#101b2a 67%,#0d1825);box-shadow:0 17px 55px #0004,inset 0 1px #ffffff0a;min-width:0}
+.portal-shell .nh-economy-register-top{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:20px}
+.portal-shell .nh-economy-register-top h2{font-size:24px;line-height:1.2;margin:4px 0 3px;color:#eefef7}
+.portal-shell .nh-economy-register-top p{color:#a1beb5;font-size:12px;margin:0}
+.portal-shell .nh-economy-register-top .primary,.portal-shell .nh-economy-editor .primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(130deg,#2e976f,#176449);color:white;border:1px solid #77e4ad55;border-radius:12px;padding:12px 15px;font-size:13px;font-weight:750;cursor:pointer;white-space:nowrap}
+.portal-shell .nh-economy .hub-section-kicker{color:#81dab4}
+.portal-shell .nh-economy-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+.portal-shell .nh-economy-tabs button{border:1px solid #3c5860;background:#152633;color:#b7cec7;border-radius:999px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.portal-shell .nh-economy-tabs button.active{background:#194c3c;color:#caffdf;border-color:#57c39b;box-shadow:0 0 20px #4cca8e18}
+.portal-shell .nh-economy-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(145px,220px);gap:10px;margin-bottom:18px}
+.portal-shell .nh-economy-search{display:flex;align-items:center;gap:10px;background:#0d1a27;border:1px solid #405861;border-radius:13px;padding:0 12px;min-width:0;color:#83cfaa}
+.portal-shell .nh-economy-search input{flex:1;min-width:0;background:none;border:0;color:#e7fff6;outline:none;padding:13px 0;font:inherit;font-size:13px}
+.portal-shell .nh-economy-search button{background:none;border:0;color:#aad9c2;cursor:pointer}
+.portal-shell .nh-economy-controls select,.portal-shell .nh-economy-fields input,.portal-shell .nh-economy-fields select{min-width:0;background:#0d1a27;border:1px solid #405861;border-radius:12px;color:#e8fff5;padding:12px;font:inherit;font-size:13px}
+.portal-shell .nh-economy-list{display:grid;gap:9px}
+.portal-shell .nh-economy-entry{border:1px solid #314954;background:#101e2c;border-radius:16px;overflow:hidden}
+.portal-shell .nh-economy-entry-main{width:100%;text-align:left;background:none;border:0;display:flex;gap:12px;align-items:center;padding:13px 14px;color:#dceee8;cursor:pointer}
+.portal-shell .nh-economy-entry-icon{flex:0 0 39px;height:39px;border-radius:13px;background:linear-gradient(145deg,#316d59,#153d34);border:1px solid #69ce9b40;color:#9eecc9;display:grid;place-items:center}
+.portal-shell .nh-economy-entry-content{display:grid;min-width:0;flex:1;gap:5px}
+.portal-shell .nh-economy-entry-content strong{color:#f3fff9;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+.portal-shell .nh-economy-entry-content small{color:#9eb8b3;font-size:11px;line-height:1.5}
+.portal-shell .nh-economy-entry-price{font-size:13px;font-weight:800;white-space:nowrap;color:#b5f1d5}
+.portal-shell .nh-economy-entry-main>svg{color:#6d9a8b;flex-shrink:0}
+.portal-shell .nh-economy-entry-detail{border-top:1px solid #344c55;padding:15px;display:grid;gap:10px;background:#152636}
+.portal-shell .nh-economy-entry-detail p{font-size:12px;color:#b1cac0;margin:0}
+.portal-shell .nh-economy-entry-detail .secondary,.portal-shell .nh-economy-edit-articles .secondary{justify-self:start;display:flex;align-items:center;gap:7px;padding:10px 13px;background:#225344;border:1px solid #70ce9d5a;border-radius:11px;color:#d8fff0;font-weight:700;font-size:12px;cursor:pointer}
+.portal-shell .nh-economy-articles{display:grid;gap:5px;margin:6px 0;padding:10px;background:#10202d;border-radius:12px;max-height:370px;overflow:auto}
+.portal-shell .nh-economy-articles>div{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px solid #ffffff0c}
+.portal-shell .nh-economy-articles>div:last-child{border-bottom:none}
+.portal-shell .nh-economy-articles span{color:#cfdfd8;overflow-wrap:anywhere}.portal-shell .nh-economy-articles strong{white-space:nowrap;color:#b5f1d5}
+.portal-shell .nh-economy-loading,.portal-shell .nh-economy-empty{padding:25px;text-align:center;color:#a3c2b6}
+.portal-shell .nh-economy-loading{display:flex;justify-content:center;gap:10px;align-items:center}
+.portal-shell .nh-economy-error,.portal-shell .nh-economy-success{margin:12px 0 15px;padding:12px 14px;border-radius:12px;font-size:12px;line-height:1.5}
+.portal-shell .nh-economy-error{background:#5b282c;border:1px solid #be6970;color:#ffe3df}
+.portal-shell .nh-economy-success{background:#1b493a;border:1px solid #439972;color:#cafbe1;display:flex;align-items:center;gap:10px}
+.portal-shell .nh-economy-success button{margin-left:auto;background:none;border:0;color:inherit;cursor:pointer}
+.portal-shell .nh-economy-overlay{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:#020a10d9;backdrop-filter:blur(13px)}
+.portal-shell .nh-economy-editor{background:linear-gradient(145deg,#192f37,#10202d);border:1px solid #6cad9080;border-radius:23px;box-shadow:0 25px 90px #000c;width:min(100%,570px);max-height:min(88dvh,850px);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.portal-shell .nh-economy-editor-head{padding:22px 22px 15px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid #ffffff13}
+.portal-shell .nh-economy-editor-head h2{font-size:22px;margin:4px 0;color:#f0fff7}
+.portal-shell .nh-economy-editor-head .eyebrow{color:#8cdec1;font-size:10px;font-weight:800}
+.portal-shell .nh-economy-editor-head>button{border:0;background:#29453d;color:#d3f7e4;border-radius:10px;padding:8px;cursor:pointer}
+.portal-shell .nh-economy-fields{padding:20px 22px;display:grid;gap:15px;overflow:auto}
+.portal-shell .nh-economy-fields>label{display:grid;gap:7px;color:#a8cdbc;font-size:12px;font-weight:700}
+.portal-shell .nh-economy-editor-actions{display:flex;gap:12px;justify-content:space-between;padding:16px 22px;border-top:1px solid #ffffff16}
+.portal-shell .nh-economy-editor-actions .secondary{display:flex;align-items:center;gap:8px;background:#23383d;color:#c9e0d6;border:1px solid #46655b;padding:11px 14px;border-radius:11px;cursor:pointer}
+.portal-shell .nh-economy-editor button:disabled,.portal-shell .nh-economy button:disabled{opacity:.55;cursor:not-allowed}
+.portal-shell .nh-economy-edit-articles{border:1px solid #355a4c;border-radius:12px;padding:12px;display:grid;gap:11px}
+.portal-shell .nh-economy-article-toggle{width:100%;display:flex;justify-content:space-between;background:none;border:0;color:#b9f2d5;font:inherit;font-weight:800;cursor:pointer}
+.portal-shell .nh-economy-edit-articles p{font-size:11px;color:#adc5ba;margin:0;line-height:1.5}
+.portal-shell .nh-economy-article-edit{display:grid;grid-template-columns:minmax(0,1fr) 86px 30px;gap:7px}
+.portal-shell .nh-economy-article-edit button{background:#402b35;border:0;border-radius:8px;color:#ffc2c2;cursor:pointer}
+@media(max-width:630px){.portal-shell .nh-economy{gap:16px}.portal-shell .nh-economy-hero{padding:19px 15px;gap:10px}.portal-shell .nh-economy-hero h1{font-size:28px}.portal-shell .nh-economy-hero p:last-child{font-size:11px}.portal-shell .nh-economy-register{padding:15px;border-radius:19px}.portal-shell .nh-economy-register-top h2{font-size:20px}.portal-shell .nh-economy-controls{grid-template-columns:1fr}.portal-shell .nh-economy-entry-main{padding:10px;gap:9px}.portal-shell .nh-economy-entry-icon{flex-basis:33px;height:33px}.portal-shell .nh-economy-entry-content strong{font-size:12px}.portal-shell .nh-economy-entry-price{font-size:12px}.portal-shell .nh-economy-register-top .primary{padding:11px 10px}.portal-shell .nh-economy-editor-head,.portal-shell .nh-economy-fields,.portal-shell .nh-economy-editor-actions{padding-left:16px;padding-right:16px}}
