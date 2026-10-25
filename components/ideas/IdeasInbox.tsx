@@ -13,8 +13,8 @@ export function ideaSyncLabel(ideas: IdeasController, id: string) {
 export default function IdeasInbox({ ideas }: { ideas: IdeasController }) {
     const [filter, setFilter] = useState('all');
     const shown = ideas.items.filter(row => filter === 'all' || row.idea.status === filter);
-    return <section className="nh-ideas" aria-labelledby="ideas-title">
-        <div className="nh-ideas-heading"><MaterialIcon tone="orange" size={54}><Lightbulb size={30}/></MaterialIcon><div><p className="eyebrow">NEXUS HUB · DINA TANKAR</p><h1 id="ideas-title">Idéinkorg</h1><p>Fånga tanken nu. Utveckla den när du vill.</p></div></div>
+    return <section className="nh-ideas nh-module-dashboard" aria-labelledby="ideas-title">
+        <header className="nh-module-dashboard-header"><div className="nh-module-dashboard-title"><span className="nh-module-heading-icon"><MaterialIcon tone="orange" size={48}><Lightbulb size={29}/></MaterialIcon></span><div><span className="nh-module-eyebrow">NEXUS HUB · DINA TANKAR</span><h1 id="ideas-title">Idéinkorg</h1><p>Fånga tanken nu. Utveckla den när du vill.</p></div></div></header>
         <div className="nh-ideas-actions"><button className="primary" disabled={!ideas.ready || ideas.busy} onClick={ideas.create}><Plus size={18}/>Ny idé</button><button className="secondary" disabled={ideas.loading || ideas.busy} onClick={() => void ideas.reload()}><RefreshCw size={17} className={ideas.loading ? 'spin' : ''}/>Uppdatera</button></div>
         {ideas.error && <div className="error-banner" role="alert">{ideas.error}</div>}
         {ideas.stale && <p className="nh-ideas-note"><AlertTriangle size={16}/>GitHub kunde inte uppdateras. Visar tillgängliga kopior och dina lokala utkast.</p>}
