@@ -80,11 +80,28 @@ En bred kvittotext som `VÅTSERVETTER` ger gruppen **Våtservetter** men inte et
 - Avbryt i ekonomins editor annullerar motsvarande väntande sparförsök. När ett sparförsök gjorts låses målregister/grupp tills det avslutas eller avbryts. Orelaterade film-/berättelseutkast får inte radera ekonomins köposter.
 - Appens katalogredigering använder samma verifierade SHA och beständiga väntande sparningar som övriga ekonomiregister. Vid konflikt behövs omläsning; gammal data skrivs inte över automatiskt.
 
+## Designregler – gäller all utveckling
+
+**NexusHubs befintliga design är ett produktkrav. Nya funktioner ska kännas som samma app. En fungerande funktion är inte färdig om den bryter mot temat. Ändra inte designidentiteten utan Robins uttryckliga önskemål.**
+
+- **Återanvänd verkliga komponenter och stilar.** Utgå från appens befintliga React-kod, CSS, MaterialIcon, typsnitt, SVG, animationer och etablerade vyer. Skapa inte en ungefärlig kopia eller ett separat tema för en ny modul. Kunskapsbankens översikt är referens för motsvarande modulrubriker, kort och verktygsfält; jämför likvärdiga komponenter.
+- **Samma material överallt.** Behåll nästan svarta ytor, diskreta kanter, befintligt djup, skuggor och glöd. En modulfärg får inte färga om hela paneler, formulär eller knappar till en egen design. Bakgrundens färgade glöd ska tona mjukt enligt appens gemensamma tema.
+- **Modulfärgen ska följa modulen.** Huvudikon och sidglöd ska matcha startsidans ikon. Menyikonen ska ha samma färgidentitet. Film är rubinröd, berättelser/serier/kunskapsbanken blå, plugins rosa, ekonomi/utforska filer gröna och träning/idéinkorg orange. Gemensamma kontroller och sekundära statistikikoner får behålla appens etablerade lila accent.
+- **Samma proportioner och typografi.** Återanvänd storlekar för rubriker, materialikoner, kort, marginaler, mellanrum, hörnradier och textnivåer från motsvarande befintliga vy. En ny modul ska inte få större huvudikon, annan rubrikskala eller tätare layout av bekvämlighet.
+- **Samma knappar och formulär.** Använd etablerad lila huvudåtgärd, gemensamma sekundärknappar, flikar, sökfält och redigeringsdialoger. Modulens accentfärg är inte skäl att uppfinna ett nytt knappsystem. Bevara tydliga fokus-, valt-, laddnings- och inaktiva tillstånd. Semantiska färger för fel, varning och bekräftad sparning behåller sin betydelse.
+- **Samma funktion ska uppföra sig konsekvent.** Spara, Ångra/Avbryt, stängning, Android Tillbaka och uppdatering ska följa appens etablerade flöden. Visa skillnaden mellan lokalt utkast, väntande synk, konflikt och verifierad GitHub-sparning. Styling får inte dölja fel, sparstatus eller viktiga knappar.
+- **Granska hela den berörda funktionen.** Kontrollera startsideskort, meny, översikt, listor, analys, filter, editor, inställningar samt tomma vyer, laddning och fel. Ekonomi och Idéinkorg omfattas av samma regler som äldre moduler. Träningssidan är avsiktligt minimal och ska inte fyllas ut eller märkas om utan uppdrag.
+- **Samsung och mobil först.** Behåll läsbarhet, tryckytor och befintlig bottennavigation. Text, tangentbord och dialoger ska få plats utan oavsiktlig horisontell rullning eller dolda åtgärder.
+- **Kontrollera CSS-kaskaden.** Återanvänd gemensamma klasser innan nya specialregler läggs till. Undvik konkurrerande modulvarianter och staplade överstyrningar. Ändringar i gemensamma stilar måste bedömas mot andra vyer.
+- **Var ärlig om visuell verifiering.** Kodläsning, typkontroll och designhashar bevisar inte att en vy ser rätt ut. När visuell kontroll ingår: jämför renderade vyer i mobilstorlek med den befintliga designen, inklusive editor och tillstånd. Om bara koden har granskats ska det uttryckligen framgå. Följ Robins önskade omfattning; starta inte omfattande testsviter för en dokumentationsändring.
+
+Designkällor: `components/MaterialIcon.tsx`, `components/home/MaterialDefinitions.tsx`, `app/chroma-materials.css`, `app/chroma-theme.css`, `app/module-dashboards.css` och befintliga komponenter i `components/dashboard/`. Proveniensfilen beskriver originalet; den är inte ett bevis på att nya moduler visuellt överensstämmer.
+
 ## Originaldesign
 
-Gränssnittet hämtades från `lobbamannen/NexusHub`, källträd `8b550f150035d8214b1c648ff2ff7f1e79f3249d`. `docs/source-provenance.json` innehåller SHA-256 för originalets designfiler. All CSS, inbäddade typsnitt, SVG och huvuddelen av komponenterna är oförändrade.
+Gränssnittet hämtades från `lobbamannen/NexusHub`, källträd `8b550f150035d8214b1c648ff2ff7f1e79f3249d`. `docs/source-provenance.json` innehåller SHA-256 för originalets designfiler. Originalets designresurser återanvänds. Android-anpassningar och senare tillägg som Ekonomi och Idéinkorg har utvecklats vidare; proveniensfilen beskriver ursprunget och innebär inte att all aktuell CSS är oförändrad.
 
-Avgränsade anpassningar ändrar transport och säker kassering, inte presentation:
+Exempel på Android-anpassningar:
 
 - Affischer och originalbilder hämtas genom det lokala API:t och får blob-URL:er. Lazy loading behålls.
 - Spar-/ångraflödena avbryter motsvarande väntande GitHub-försök.
