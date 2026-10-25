@@ -16,7 +16,11 @@
 
 GitHub Actions kör det riktiga Android-bygget. Första körningen identifierade att SDK-installationsstegets standardpaket `tools` har tagits bort. Workflowet använder nu uttryckligen `platform-tools`, samma fungerande anpassning som Cortex.
 
-Körning 2 är godkänd: Android release-APK byggd, Android lint godkänd, APK-signatur verifierad och installationsfil publicerad. Den sista anpassningen återställer även den befintliga wrapperns systemfältsfärger och navigationsavstånd; den byggs i nästa körning med samma signeringsnyckel.
+Körning 2 och 3 är godkända: Android release-APK byggd, Android lint godkänd, APK-signatur verifierad och installationsfil publicerad. Körning 3 innehåller även den befintliga wrapperns systemfältsfärger och navigationsavstånd. Certifikatets SHA-256 är samma i båda APK:erna: `7a16fa6a685f8879d7b3eea3e4b29ef9a4092d3d1ba69abe3bcbaeab2a8756b4`.
+
+Leverans: https://github.com/lobbamannen/NexusHub-Android-App/releases/tag/app-v1.0.3
+
+Bygge: https://github.com/lobbamannen/NexusHub-Android-App/actions/runs/40196488832
 
 ## Kvarvarande telefonverifiering
 

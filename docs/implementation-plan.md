@@ -22,4 +22,4 @@ Osäker GitHub-kvittens; samtidiga ändringar; stängning under sparning; privat
 Användarens instruktion att bygga klart autonomt gäller utan ytterligare planbekräftelse. Nytt tomt repo och separat arbetskatalog ger isolering. Endast nya repot får publiceras. Ingen automatisk full spegling eller schemalagd synk.
 
 ## Genomförda kontroller
-Se docs/verification.md. Chromium användningskontroller, verklig IndexedDB/WASM, TypeScript och produktionsbygge godkända. GitHub Actions körning 2 byggde signerad release-APK och Android lint utan fel. Den avslutande wrapperanpassningen byggs och certifikatet jämförs före leverans.
+Se docs/verification.md. Chromium användningskontroller, verklig IndexedDB/WASM, TypeScript och produktionsbygge godkända. GitHub Actions körning 2 byggde signerad release-APK och Android lint utan fel. Den avslutande wrapperanpassningen är byggd i körning 3 och signeringscertifikatet är verifierat identiskt med körning 2. Fysisk telefonverifiering kvarstår enligt verifieringsdokumentet.
