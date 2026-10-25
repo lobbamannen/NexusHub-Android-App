@@ -64,3 +64,14 @@ Följande kräver den faktiska Samsung-telefonen och Robins token: Keystore öve
 - Väntande sparningar spelas inte upp automatiskt vid start/återgång/nätanslutning. Återförsök sker vid nytt uttryckligt Spara eller via Inställningar; detta bevarar redigerings- och SHA-beteendet utan att införa bakgrundskonflikter.
 - En opublicerad draft release förvarar signeringsidentiteten så att inget manuellt nyckelsteg behövs. Valvet får aldrig publiceras eller raderas.
 - Ingen kopiering från befintlig Sites-lagring har gjorts. Appbygget lämnade den befintliga Site-koden och innehållsregistren orörda; gemensam dokumentation uppdateras separat.
+
+## Leverans av idéinkorg och ekonomirättningar
+
+Actions-körning 16 har byggt signerad release-APK, kört Android lint och verifierat APK-signaturen. Workflowets nya typecheck, designkontroll och riktade tester passerade före Android-bygget. Den stabila signeringsidentiteten återställdes genom befintligt signing-vault-flöde; ingen ändring av paketnamn, WebView-origin eller lokal lagringsidentitet har gjorts.
+
+- Kodcommit: `2d16fda56940ec16218090938c65dddf97d287c4`.
+- Bygge: https://github.com/lobbamannen/NexusHub-Android-App/actions/runs/40220162595
+- Publicerad release: https://github.com/lobbamannen/NexusHub-Android-App/releases/tag/app-v1.0.16
+- APK: https://github.com/lobbamannen/NexusHub-Android-App/releases/download/app-v1.0.16/nexus-hub-app.apk (2578612 bytes).
+- `Ideer/README.md` och `Ideer/schema.json` i Databas återlästa och verifierade. Github-Databas 1.0.7 publicerad och synkad till pluginrepot med återlästa källfiler.
+- Installera ovanpå befintlig app; telefonverifiering av denna version återstår till Robins normala användning.
