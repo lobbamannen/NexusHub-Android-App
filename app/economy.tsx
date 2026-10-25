@@ -63,6 +63,15 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
   };
   useEffect(() => { void reload(); }, []);
   useEffect(() => {
+    const refresh = (event: Event) => {
+      if ((event as CustomEvent).detail?.view !== 'ekonomi') return;
+      if (form || catalogEditing || saving || catalogSaving) { setNotice('Avsluta redigeringen innan du uppdaterar ekonomin.'); return; }
+      void reload();
+    };
+    window.addEventListener('nexus-refresh-module', refresh);
+    return () => window.removeEventListener('nexus-refresh-module', refresh);
+  }, [form, catalogEditing, saving, catalogSaving]);
+  useEffect(() => {
     const onCompleted = (event: Event) => {
       if ((event as CustomEvent<{ path?: string }>).detail?.path !== '/api/economy') return;
       if (!form && !catalogEditing && !catalogSaving && !saving) void reload();
@@ -146,9 +155,9 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
   };
   const periodCount = files.filter(file => !!file.data.purchases).length;
   return <section className="nh-economy" aria-label="Ekonomi">
-    <header className="nh-economy-hero">
-      <MaterialIcon size={62} tone="green"><Coins size={35}/></MaterialIcon>
-      <div><p className="eyebrow">NEXUS HUB · DATABAS</p><h1>Ekonomi</h1><p>Fasta budgetposter och gemensamma köp, direkt från GitHub.</p></div>
+    <header className="nh-module-dashboard-header nh-economy-hero"><div className="nh-module-dashboard-title"><span className="nh-module-heading-icon">
+      <MaterialIcon size={48} tone="green"><Coins size={29}/></MaterialIcon></span>
+      <div><p className="nh-module-eyebrow">NEXUS HUB · DATABAS</p><h1>Ekonomi</h1><p>Fasta budgetposter och gemensamma köp, direkt från GitHub.</p></div></div>
       <button type="button" className="nh-economy-refresh" onClick={() => void reload()} disabled={loading || !!form || catalogEditing} aria-label="Uppdatera ekonomiregistret"><RefreshCw size={19} className={loading ? 'spin' : ''}/></button>
     </header>
     {offlineCopy && <p className="nh-eco-warning">Du ser en sparad offlinekopia. Nya uppgifter kan saknas tills GitHub går att nå igen.</p>}

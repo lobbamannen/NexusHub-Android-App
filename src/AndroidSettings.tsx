@@ -44,7 +44,7 @@ export default function AndroidSettings() {
         <strong>{item.status==='conflict'?'Versionskonflikt':item.status==='failed'?'Behöver kontrolleras':'Väntar på GitHub'}</strong>
         <p className="small break">{item.path} · {new Date(item.createdAt).toLocaleString('sv-SE')}</p><p className="small">{item.error}</p>
         <button className="secondary" disabled={busy} onClick={()=>void retry(item.id)}><RefreshCw size={16}/>Kontrollera och försök igen</button>
-        <button className="text-button" disabled={busy} onClick={()=>{if(window.confirm('Ta bort detta väntande försök? Inga redan sparade GitHub-uppgifter ändras.'))void discardPendingWrite(item.id).then(reload);}}>Ta bort väntande försök</button>
+        <button className="text-button" disabled={busy} onClick={()=>{if(window.confirm('Ta bort detta väntande försök? Inga redan sparade GitHub-uppgifter ändras.')){setBusy(true);setError('');void discardPendingWrite(item.id).then(reload).catch(e=>setError('Kunde inte ta bort sparförsöket. '+e.message)).finally(()=>setBusy(false));};}}>Ta bort väntande försök</button>
       </div>)}
       {items.some(item=>item.status==='pending') && <button className="secondary" disabled={busy} onClick={()=>void retry()}><RefreshCw size={17}/>Synka väntande ändringar</button>}
       {error && <p className="error-banner"><AlertCircle size={17}/>{error}</p>}
