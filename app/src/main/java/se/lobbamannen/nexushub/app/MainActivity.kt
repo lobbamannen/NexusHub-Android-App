@@ -117,6 +117,28 @@ class MainActivity : Activity() {
             }
             override fun onPageFinished(view: WebView, url: String?) {
                 trustedDocument = url != null && isLocal(Uri.parse(url))
+                if (trustedDocument) {
+                    // Match the original Android wrapper: native insets already reserve
+                    // the system navigation area, so the portal must not add it twice.
+                    view.evaluateJavascript("""
+                        (function() {
+                          if (document.getElementById('nexushub-android-nav-spacing')) return;
+                          var style = document.createElement('style');
+                          style.id = 'nexushub-android-nav-spacing';
+                          style.textContent = '@media (max-width: 800px) {' +
+                            '.portal-shell .bottom-nav {' +
+                            'bottom: 0 !important;' +
+                            'padding-bottom: 8px !important;' +
+                            'min-height: 0 !important;' +
+                            '}' +
+                            '.portal-shell main {' +
+                            'padding-bottom: 105px !important;' +
+                            '}' +
+                            '}';
+                          document.head.appendChild(style);
+                        })();
+                    """.trimIndent(), null)
+                }
             }
         }
         webView.webChromeClient = object : WebChromeClient() {
@@ -264,8 +286,16 @@ class MainActivity : Activity() {
 
     private fun notifyUser(message: String) { runOnUiThread { Toast.makeText(this, message, Toast.LENGTH_LONG).show() } }
     private fun applySystemBars() {
-        window.statusBarColor = android.graphics.Color.rgb(9, 8, 17)
-        window.navigationBarColor = android.graphics.Color.rgb(9, 8, 17)
+        val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        val color = if (dark) android.graphics.Color.rgb(10, 15, 27)
+                    else android.graphics.Color.rgb(244, 246, 250)
+        window.statusBarColor = color
+        window.navigationBarColor = color
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility =
+            if (dark) 0 else (android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or
+                android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR)
         if (Build.VERSION.SDK_INT >= 29) { window.isStatusBarContrastEnforced = false; window.isNavigationBarContrastEnforced = false }
     }
     override fun onConfigurationChanged(newConfig: Configuration) { super.onConfigurationChanged(newConfig); applySystemBars() }
