@@ -1,4 +1,5 @@
 'use client';
+import DailyActivity from './DailyActivity';
 import { mediaFetch } from '@/lib/media-client';
 import React, { useEffect, useState } from 'react';
 import DatabaseStats from './DatabaseStats';
@@ -85,7 +86,7 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
     };
     return <div className="nh-home">
   <div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div>
-  {now&&<p className="nh-ideas-note">{ideaEntries.filter(entry=>ideaDay(entry.createdAt)===ideaDay(now.toISOString())).length} nya idéer idag</p>}
+  <DailyActivity now={now} revision={catalog?.commit} ideaEntries={ideaEntries} ideasStale={ideasStale} onNavigate={onNavigate}/>
   <DatabaseStats now={now} counts={counts} checkedAt={catalog?.fetchedAt} onNavigate={onNavigate} loading={!catalog}/>
   <ModuleGrid counts={counts} onNavigate={onNavigate}/>
   <RecentActivity loading={mediaLoading} error={mediaError} onRetry={() => setRetry(n => n + 1)} posterRevision={posterRevision} films={films} series={series} stories={stories} files={recentFiles} plugins={plugins} commits={commits} onNavigate={onNavigate} onOpenMedia={onOpenMedia} onOpenStory={onOpenStory} onOpenFile={onOpenFile}/>
