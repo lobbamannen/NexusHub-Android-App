@@ -14,12 +14,12 @@ function server(){const files=new Map(),trees=new Map(),commits=new Map();let he
  const path=decodeURIComponent(new URL(url).pathname.split('/contents/')[1]||'');
  const endpoint=new URL(url).pathname.replace('/repos/lobbamannen/Databas','');
  if(endpoint==='/git/ref/heads/main')return Response.json({object:{sha:head}});
- if(endpoint==='/git/trees'&&opt.method==='POST'){const body=JSON.parse(opt.body),sha=(++sequence).toString(16).padStart(40,'0');trees.set(sha,body.tree);return Response.json({sha});}
+ if(endpoint==='/git/trees'&&opt.method==='POST'){const body=JSON.parse(opt.body),sha=(++sequence).toString(16).padStart(40,'0');trees.set(sha,await Promise.all(body.tree.map(async entry=>({...entry,sha:await gitBlobSha(new TextEncoder().encode(entry.content))}))));return Response.json({sha});}
  if(endpoint==='/git/commits'&&opt.method==='POST'){const body=JSON.parse(opt.body),sha=(++sequence).toString(16).padStart(40,'0');commits.set(sha,body);return Response.json({sha});}
  if(endpoint.startsWith('/git/commits/')&&!opt.method)return Response.json({tree:{sha:head}});
  if(endpoint==='/git/refs/heads/main'&&opt.method==='PATCH'){
   const body=JSON.parse(opt.body),commit=commits.get(body.sha);if(commit.parents[0]!==head)return Response.json({},{status:422});
-  for(const entry of trees.get(commit.tree)){files.set(entry.path,{content:entry.content,sha:await gitBlobSha(new TextEncoder().encode(entry.content))});}
+  for(const entry of trees.get(commit.tree)){files.set(entry.path,{content:entry.content,sha:entry.sha});}
   head=body.sha;writes++;if(lose){lose=false;throw Error('response lost')}return Response.json({object:{sha:head}});
  }
 
