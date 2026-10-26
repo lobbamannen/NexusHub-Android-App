@@ -87,8 +87,8 @@ export function useIdeas() {
         void commitDrafts({ ...draftsRef.current, [id]: { ...base, error: '', idea: { ...base.idea, ...patch, updatedAt: new Date().toISOString() } } });
     }
     async function save(id: string) {
-        if (busyRef.current) return;
-        const draft = draftsRef.current[id]; if (!draft || !draft.idea.text.trim()) return;
+        if (busyRef.current) return false;
+        const draft = draftsRef.current[id]; if (!draft || !draft.idea.text.trim()) return false;
         busyRef.current = true; setBusy(true); sequence.current++; setLoading(false);
         try {
             await persistence.current; validateIdea(draft.idea);
@@ -101,9 +101,11 @@ export function useIdeas() {
             const next = { ...draftsRef.current }; delete next[id]; await commitDrafts(next); setRemote(null);
             // Do not let a GET started before this PUT replace the just-confirmed row.
             sequence.current++; setLoading(false);
+            return true;
         } catch (e: any) {
             const current = draftsRef.current[id];
             if (current) await commitDrafts({ ...draftsRef.current, [id]: { ...current, error: e.message } }).catch(() => {});
+            return false;
         } finally { await refreshPending().catch(() => {}); busyRef.current = false; setBusy(false); }
     }
     async function remove(id: string) {

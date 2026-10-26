@@ -5,7 +5,7 @@ import { useBackHandler } from '@/components/NativeBackBridge';
 import { IDEA_STATUSES } from '@/lib/ideas.mjs';
 import type { IdeasController, IdeaStatus } from './use-ideas';
 import './ideas.css';
-import IdeaAttachments from '@/components/personal/IdeaAttachments';
+import IdeaAttachments, {type AttachmentActions,type AttachmentState} from '@/components/personal/IdeaAttachments';
 import {ideaDay} from '@/lib/idea-numbers.mjs';
 import IdeaPlans from './IdeaPlans';
 import { useLibraryState } from '@/lib/library-state';
@@ -38,8 +38,11 @@ export default function IdeasInbox({ ideas, onOpenPlan }: { ideas: IdeasControll
 }
 export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
     const draft = ideas.current, textRef = useRef<HTMLTextAreaElement>(null), closeRef = useRef(ideas.close);
-    closeRef.current = ideas.close;
-    useBackHandler(160, () => { if (!ideas.selected) return false; ideas.close(); return true; });
+    const attachmentsRef=useRef<AttachmentActions>(null),savingRef=useRef(false);
+    const [attachments,setAttachments]=useState<AttachmentState>({count:0,busy:false});
+    useEffect(()=>setAttachments({count:0,busy:false}),[ideas.selected]);
+    closeRef.current = ()=>{if(!attachments.busy&&!savingRef.current)ideas.close();};
+    useBackHandler(160, () => { if (!ideas.selected) return false; closeRef.current(); return true; });
     useEffect(() => {
         if (!ideas.selected) return;
         const previous = document.activeElement as HTMLElement | null, before = document.body.style.overflow;
@@ -59,9 +62,16 @@ export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
     }, [ideas.selected]);
     if (!draft) return null;
     const { idea } = draft, local = ideas.drafts[idea.id], pending = ideas.pending[idea.id];
-    const readonly = ideas.busy || !!pending;
-    return <div className="modal-backdrop nh-idea-backdrop" onClick={() => ideas.close()}><form className="nh-idea-editor" role="dialog" aria-modal="true" aria-labelledby="idea-editor-title" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); void ideas.save(idea.id); }}>
-        <div className="modal-heading"><h2 id="idea-editor-title"><Lightbulb size={23}/>{ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number ? 'Idé '+ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number : draft.sha ? 'Din idé' : 'Ny idé'}</h2><button type="button" className="icon-button" aria-label="Stäng idén och behåll utkast" disabled={ideas.busy} onClick={ideas.close}><X/></button></div>
+    const working=ideas.busy||attachments.busy;
+    const readonly = working || !!pending;
+    const save=async()=>{
+        if(savingRef.current||working)return;
+        savingRef.current=true;
+        try{if(local&&!await ideas.save(idea.id))return;if(attachments.count)await attachmentsRef.current?.save();}
+        finally{savingRef.current=false;}
+    };
+    return <div className="modal-backdrop nh-idea-backdrop" onClick={() => closeRef.current()}><form className="nh-idea-editor" role="dialog" aria-modal="true" aria-labelledby="idea-editor-title" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); void save(); }}>
+        <div className="modal-heading"><h2 id="idea-editor-title"><Lightbulb size={23}/>{ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number ? 'Idé '+ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number : draft.sha ? 'Din idé' : 'Ny idé'}</h2><button type="button" className="icon-button" aria-label="Stäng idén och behåll utkast" disabled={working} onClick={()=>closeRef.current()}><X/></button></div>
         <div className="nh-idea-editor-body"><label className="field" htmlFor="idea-text">Vad har du på gång?</label><textarea ref={textRef} id="idea-text" value={idea.text} maxLength={50000} readOnly={readonly} placeholder="Skriv din tanke här…" onChange={e => ideas.edit(idea.id, { text: e.target.value })}/>
             <label className="field">Status<select aria-label="Idéstatus" value={idea.status} disabled={readonly} onChange={e => ideas.edit(idea.id, { status: e.target.value as IdeaStatus })}>{Object.entries(IDEA_STATUSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <p className={'nh-idea-sync' + (local || pending ? ' local' : '')} role="status">{ideas.busy ? <Loader2 className="spin" size={16}/> : pending ? <CloudUpload size={16}/> : local ? <FilePenLine size={16}/> : <CloudCheck size={16}/>} {ideas.busy ? 'Arbetar…' : ideaSyncLabel(ideas, idea.id)}</p>
@@ -69,15 +79,15 @@ export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
             {(pending?.error || local?.error) && <p className="error-banner" role="alert">{pending?.error || local?.error}</p>}
             {ideas.error && !ideas.confirmedIds.includes(idea.id) && <p className="error-banner" role="alert">{ideas.error}</p>}
             {pending && pending.status !== 'conflict' && <p className="nh-ideas-note">Texten är låst medan sparförsöket väntar. Välj Försök igen för att skicka samma text, eller Fortsätt skriva för att ersätta sparförsöket med ett nytt utkast. Ingen automatisk synk körs.</p>}
-            {pending && pending.status !== 'conflict' && <button type="button" className="secondary" disabled={ideas.busy} onClick={() => void ideas.continueEditing(idea.id)}>Fortsätt skriva</button>}
-            {pending?.status === 'conflict'  && <button className="secondary" type="button" disabled={ideas.busy} onClick={() => void ideas.fetchRemote(idea.id)}>Lös konflikten – jämför versionerna</button>}
+            {pending && pending.status !== 'conflict' && <button type="button" className="secondary" disabled={working} onClick={() => void ideas.continueEditing(idea.id)}>Fortsätt skriva</button>}
+            {pending?.status === 'conflict'  && <button className="secondary" type="button" disabled={working} onClick={() => void ideas.fetchRemote(idea.id)}>Lös konflikten – jämför versionerna</button>}
             {pending?.status==='conflict'&&!ideas.remote&&<p className="nh-ideas-note">GitHub har en annan version. Tryck på Lös konflikten för att jämföra och välja. Din lokala text finns kvar.</p>}
-            {ideas.remote && <section className="nh-idea-conflict" aria-label="Lös synkkonflikt"><h3>Två versioner av samma idé</h3><p>Båda versionerna säkerhetskopieras på telefonen innan ditt val används. Ingen sparning till GitHub sker automatiskt.</p><h4>Din lokala text</h4><p className="nh-conflict-text">{idea.text}</p><small>Status: {IDEA_STATUSES[idea.status]}</small><h4>Nuvarande GitHub-text</h4><p className="nh-conflict-text">{ideas.remote.idea.text}</p><small>Status: {IDEA_STATUSES[ideas.remote.idea.status]}</small><button type="button" className="primary" disabled={ideas.busy} onClick={()=>void ideas.resolveConflict('merge')}>Sammanför båda till ett utkast</button><small>Din lokala status behålls. Läs och justera texten, tryck sedan Spara.</small><button type="button" className="secondary" disabled={ideas.busy} onClick={()=>void ideas.resolveConflict('local')}>Behåll min text som utkast</button><button type="button" className="secondary" disabled={ideas.busy} onClick={()=>void ideas.resolveConflict('github')}>Använd GitHub-versionen</button></section>}
-            {!!ideas.backups.length&&<details className="nh-idea-conflict"><summary>Säkerhetskopior av versioner ({ideas.backups.length})</summary><small>Sparas på den här telefonen och finns kvar vid vanliga appuppdateringar. Återställning skapar ett utkast som du själv sparar.</small>{ideas.backups.map(backup=><details key={backup.id}><summary>{date(backup.at)}</summary>{(['local','remote'] as const).map(side=><section key={side}><h4>{side==='local'?'Lokal version':'GitHub-version'}</h4><p className="nh-conflict-text">{backup[side].idea.text}</p><small>Status: {IDEA_STATUSES[backup[side].idea.status]}</small><button className="secondary" type="button" disabled={ideas.busy||!!pending} onClick={()=>void ideas.restoreVersion(backup,side)}>Återställ {side==='local'?'lokal text':'GitHub-text'} som utkast</button></section>)}</details>)}</details>}
-            {draft.sha && <button type="button" className="secondary nh-idea-delete" disabled={ideas.busy || !!pending} onClick={() => { if (confirm('Radera idén från GitHub och telefonen? Eventuellt lokalt utkast kastas också. Idén försvinner ur NexusHub; GitHubs versionshistorik finns kvar.')) void ideas.remove(idea.id); }}><Trash2 size={17}/>Radera idé</button>}
+            {ideas.remote && <section className="nh-idea-conflict" aria-label="Lös synkkonflikt"><h3>Två versioner av samma idé</h3><p>Båda versionerna säkerhetskopieras på telefonen innan ditt val används. Ingen sparning till GitHub sker automatiskt.</p><h4>Din lokala text</h4><p className="nh-conflict-text">{idea.text}</p><small>Status: {IDEA_STATUSES[idea.status]}</small><h4>Nuvarande GitHub-text</h4><p className="nh-conflict-text">{ideas.remote.idea.text}</p><small>Status: {IDEA_STATUSES[ideas.remote.idea.status]}</small><button type="button" className="primary" disabled={working} onClick={()=>void ideas.resolveConflict('merge')}>Sammanför båda till ett utkast</button><small>Din lokala status behålls. Läs och justera texten, tryck sedan Spara.</small><button type="button" className="secondary" disabled={working} onClick={()=>void ideas.resolveConflict('local')}>Behåll min text som utkast</button><button type="button" className="secondary" disabled={working} onClick={()=>void ideas.resolveConflict('github')}>Använd GitHub-versionen</button></section>}
+            {!!ideas.backups.length&&<details className="nh-idea-conflict"><summary>Säkerhetskopior av versioner ({ideas.backups.length})</summary><small>Sparas på den här telefonen och finns kvar vid vanliga appuppdateringar. Återställning skapar ett utkast som du själv sparar.</small>{ideas.backups.map(backup=><details key={backup.id}><summary>{date(backup.at)}</summary>{(['local','remote'] as const).map(side=><section key={side}><h4>{side==='local'?'Lokal version':'GitHub-version'}</h4><p className="nh-conflict-text">{backup[side].idea.text}</p><small>Status: {IDEA_STATUSES[backup[side].idea.status]}</small><button className="secondary" type="button" disabled={working||!!pending} onClick={()=>void ideas.restoreVersion(backup,side)}>Återställ {side==='local'?'lokal text':'GitHub-text'} som utkast</button></section>)}</details>)}</details>}
+            {draft.sha && <button type="button" className="secondary nh-idea-delete" disabled={working || !!pending} onClick={() => { if (confirm('Radera idén från GitHub och telefonen? Eventuellt lokalt utkast kastas också. Idén försvinner ur NexusHub; GitHubs versionshistorik finns kvar.')) void ideas.remove(idea.id); }}><Trash2 size={17}/>Radera idé</button>}
             <small className="nh-ideas-note">Skapad {date(idea.createdAt)}</small>
         </div>
-        <IdeaAttachments id={idea.id} saved={!!draft.sha} busy={ideas.busy}/>
-        <div className="nh-idea-editor-actions">{local ? <button type="button" className="secondary" disabled={ideas.busy} onClick={() => { if (confirm('Kasta det lokala utkastet och dess väntande sparförsök? En eventuell GitHub-version finns kvar.')) void ideas.discard(idea.id); }}><Undo2 size={17}/>Ångra utkast</button> : <button type="button" className="secondary" onClick={ideas.close}>Stäng</button>}<button className="primary" disabled={ideas.busy || !local || !idea.text.trim() || !!pending && pending.status !== 'pending'}>{ideas.busy ? <Loader2 className="spin" size={17}/> : <Save size={17}/>} {pending ? 'Försök igen' : 'Spara'}</button></div>
+        <IdeaAttachments key={idea.id} ref={attachmentsRef} id={idea.id} saved={!!draft.sha} busy={ideas.busy} onStateChange={setAttachments}/>
+        <div className="nh-idea-editor-actions">{local ? <button type="button" className="secondary" disabled={working} onClick={() => { if (confirm('Kasta det lokala utkastet och dess väntande sparförsök? En eventuell GitHub-version finns kvar.')) void ideas.discard(idea.id); }}><Undo2 size={17}/>Ångra utkast</button> : <button type="button" className="secondary" onClick={()=>closeRef.current()}>Stäng</button>}<button className="primary" disabled={working || !local && !attachments.count || !idea.text.trim() || !!pending && pending.status !== 'pending'}>{working ? <Loader2 className="spin" size={17}/> : <Save size={17}/>} {pending ? 'Försök igen' : 'Spara'}</button></div>
     </form></div>;
 }

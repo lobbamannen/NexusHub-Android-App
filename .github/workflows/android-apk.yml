@@ -35,7 +35,7 @@ jobs:
           npm ci
           npm run check
           npm run check:design
-          node --test tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs
+          node --test tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs
           npm run build
       - name: Restore stable private signing identity
         env:

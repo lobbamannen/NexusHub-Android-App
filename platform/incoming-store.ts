@@ -9,8 +9,8 @@ export async function incomingItems():Promise<Incoming[]>{
  for(const item of native)if(!saved.has(item.id))saved.set(item.id,{...item,native:true,sent:{}});
  return [...saved.values()].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 }
-export async function saveIncoming(files:File[],text=''):Promise<Incoming>{
- const item:Incoming={id:crypto.randomUUID(),text,createdAt:new Date().toISOString(),files:files.map(file=>({id:crypto.randomUUID(),name:file.name,mime:file.type||'application/octet-stream',blob:file})),sent:{}};
+export async function saveIncoming(files:File[],text='',destinations?:string[]):Promise<Incoming>{
+ const item:Incoming={id:crypto.randomUUID(),text,createdAt:new Date().toISOString(),files:files.map(file=>({id:crypto.randomUUID(),name:file.name,mime:file.type||'application/octet-stream',blob:file})),sent:{},...(destinations?{destinations:[...new Set(destinations)]}:{})};
  await durableSet('incoming:v1:'+item.id,item);window.dispatchEvent(new Event('nexus-incoming-changed'));return item;
 }
 export async function saveIncomingItem(item:Incoming){await durableSet('incoming:v1:'+item.id,item);window.dispatchEvent(new Event('nexus-incoming-changed'));}
