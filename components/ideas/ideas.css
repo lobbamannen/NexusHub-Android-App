@@ -4,3 +4,5 @@
 @media(max-width:600px){.nh-ideas-list{grid-template-columns:minmax(0,1fr)}.nh-idea-card{padding:14px}.nh-idea-backdrop{align-items:center!important;padding:10px!important}.nh-idea-editor{max-height:calc(100dvh - 20px)}.nh-idea-editor textarea{min-height:160px}.nh-idea-editor-actions{padding:13px 14px}.nh-idea-editor-actions button{font-size:13px;padding:11px 12px}.nh-idea-card-top{flex-wrap:wrap}}
 
 .nh-idea-editor .nh-idea-delete{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;color:#fda4af;border-color:#e11d4840;background:#1a080f}
+
+.nh-idea-status.ready{color:#cfa4ff;background:#c08aff15}

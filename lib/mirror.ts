@@ -41,7 +41,6 @@ export async function repairMirrorVersion(repo:string,file:any,bytes:ArrayBuffer
  return {...document,mirror:{state:'verified',verifiedAt,contentHash:hash,repaired:true}};
 }
 export async function mirroredRead(repo:string,path:string,client:any){
- if(repo==='databas' && /^Kunskap(?:\/|$)/i.test(path))return null;
  try{const metadata:any=await client.browse(path);
  if(metadata.type!=='file')return null;
  const cached=await latest(repo,path,metadata.sha);

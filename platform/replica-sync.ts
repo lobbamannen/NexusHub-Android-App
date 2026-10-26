@@ -11,11 +11,11 @@ let state: ReplicaStatus = {running:false,done:0,total:0};
 let running=false, installed=false, cooldown=0;
 export const replicaStatus = () => state;
 const report = (patch: Partial<ReplicaStatus>) => { state={...state,...patch}; window.dispatchEvent(new Event('nexus-replica-status')); };
-// Only knowledge content is excluded; metadata in the Git tree is still needed.
-export const replicatePath = (path: string) => !/^Kunskap(?:\/|$)/i.test(path);
+// All repository files belong in the durable local replica.
+export const replicatePath = (_path: string) => true;
 async function primeViews() {
     invalidateMedia(); invalidatePortalCache();
-    for (const url of ['/api/films','/api/series','/api/story-register','/api/story-status','/api/document-bookmarks','/api/economy','/api/ideas','/api/portal/overview?refresh=1','/api/posters?index=1&refresh=1']) {
+    for (const url of ['/api/films','/api/series','/api/story-register','/api/story-status','/api/document-bookmarks','/api/economy','/api/ideas','/api/idea-plans','/api/portal/overview?refresh=1','/api/posters?index=1&refresh=1']) {
         const response=await fetch(url);
         if(!response.ok || response.headers.get('X-Nexus-Offline') === 'true') throw Error('Kunde inte uppdatera '+url.split('?')[0]+'. Den lokala kopian behålls.');
         await response.arrayBuffer();
@@ -28,7 +28,7 @@ async function cycle() {
     try {
         for(const repo of ['databas','plugins']) {
             const client=github(repo), head=await client.head();
-            const previous=await durableGet<{commit:string}>('replica-complete:v1:'+repo);
+            const previous=await durableGet<{commit:string}>('replica-complete:v2:'+repo);
             if(previous?.commit===head) continue;
             const snapshot=await client.snapshot();
             if(snapshot.truncated) throw Error('GitHub gav ett ofullständigt filträd. Ingen fullständig synk markeras.');
@@ -40,7 +40,7 @@ async function cycle() {
             }
             report({done:files.length-missing.length,total:files.length});
             // Warm current registers before a potentially long initial image/document download.
-            if(repo==='databas') await primeViews();
+            if(repo==='databas') {try {await primeViews();} catch(error:any) {report({error:error.message});}}
             for(let offset=0;offset<missing.length;offset+=4) {
                 if(document.visibilityState!=='visible') return;
                 const results=await Promise.allSettled(missing.slice(offset,offset+4).map(async file=>{
@@ -61,7 +61,7 @@ async function cycle() {
             // Keep older bytes as history, but record the exact current file inventory.
             await durableSet('replica-inventory:v1:'+repo,{commit:snapshot.commit,files});
             await primeViews();
-            await durableSet('replica-complete:v1:'+repo,{commit:snapshot.commit,at:new Date().toISOString()});
+            await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:new Date().toISOString()});
         }
         report({checkedAt:new Date().toISOString(),error:''});
     } catch(error:any) {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { durableGet, durableSet } from '@/platform/local-store';
 import { pendingWrites, discardPendingWrite, type PendingWrite } from '@/platform/outbox';
 import { sameIdea, validateIdea } from '@/lib/ideas.mjs';
-export type IdeaStatus = 'new' | 'investigating' | 'completed' | 'dismissed';
+export type IdeaStatus = 'new' | 'investigating' | 'ready' | 'completed' | 'dismissed';
 export type Idea = { schemaVersion: 1; id: string; text: string; status: IdeaStatus; createdAt: string; updatedAt: string };
 export type IdeaRow = { idea: Idea; sha: string | null };
 export type IdeaDraft = IdeaRow & { error?: string };

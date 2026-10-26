@@ -26,7 +26,7 @@ Token kan senare bytas under **Inställningar & system → Android-app & GitHub*
 
 ## Beständig lokal kopia och automatisk uppdatering
 
-Telefonen och GitHub behåller varsin lagring. Automatisk kopiering använder befintlig SQLite/IndexedDB och spegelarkiv. `Kunskap/` undantas från automatisk filkopiering och nya dokumentcachekopior; filnamn och katalogmetadata kan fortfarande finnas lokalt. Redan lagrade äldre kopior raderas inte av denna uppdatering.
+Telefonen och GitHub behåller varsin lagring. Automatisk kopiering använder befintlig SQLite/IndexedDB och spegelarkiv. **Hela Databas kopieras, inklusive Kunskap, alla bilder, dokument, register och planpaket.** Ingen innehållsmapp undantas. Befintlig lokal kopiering kompletteras utan att rensa utkast eller inställningar. En ny slutförandemarkör gör att äldre installationer inventerar även Kunskap trots oförändrad GitHub-commit.
 
 - Kopiering startar när appen öppnas och token finns. GitHubs `main` kontrolleras var **15:e sekund medan appen är synlig**, vid återupptagning och när nätet återkommer. Ingen Android-bakgrundstjänst håller en stängd app aktiv. Detta är polling, inte push från GitHub.
 - Ny commit ger en komplett filträdsinventering. Endast saknade eller ändrade filhashar hämtas; bytes verifieras mot GitHubs blob-SHA före beständig lagring. Första kopieringen sker i omgångar om fyra filer och fortsätter vid nästa användning om den avbryts.
@@ -42,7 +42,7 @@ Telefonen och GitHub behåller varsin lagring. Automatisk kopiering använder be
 - Befintliga filer, registerformat och originalvägar används utan omstrukturering.
 - Spara/Ångra, separata betygsskalor, favoriter, Sparad/Läst och verifierade säsonger behålls.
 - Ingen Firebase, egen backend eller schemalagd bakgrundstjänst används.
-- Beständig lokal kopia fylls automatiskt av allt i Databas utom `Kunskap/`, samt plugin-repots innehåll. Även aldrig öppnade affischer, omslag, berättelser och övriga filer kopieras. GitHub är huvudkälla; en ofullständig lokal kopiering visas som pågående eller fel, aldrig som färdig.
+- Beständig lokal kopia fylls automatiskt av hela Databas inklusive `Kunskap/`, samt plugin-repots innehåll. Även aldrig öppnade affischer, omslag, berättelser och övriga filer kopieras. GitHub är huvudkälla; en ofullständig lokal kopiering visas som pågående eller fel, aldrig som färdig.
 - Lokal lagring består av SQLite/IndexedDB för metadata och cache samt IndexedDB för bild-/originalbytes och väntande sparningar.
 
 En sparning säkras lokalt innan GitHub-anropet startar. En verifierad GitHub-kvittens krävs innan gränssnittet säger att den är sparad i GitHub. Vid nätverksfel behålls utkast och en beständig köpost. Tryck **Spara** igen för att försöka igen med samma väntande ändring, eller hantera den i **Android-app & GitHub**. Inga köade sparningar spelas upp automatiskt bakom en öppen redigering. Ångra eller bekräftad kassering av redigeringsutkast tar även bort motsvarande väntande redigeringsförsök.
@@ -51,13 +51,24 @@ SHA-konflikter stoppas och kräver omläsning/beslut. Appen byter aldrig ut en g
 
 ## Idéinkorg
 
-Öppna **+ → Ny idé** och skriv direkt utan titel eller kategori. Ett eget kort på startsidan visar antalet nya idéer och leder till hela inkorgen; den finns även i menyn. Öppna samma idé för att fortsätta skriva senare. Statusarna är **Ny**, **Undersöks**, **Genomförd** och **Avfärdad**; även genomförda och avfärdade idéer behålls.
+Öppna **+ → Ny idé** och skriv direkt utan titel eller kategori. Ett eget kort på startsidan visar antalet nya idéer och leder till hela inkorgen; den finns även i menyn. Öppna samma idé för att fortsätta skriva senare. Statusarna är **Ny**, **Undersöks**, **Redo att implementeras**, **Genomförd** och **Avfärdad**; även genomförda och avfärdade idéer behålls.
 
 - Utkast sparas beständigt på telefonen medan du skriver. Stäng behåller utkastet; Ångra utkast kastar det och dess väntande sparförsök, men raderar inte en befintlig GitHub-version.
 - **Spara** skriver `Ideer/<UUID>.json` i Databas: schemaVersion, id, text, status, createdAt, updatedAt. ID och skapandetid behålls när idén utvecklas. Läs [lagringskontraktet](https://github.com/lobbamannen/Databas/blob/main/Ideer/README.md) före ändringar från ChatGPT.
 - **Utkast lokalt**, **Väntar på synk till GitHub**, **Konflikt** och **Sparad i GitHub** skiljs åt. Ingen automatisk köuppspelning sker. Försök igen återanvänder samma avsikt och SHA. Fortsätt skriva avbryter det väntande försöket och behåller texten som utkast.
 - En förlorad kvittens återläses innan nytt försök. Vid konflikt kan GitHub-versionen visas bredvid din lokala text; användaren väljer uttryckligen om den ska ersätta utkastet. Kopiera egen text före kassering om den ska kombineras med den andra versionen.
 - ChatGPT kan läsa idéerna direkt från GitHub. Att spara en idé startar inte automatiskt forskning eller genomförande. Android-delning ingår inte.
+
+## Färdigutvecklade idéer och planpaket
+
+**Idéinkorg → Färdiga planer** visar förberedda planpaket från `Databas/Fardiga-ideer/<UUID>/`. Flikvalet behålls när du öppnar ett underlag och går tillbaka.
+
+- Originalet ligger kvar i `Ideer/<UUID>.json`; samma UUID kopplar ihop original och plan.
+- Paketet innehåller `implementation-plan.md`, `research.md`, `metadata.json` samt valfria filer i `underlag/`. Läs [kontrakt och mall](https://github.com/lobbamannen/Databas/blob/main/Fardiga-ideer/README.md).
+- Ny status `ready` betyder **Redo att implementeras**, medan `completed` fortfarande betyder **Genomförd**. Appens sparning av ready kräver att ett paket med matchande metadata och de två dokumenten finns. Statusen är ingen automatisk verifiering av innehållets kvalitet.
+- Planvyn visar plan, tillhörande filer och originalidéns aktuella status. Ofullständiga paket ger tydlig varning och döljer inte andra giltiga planer.
+- Planpaket förbereds/uppdateras i ChatGPT och GitHub och läses i appens befintliga dokumentläsare. Spara plan innebär inte att forskning eller implementation startar automatiskt. Implementation görs först på Robins uttryckliga uppdrag.
+- Paketen ingår i full lokal kopiering; planlistan har samma beständiga läscache som andra moduler. Originalidéer, deras väntande sparningar och befintliga Spara/Ångra-flöden behålls.
 
 ## Ekonomi: kvitton, kategorier och produktkunskap
 

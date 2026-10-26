@@ -1,3 +1,4 @@
+import { validatePlanMetadata } from '@/lib/idea-plans.mjs';
 import { github } from '@/lib/github';
 import { validateIdea } from '@/lib/ideas.mjs';
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -17,6 +18,16 @@ export async function POST(request: Request) {
         let input: any;
         try { input = JSON.parse(raw); validateIdea(input.idea); if (input.expectedSha !== null && !/^[a-f0-9]{40}$/.test(input.expectedSha || '')) throw Error('Ogiltig idéversion.'); }
         catch (error: any) { return json({ error: error.message }, 400); }
+        if(input.idea.status === 'ready') {
+          try {
+            const client=github(),folder='Fardiga-ideer/'+input.idea.id+'/';
+            const meta:any=await client.browse(folder+'metadata.json');
+            const decoded=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(meta.content.replace(/\s/g,'')),c=>c.charCodeAt(0))));
+            validatePlanMetadata(decoded,input.idea.id);
+            const plan=await client.browse(folder+'implementation-plan.md'), research=await client.browse(folder+'research.md');
+            if(plan.type!=='file'||research.type!=='file') throw Error('Plan och research måste vara filer.');
+          } catch { return json({error:'Spara först ett komplett planpaket med metadata, implementationsplan och research i Fardiga-ideer/'+input.idea.id+'/.'},400); }
+        }
         return json(await github().saveIdea(input.idea, input.expectedSha));
     } catch (error: any) { return json({ saved: false, error: error.message }, error.status === 409 || error.status === 422 ? 409 : error.status === 401 || error.status === 403 ? 403 : 503); }
 }
