@@ -1,3 +1,4 @@
+import {resolvedIdeaDraft} from '@/lib/idea-resolution.mjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { durableGet, durableSet } from '@/platform/local-store';
 import { pendingWrites, discardPendingWrite, type PendingWrite } from '@/platform/outbox';
@@ -6,6 +7,8 @@ export type IdeaStatus = 'new' | 'investigating' | 'ready' | 'completed' | 'dism
 export type Idea = { schemaVersion: 1; id: string; text: string; status: IdeaStatus; createdAt: string; updatedAt: string };
 export type IdeaRow = { idea: Idea; sha: string | null };
 export type IdeaDraft = IdeaRow & { error?: string };
+type ConflictBackup={id:string;at:string;local:IdeaRow;remote:IdeaRow};
+const BACKUPS='ideas:conflicts:v1:';
 const KEY = 'ideas:drafts:v1';
 
 export function useIdeas() {
@@ -17,6 +20,8 @@ export function useIdeas() {
     const [confirmedIds, setConfirmedIds] = useState<string[]>([]);
     const [stale, setStale] = useState(false), [busy, setBusy] = useState(false), busyRef = useRef(false), sequence = useRef(0);
     const [remote, setRemote] = useState<IdeaRow | null>(null);
+    const [backups,setBackups]=useState<ConflictBackup[]>([]);
+    useEffect(()=>{let active=true;setBackups([]);if(selected)void durableGet<ConflictBackup[]>(BACKUPS+selected).then(value=>{if(active)setBackups(value||[]);}).catch(e=>setError('Säkerhetskopiorna kunde inte öppnas: '+e.message));return()=>{active=false;};},[selected]);
     const commitDrafts = useCallback((next: Record<string, IdeaDraft>) => {
         draftsRef.current = next; setDrafts(next);
         const work = persistence.current.catch(() => {}).then(() => durableSet(KEY, next));
@@ -149,16 +154,47 @@ export function useIdeas() {
         } catch (e: any) { setError(e.message); }
         finally { busyRef.current = false; setBusy(false); }
     }
-    async function useRemote() {
-        if (!remote || busyRef.current) return;
-        const replacement = remote;
-        if (!await discard(replacement.idea.id)) return;
-        setRows(current => [replacement, ...current.filter(row => row.idea.id !== replacement.idea.id)]); setSelected(replacement.idea.id);
+    async function preserveVersions(local:IdeaRow,github:IdeaRow) {
+        const key=BACKUPS+local.idea.id;
+        const previous=await durableGet<ConflictBackup[]>(key)||[];
+        const backup={id:crypto.randomUUID(),at:new Date().toISOString(),local:structuredClone(local),remote:structuredClone(github)};
+        const next=[backup,...previous];await durableSet(key,next);setBackups(next);
+    }
+    async function resolveConflict(choice:'merge'|'local'|'github') {
+        if(!remote||busyRef.current)return;
+        const original=draftsRef.current[remote.idea.id];if(!original)return;
+        busyRef.current=true;setBusy(true);sequence.current++;setError('');
+        try{
+            await persistence.current;
+            const response=await fetch('/api/ideas?id='+encodeURIComponent(remote.idea.id),{cache:'no-store'}),latest=await response.json();
+            if(!response.ok||response.headers.get('X-Nexus-Offline'))throw Error('En aktuell GitHub-version behövs. Båda texterna ligger kvar.');
+            if(latest.sha!==remote.sha){setRemote(latest);throw Error('GitHub-versionen ändrades igen. Läs den nya texten nedan och välj på nytt.');}
+            // Do not cancel a queued intent or replace a draft before both versions are durable.
+            await preserveVersions(original,latest);
+            const next=resolvedIdeaDraft(original,latest,choice,new Date().toISOString());
+            const queued=await refreshPending();if(queued[original.idea.id])await discardPendingWrite(queued[original.idea.id].id);
+            const drafts={...draftsRef.current};
+            if(choice==='github')delete drafts[original.idea.id];else drafts[original.idea.id]=next;
+            await commitDrafts(drafts);
+            setRows(current=>[latest,...current.filter(row=>row.idea.id!==latest.idea.id)]);setRemote(null);setStale(false);
+        }catch(e:any){setError(e.message);}
+        finally{await refreshPending().catch(()=>{});busyRef.current=false;setBusy(false);}
+    }
+    async function restoreVersion(backup:ConflictBackup,side:'local'|'remote') {
+        if(busyRef.current||pending[backup.local.idea.id])return;
+        const base=draftsRef.current[backup.local.idea.id]||rows.find(row=>row.idea.id===backup.local.idea.id);if(!base)return;
+        busyRef.current=true;setBusy(true);sequence.current++;setError('');
+        try{
+            await persistence.current;
+            await preserveVersions(base,rows.find(row=>row.idea.id===base.idea.id)||base);
+            const next={...base,idea:{...base.idea,text:backup[side].idea.text,status:backup[side].idea.status,updatedAt:new Date().toISOString()},error:''};
+            await commitDrafts({...draftsRef.current,[base.idea.id]:next});setRemote(null);
+        }catch(e:any){setError(e.message);}finally{busyRef.current=false;setBusy(false);}
     }
     const merged = new Map(rows.map(row => [row.idea.id, row]));
     for (const [id, draft] of Object.entries(drafts)) merged.set(id, draft);
     const items = [...merged.values()].sort((a, b) => b.idea.updatedAt.localeCompare(a.idea.updatedAt));
     const current = selected ? merged.get(selected) : undefined;
-    return { numbering, items, current, drafts, pending, selected, ready, loading, error, stale, confirmedIds, busy, remote, create, open, close, edit, save, discard, continueEditing, fetchRemote, useRemote, reload, remove };
+    return { numbering, items, current, drafts, pending, selected, ready, loading, error, stale, confirmedIds, busy, remote, backups, resolveConflict, restoreVersion, create, open, close, edit, save, discard, continueEditing, fetchRemote, reload, remove };
 }
 export type IdeasController = ReturnType<typeof useIdeas>;

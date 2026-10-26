@@ -1,7 +1,7 @@
 import {durableGet,durableSet,durableEntries,durableDelete} from './local-store';
 import {base64} from '@/lib/github-inbox.mjs';
 export type IncomingFile={id:string;name:string;mime:string;blob?:Blob;error?:string};
-export type Incoming={id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string}>;error?:string};
+export type Incoming={id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string;commit?:string;processed?:boolean}>;error?:string};
 const bridge=()=>window.Android as any;
 export async function incomingItems():Promise<Incoming[]>{
  const saved=new Map((await durableEntries<Incoming>('incoming:v1:')).map(([,item])=>[item.id,item]));
@@ -29,7 +29,7 @@ export async function deliverIncoming(item:Incoming,targets:string[]){
    else{encoded=bridge()?.readIncomingFile?.(item.id,file.id);if(!encoded)throw Error('Den lokala filen kunde inte läsas.');}
    const response=await fetch('/api/incoming',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({receiptId:item.id,fileId:file.id,name:file.name,base64:encoded,target:target==='inbox'?'inbox':'idea',ideaId:target.startsWith('idea:')?target.slice(5):undefined})});
    const result=await response.json();if(!response.ok||!result.saved)throw Error(result.error||'GitHub bekräftade inte filen.');
-   item.sent[key]={path:result.path,sha:result.sha};await saveIncomingItem(item);
+   item.sent[key]={path:result.path,sha:result.sha,...(result.commit?{commit:result.commit}:{}),...(result.processed?{processed:true}:{})};await saveIncomingItem(item);
   }
   item.error='';await saveIncomingItem(item);
  }catch(error:any){item.error=error.message;await saveIncomingItem(item);throw error;}finally{active.delete(item.id);}

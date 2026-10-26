@@ -6,3 +6,5 @@
 .nh-idea-editor .nh-idea-delete{align-self:flex-start;display:inline-flex;align-items:center;gap:8px;color:#fda4af;border-color:#e11d4840;background:#1a080f}
 
 .nh-idea-status.ready{color:#cfa4ff;background:#c08aff15}
+
+.nh-idea-conflict h3,.nh-idea-conflict h4{margin:0}.nh-idea-conflict .nh-conflict-text{white-space:pre-wrap;user-select:text;background:#09090c;border:1px solid #ffffff16;border-radius:10px;padding:12px;max-height:220px;overflow:auto}.nh-idea-conflict button{white-space:normal;min-height:44px}.nh-idea-conflict details{margin-top:12px;min-width:0}.nh-idea-conflict summary{cursor:pointer;min-height:44px;overflow-wrap:anywhere}.nh-idea-conflict section{display:grid;gap:10px;margin:12px 0}
