@@ -155,7 +155,7 @@ export default function Portal() {
         const refresh = () => { pending = true; apply(); };
         const apply = () => {
             if (!pending || registerDirtyRef.current || navigationBusyRef.current) return;
-            pending = false; void load(true); void ideas.reload();
+            pending = false; void load(false); void ideas.reload();
             window.dispatchEvent(new CustomEvent('nexus-refresh-module', {detail:{view:activeViewRef.current}}));
         };
         const timer = window.setInterval(apply,1000);

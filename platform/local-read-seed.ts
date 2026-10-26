@@ -1,12 +1,25 @@
-import {db,bucket} from '@/lib/store';
-import {gitBlobSha} from '@/lib/github-inbox.mjs';
-import {makeCatalog} from '@/lib/catalog.mjs';
-import {mirrorManifest} from '@/lib/mirror';
-export async function localReadSeed(path:string){
- const files:Record<string,[string,string]>={'/api/films':['Filmer/register.json','register'],'/api/series':['Serier/register.json','register'],'/api/story-register':['Berattelser/register.json','register'],'/api/story-status':['Berattelser/lasstatus.json','register'],'/api/document-bookmarks':['System/nexus-bookmarks.json','register'],'/api/calendar':['Kalender/egna-handelser.json','data'],'/api/series-watch-settings':['Serier/bevakning-installningar.json','data'],'/api/watch-history':['Serier/Bevakning/handelser.json','data'],'/api/media-additions':['System/NexusHub/tillaggsdatum.json','data']};
- if(path==='/api/portal/overview'){const m=await mirrorManifest('databas');if(!m)return null;return {repositories:{databas:makeCatalog({tree:m.files.map((f:any)=>({...f,type:'blob'})),commit:m.commit,fetchedAt:m.fetchedAt})},errors:[],localSeed:true};}
- const spec=files[path];if(!spec)return null;
- const m=await mirrorManifest('databas'),sha=m?.files.find((f:any)=>f.path===spec[0])?.sha;
- const row=await db().prepare('SELECT object_key,blob_sha FROM mirror_versions WHERE repo=? AND path=?'+(sha?' AND blob_sha=?':'')+' ORDER BY verified_at DESC LIMIT 1').bind(...(sha?['databas',spec[0],sha]:['databas',spec[0]])).first<any>();if(!row)return null;const object=await bucket().get(row.object_key);if(!object)return null;const bytes=await object.arrayBuffer();if(await gitBlobSha(bytes)!==row.blob_sha)return null;
- return {sha:row.blob_sha,[spec[1]]:JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes))};
+import { db } from '@/lib/store';
+import { replicaView } from '@/lib/replica-projections.mjs';
+import { replicaReader } from './mirror-access';
+import { durableGet } from './local-store';
+
+/** GET projections originate exclusively from completed, SHA-checked mirror snapshots. */
+const projections = new Map<string, Promise<any>>();
+export async function localReadSeed(path: string, search = '') {
+  const current=await replicaReader.current('databas');
+  if(!current)return null;
+  const plugins=path==='/api/portal/overview'?await replicaReader.current('plugins'):null;
+  const key=[path,search,current.commit,plugins?.commit||''].join('|');
+  if(!projections.has(key)){
+    const work=(async()=>{
+      let metadata:any[]=[];
+      if(path==='/api/portal/overview')metadata=(await db().prepare("SELECT id,title,summary,module,category,kind,tags,source_path FROM entries WHERE deleted=0 AND origin='github'").all()).results;
+      const recent=path==='/api/portal/overview'?Object.fromEntries(await Promise.all(['databas','plugins'].map(async repo=>[repo,await durableGet<{commit:string;recent:any[]}>('replica-recent:v1:'+repo)]))):{};
+      return replicaView(path,new URLSearchParams(search),replicaReader,metadata,recent);
+    })();
+    projections.set(key,work);
+    if(projections.size>60){const oldest=projections.keys().next().value;if(oldest)projections.delete(oldest);}
+    void work.catch(()=>projections.delete(key));
+  }
+  return projections.get(key);
 }

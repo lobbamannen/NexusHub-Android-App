@@ -2,9 +2,22 @@ import {durableGet,durableSet} from '@/platform/local-store';
 import {github} from '@/lib/github';
 import {bucket} from '@/lib/store';
 import {buildPosterIndex,createPosterService} from '@/lib/repository-posters.mjs';
+import {replicaReader} from '@/platform/mirror-access';
 
 export const dynamic='force-dynamic';
 const decode=(file:any)=>Uint8Array.from(atob(file.content.replace(/\s/g,'')),c=>c.charCodeAt(0));
+const loadMirrorIndex=async()=>{
+  const mirror=await replicaReader.current('databas');
+  if(!mirror)return null;
+  const movie=await replicaReader.json('databas','Media/poster-catalog.json');
+  if(!movie)return null;
+  const snapshot={commit:mirror.commit,truncated:false,tree:mirror.files.map((f:any)=>({...f,type:'blob'}))};
+  const story=mirror.files.some((f:any)=>f.path==='Media/story-covers/catalog.json')
+    ?await replicaReader.json('databas','Media/story-covers/catalog.json'):null;
+  if(mirror.files.some((f:any)=>f.path==='Media/story-covers/catalog.json')&&!story)
+    throw Error('Berättelseomslagens lokala katalog kunde inte verifieras.');
+  return buildPosterIndex(snapshot,movie,story);
+};
 const loadLiveIndex=async()=>{
   const client=github('databas'),snapshot=await client.snapshot();
   const file:any=await client.browse('Media/poster-catalog.json',snapshot.commit);
@@ -23,7 +36,7 @@ const loadLiveIndex=async()=>{
  };
 const service=createPosterService({
  loadIndex:async()=>{
-   try { const index=await loadLiveIndex(); await durableSet('posters:index:v1',index); return index; }
+   try { const index=await loadMirrorIndex()||await loadLiveIndex(); await durableSet('posters:index:v1',index); return index; }
    catch(error) { const cached=await durableGet<any>('posters:index:v1'); if(cached)return cached; throw error; }
  },
  readBytes:async(entry:any,commit:string)=>{

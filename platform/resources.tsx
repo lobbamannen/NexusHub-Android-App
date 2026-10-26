@@ -1,25 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createImageCache } from '@/lib/image-cache.mjs';
+
+const sharedImages=createImageCache({
+  load:async(url:string)=>{const response=await fetch(url);if(!response.ok)throw Error('Bilden kunde inte hämtas.');return response.blob();},
+  create:(blob:Blob)=>URL.createObjectURL(blob),
+  revoke:(url:string)=>URL.revokeObjectURL(url),
+});
 
 /** Transport adapter only: the original image element, classes and layout stay unchanged. */
 export function useLocalImage(url: string, lazy = false) {
   const element = useRef<HTMLImageElement>(null);
   const [state, setState] = useState({ url: '', source: '', error: false });
   useEffect(() => {
-    let active = true, objectUrl = '';
-    const controller = new AbortController();
-    const load = () => { void fetch(url, { signal: controller.signal }).then(async response => {
-      if (!response.ok) throw Error('Bilden kunde inte hämtas.');
-      const blob = await response.blob();
-      if (!active) return;
-      objectUrl = URL.createObjectURL(blob);
-      setState({ url, source: objectUrl, error: false });
-    }).catch(() => { if (active) setState({ url, source: '', error: true }); }); };
+    let active = true,handle:ReturnType<typeof sharedImages.acquire>|null=null;
+    const load = () => {handle=sharedImages.acquire(url);void handle.source.then((source:string)=>{
+      if(active)setState({url,source,error:false});
+    }).catch(()=>{if(active)setState({url,source:'',error:true});});};
     let observer: IntersectionObserver | undefined;
     if (lazy && element.current && typeof IntersectionObserver !== 'undefined') {
       observer = new IntersectionObserver(entries => {if(entries.some(entry=>entry.isIntersecting)){observer?.disconnect();load();}}, {rootMargin:'300px'});
       observer.observe(element.current);
     } else load();
-    return () => { active = false; observer?.disconnect(); controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
+    return () => {active=false;observer?.disconnect();handle?.release();};
   }, [url,lazy]);
   return {...(state.url === url ? state : { url, source: '', error: false }), ref:element};
 }

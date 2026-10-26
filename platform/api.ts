@@ -21,6 +21,8 @@ import * as economy from '@/app/api/economy/route';
 import * as fallback from '@/app/api/[[...path]]/route';
 import { initializeStorage, durableGet, durableSet, durableDelete } from './local-store';
 import { configureOutbox, enqueueMutation, isQueuedMutation, noteGithubFailure } from './outbox';
+import { replicaReader } from './mirror-access';
+import { createMirrorWriteBarrier } from '@/lib/mirror-write-barrier.mjs';
 export { pendingWrites, retryPendingWrites, discardPendingWrite, cancelQueuedEdits } from './outbox';
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'PUT' | 'OPTIONS';
@@ -54,6 +56,7 @@ function signalStale(path: string, savedAt: string | null, repositories?: string
 }
 let apiEpoch=0;
 const commitReadCache=cacheCommitter(()=>apiEpoch);
+const writeBarrier=createMirrorWriteBarrier();
 async function dispatchWithCache(request: Request) {
   const epoch=apiEpoch;
   const response = await dispatch(request);
@@ -116,7 +119,7 @@ async function dispatchWithCache(request: Request) {
 }
 
 const readUiLocal=localFirstReader({
- get:async(key:string,request:Request)=>{await initializeStorage();const cached=await durableGet<CachedResponse>(key);if(cached)return cached;try{const data=await localReadSeed(new URL(request.url).pathname);if(data)return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString()};}catch{/* Missing or damaged local model falls through to fresh read. */}return null;},
+ get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(writeBarrier.blocked(url.pathname,current?.commit||null))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data)return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
  refresh:(request:Request)=>dispatchWithCache(request),
  changed:()=>window.dispatchEvent(new Event('nexus-github-changed')),
  failure:(key:string,at:string)=>signalStale(key,at),
@@ -140,15 +143,21 @@ export function installLocalApi(): void {
         try {id=(await request.clone().json()).id;await commitReadCache(null,async()=>{await durableDelete('api-read:v1:/api/ideas');await durableDelete('api-read:v1:/api/ideas?id='+encodeURIComponent(id));});}
         catch {return Response.json({error:'Telefonens cache kunde inte uppdateras. Försök igen.'},{status:503});}
         const response=await dispatchWithCache(request);apiEpoch++;
+        if(response.ok){try{const data=await response.clone().json();if(data.deleted)writeBarrier.record('/api/ideas',data.commit);}catch{}}
         if(response.ok)await commitReadCache(null,async()=>{await durableDelete('api-read:v1:/api/ideas');await durableDelete('api-read:v1:/api/ideas?id='+encodeURIComponent(id));});
         return response;
       }
       if(isQueuedMutation(request)){
         apiEpoch++;const response=await enqueueMutation(request);apiEpoch++;
-        if(response.ok){try{const data=await response.clone().json();if(data.saved){const paths=url.pathname==='/api/media-register'?['/api/'+(await request.clone().json()).kind]:[url.pathname];for(const path of paths){await commitReadCache(null,async()=>{const compatible=compatibleMutationModel(path,data);if(!compatible)await durableDelete('api-read:v1:'+path);else await durableSet('api-read:v1:'+path,{body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString()});});}}}catch{/* Confirmed write is preserved even if cache update fails. */}}
+        if(response.ok){try{const data=await response.clone().json();if(data.saved){const paths=url.pathname==='/api/media-register'?['/api/'+(await request.clone().json()).kind]:[url.pathname];for(const path of paths){writeBarrier.record(path,data.commit);await commitReadCache(null,async()=>{const compatible=compatibleMutationModel(path,data);if(!compatible)await durableDelete('api-read:v1:'+path);else await durableSet('api-read:v1:'+path,{body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString()});});}}}catch{/* Confirmed write is preserved even if cache update fails. */}}
         return response;
       }
-      const eligible=cacheable(request)&&!url.pathname.startsWith('/api/daily-activity')&&!url.pathname.startsWith('/api/portal/document')&&!url.pathname.startsWith('/api/github/');
+      if(request.method==='POST'&&url.pathname==='/api/todos'){
+        const response=await dispatch(request);
+        if(response.ok){try{const data=await response.clone().json();if(data.saved){writeBarrier.record(url.pathname,data.commit);await durableDelete(readCacheKey(new Request(url.href)));}}catch{/* The remote write remains confirmed. */}}
+        return response;
+      }
+      const eligible=cacheable(request)&&!url.pathname.startsWith('/api/portal/document')&&!url.pathname.startsWith('/api/github/');
       return eligible&&request.headers.get('X-Nexus-Fresh')!=='true'&&request.cache!=='reload'&&!url.searchParams.has('refresh')?readUiLocal(readCacheKey(request),request):dispatchWithCache(request);
     }
     // Observe failures so routes that convert fetch's TypeError to HTTP 400 can

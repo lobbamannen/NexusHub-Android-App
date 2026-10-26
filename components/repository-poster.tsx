@@ -7,7 +7,7 @@ export function usePosterRevision():[string,()=>Promise<void>,{films:string[],se
  const [available,setAvailable]=useState<{films:string[],series:string[],stories:string[]}>({films:[],series:[],stories:[]});
  const refresh=async()=>{
   try{
-   const response=await fetch('/api/posters?index=1&refresh=1',{cache:'no-store'}),body:any=await response.json();
+   const response=await fetch('/api/posters?index=1&refresh=1'),body:any=await response.json();
    if(!response.ok||!/^[a-f0-9]{40}$/.test(body.revision||''))throw Error('Bildindex saknas.');
    setRevision(body.revision);
    setAvailable({films:Array.isArray(body.available?.films)?body.available.films:[],series:Array.isArray(body.available?.series)?body.available.series:[],stories:Array.isArray(body.available?.stories)?body.available.stories:[]});

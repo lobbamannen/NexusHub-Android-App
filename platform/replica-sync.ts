@@ -19,12 +19,8 @@ const stop=()=>paused||document.visibilityState!=='visible';
 export function pauseReplicaSync(){paused=true;report({paused:true});}
 async function refreshViews(){
  invalidateMedia();invalidatePortalCache();
- // Update small registers first; catalog rendering follows its existing listener.
- const urls=['/api/films','/api/series','/api/story-register','/api/story-status','/api/document-bookmarks','/api/economy','/api/ideas','/api/todos','/api/idea-plans'];
- for(let i=0;i<urls.length;i+=3){
-  if(stop())return;
-  await Promise.all(urls.slice(i,i+3).map(async url=>{const r=await fetch(url,{cache:'reload'});if(!r.ok||r.headers.get('X-Nexus-Offline')==='true')throw Error('Kunde inte uppdatera '+url+'. Lokala kopior finns kvar.');await r.arrayBuffer();}));
- }
+ // The completed mirror already holds these files; consumers rebuild their
+ // projections locally instead of performing a second nine-route GitHub sweep.
  window.dispatchEvent(new Event('nexus-github-changed'));
 }
 async function cycle(force=false){
@@ -47,8 +43,8 @@ async function cycle(force=false){
    const update=()=>report({done:progress.done,total:progress.total,repositories:{...state.repositories,[repo]:{...progress}}});
    update();
    await db().prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('mirror_manifest:'+repo,JSON.stringify({commit:snapshot.commit,fetchedAt:snapshot.fetchedAt,files})).run();
-   // Publish register changes promptly, without blocking the copy on catalog rebuilding.
-   if(previous?.commit!==snapshot.commit){changed=true;viewsDirty=true;invalidateMedia();invalidatePortalCache();window.dispatchEvent(new Event('nexus-github-changed'));}
+   // Never announce a new revision before its bytes have been copied and verified.
+   if(previous?.commit!==snapshot.commit){changed=true;viewsDirty=true;}
    const errors:Record<string,unknown>={};
    let headCheckedAt=Date.now();
    for(let offset=0;offset<plan.missing.length;offset+=4){
@@ -79,6 +75,7 @@ async function cycle(force=false){
    if(progress.failed)throw Error(progress.failed+' filer kunde inte hämtas. Övriga filer har sparats. Tryck Försök igen. '+Object.values(errors).map((e:any)=>e.error)[0]);
    progress.checkedAt=new Date().toISOString();update();
    await durableSet('replica-inventory:v1:'+repo,{commit:snapshot.commit,files});
+   await durableSet('replica-recent:v1:'+repo,{commit:snapshot.commit,recent:snapshot.recent||[]});
    await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:progress.checkedAt});
    await durableSet('replica-errors:v1:'+repo,{});
    // Retire stale failures from the former 20-file worker after successful copying.

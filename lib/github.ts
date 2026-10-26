@@ -1,5 +1,6 @@
 import { validateStoryRegister } from './story-register.mjs';
-import { mirroredRead, mirrorStatus } from './mirror';
+import { mirroredRead, mirrorStatus, renderMirror } from './mirror';
+import { replicaReader } from '@/platform/mirror-access';
 import { makeCatalog, readableRecord, REPOSITORIES } from './catalog.mjs';
 import { env } from '@/platform/env';
 import { githubClient, GITHUB_UPLOAD_LIMIT } from './github-inbox.mjs';
@@ -37,6 +38,25 @@ export async function sendFileToGitHub(id: string) {
     return receipt;
 }
 export async function readGitHubPath(path: string, repoKey = 'databas', ref: string | null = null) {
+    if (!ref) {
+        const snapshot=await replicaReader.current(repoKey);
+        if(snapshot && (path==='' || snapshot.files.some((f:any)=>f.path.startsWith(path.replace(/\/$/,'')+'/')))){
+            const prefix=path?path.replace(/\/$/,'')+'/':'',entries=new Map<string,any>();
+            for(const file of snapshot.files){
+                if(!file.path.startsWith(prefix))continue;
+                const tail=file.path.slice(prefix.length),part=tail.split('/')[0],directory=tail.includes('/');
+                if(!part)continue;
+                const target=prefix+part;
+                if(!entries.has(target))entries.set(target,{path:target,name:part,type:directory?'dir':'file',size:directory?0:file.size,sha:directory?null:file.sha});
+            }
+            return {type:'directory',repoKey,path,name:path.split('/').pop()||'Databas',entries:[...entries.values()].sort((a,b)=>a.type===b.type?a.name.localeCompare(b.name,'sv'):a.type==='dir'?-1:1),commit:snapshot.commit,origin:'github-mirror',readOnly:true};
+        }
+        const local=await replicaReader.file(repoKey,path);
+        if(local){
+            const url='https://github.com/'+(REPOSITORIES as any)[repoKey]+'/blob/'+local.commit+'/'+path;
+            return {...renderMirror(local.bytes.buffer as ArrayBuffer,path,{repoKey,sha:local.sha,commit:local.commit,size:local.size,url,origin:'github-mirror'}),id:'github:'+path};
+        }
+    }
     const data: any = await github(repoKey).browse(path, ref);
     let body = '';
     if (data.type === 'directory')
@@ -171,7 +191,11 @@ export async function portalOverview(refresh = false) {
     }
 }
 export async function portalDocument(path: string, repoKey = 'databas') {
-    const live: any = await mirroredRead(repoKey, path, github(repoKey)) || await readGitHubPath(path, repoKey);
+    const local = await replicaReader.file(repoKey,path);
+    const live: any = local ? renderMirror(local.bytes.buffer as ArrayBuffer,path,{
+        repoKey,sha:local.sha,commit:local.commit,size:local.size,
+        origin:'github-mirror',mirror:{state:'verified',lastTreeVerifiedAt:local.commit},
+    }) : await mirroredRead(repoKey, path, github(repoKey)) || await readGitHubPath(path, repoKey);
     let related: any[] = [];
     let localId = null;
     if (repoKey === 'databas') {
@@ -187,7 +211,9 @@ export async function portalDocument(path: string, repoKey = 'databas') {
     }
     if (repoKey === 'plugins' && path.endsWith('plugin.json') && live.body) {
         try {
-            const raw: any = await github('plugins').browse(path, live.commit), manifest = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(raw.content.replace(/\s/g, '')), c => c.charCodeAt(0))));
+            const cached=local?await replicaReader.json('plugins',path):null;
+            const raw: any = cached?null:await github('plugins').browse(path,live.commit);
+            const manifest = cached || JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(raw.content.replace(/\s/g, '')), c => c.charCodeAt(0))));
             live.manifest = { name: manifest.name, version: manifest.version, description: manifest.description, raw: manifest };
             live.title = manifest.interface?.displayName || manifest.display_name || manifest.name || live.title;
             live.body = '# ' + live.title + '\n\n' + (manifest.description || 'Ingen beskrivning i manifestet.') + '\n\n## Manifest\n\n```json\n' + JSON.stringify(manifest, null, 2) + '\n```';
