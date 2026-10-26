@@ -85,7 +85,7 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
         watchlist: filmsLoaded && seriesLoaded ? films.filter(f => f.status === "Vill se").length + series.filter(s => seriesIsWatchlisted(s)).length : null
     };
     return <div className="nh-home">
-  <div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div>
+  <header className="nh-home-welcome"><div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div><p className="nh-home-signature"><strong>Two Thumbs</strong>{' '}<span>Incorporated<sup>™</sup></span></p></header>
   <DailyActivity now={now} revision={catalog?.commit} ideaEntries={ideaEntries} ideasStale={ideasStale} onNavigate={onNavigate}/>
   <DatabaseStats now={now} counts={counts} checkedAt={catalog?.fetchedAt} onNavigate={onNavigate} loading={!catalog}/>
   <ModuleGrid counts={counts} onNavigate={onNavigate}/>

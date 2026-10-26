@@ -6,3 +6,11 @@
 /* Keep module light behind a content stage that fills even a short page. */
 .portal-shell.nh-chroma-site .workspace{display:flex;flex-direction:column}
 .portal-shell.nh-chroma-site .workspace>main{flex:1 0 auto;width:100%}
+
+/* Robin's personal studio signature, using the existing Nexus typography and violet light. */
+.portal-shell.nh-locked-home .nh-home-welcome{display:grid;gap:9px;min-width:0;padding:2px 0 4px;text-align:center}
+.portal-shell.nh-locked-home .nh-home-welcome .nh-home-greeting{margin:0}
+.portal-shell.nh-locked-home .nh-home-signature{margin:0;padding:0 8px;font-size:10.5px;font-weight:450;line-height:1.5;letter-spacing:.12em;color:#a78bda;text-wrap:balance}
+.portal-shell.nh-locked-home .nh-home-signature strong{font-weight:650;color:#ded9e9}
+.portal-shell.nh-locked-home .nh-home-signature span{text-shadow:0 0 15px #b784ee38}
+.portal-shell.nh-locked-home .nh-home-signature sup{font-size:.7em;vertical-align:super;letter-spacing:0;margin-left:1px}
