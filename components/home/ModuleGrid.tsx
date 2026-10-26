@@ -1,7 +1,15 @@
 'use client';
 import React from 'react';
 import MaterialIcon from '@/components/MaterialIcon';
-import { BookOpen, Clapperboard, Database, FolderOpen, Bookmark, Puzzle, Dumbbell, Coins, ChevronRight, Lightbulb } from 'lucide-react';
+import { BookOpen, Clapperboard, Database, FolderOpen, Bookmark, Puzzle, Dumbbell, Coins, ChevronRight } from 'lucide-react';
+/** Complete bulb silhouette, including the base, for both icon and background art. */
+function IdeaBulb({size=24,strokeWidth=2,className,...props}: React.SVGProps<SVGSVGElement> & {size?:number;strokeWidth?:number}) {
+ return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+  <path d="M9 18h6" />
+  <path d="M10 22h4" />
+  <path d="M15.09 14a6 6 0 1 0-6.18 0c.8.54 1.09 1.2 1.09 2v.5h4V16c0-.8.29-1.46 1.09-2Z" />
+ </svg>;
+}
 type Counts = {
     ideas: number | null;
     ideasStale: boolean;
@@ -27,7 +35,7 @@ const modules = [
     { id: 'ekonomi', title: 'Ekonomi', description: 'Budget, räkningar och gemensamma köp', icon: Coins, tone: 'green', art: 'economy' },
     { id: 'traning', title: 'Träning', description: 'Din träning och utveckling', icon: Dumbbell, tone: 'orange', art: 'training' },
     { id: 'filer', title: 'Utforska filer', description: 'Sök och bläddra i GitHub-databasen', icon: FolderOpen, tone: 'blue', art: 'files' },
-    { id: 'ideer', title: 'Idéinkorg', description: 'Fånga tanken. Utveckla den senare.', icon: Lightbulb, tone: 'orange', art: 'ideas' },
+    { id: 'ideer', title: 'Idéinkorg', description: 'Fånga tanken. Utveckla den senare.', icon: IdeaBulb, tone: 'orange', art: 'ideas' },
     { id: 'villse', title: 'Vill se', description: 'Filmer och serier på din lista', icon: Bookmark, tone: 'purple', art: 'upload' }
 ] as const;
 export default function ModuleGrid({ counts, onNavigate }: Props) {
