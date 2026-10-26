@@ -9,7 +9,7 @@ import {syncWatchState,watchSyncError} from '@/platform/watch-sync';
 import {useWatchState} from './use-watch-state';
 import '@/components/calendar/calendar.css';
 const stamp=(v?:string)=>v?new Date(v).toLocaleString('sv-SE',{timeZone:'Europe/Stockholm',dateStyle:'short',timeStyle:'short'}):'Inte kontrollerat ännu';
-async function read(path:string){const r=await fetch('/api/'+path,{cache:'no-store'}),d=await r.json();if(!r.ok)throw Error(d.error||'Kunde inte läsa GitHub.');return {...d,offline:r.headers.get('X-Nexus-Offline')==='true'};}
+async function read(path:string){const r=await fetch('/api/'+path,{cache:'reload'}),d=await r.json();if(!r.ok)throw Error(d.error||'Kunde inte läsa GitHub.');return {...d,offline:r.headers.get('X-Nexus-Offline')==='true'};}
 /** Each editor keeps its exact SHA and durable draft until a verified write or explicit undo. */
 function useWatchEditor(path:string,id:string,toValue:(data:any)=>any,toBody:(value:any)=>any){
  const key='watch:draft:'+id;const [base,setBase]=useState<any>(null),[draft,setDraft]=useState<any>(null),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[conflict,setConflict]=useState<any>(null);

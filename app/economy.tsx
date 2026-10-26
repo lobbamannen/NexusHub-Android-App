@@ -55,13 +55,13 @@ export default function Economy({ onDirtyChange }: { onDirtyChange?: (dirty: boo
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [articleEdit, setArticleEdit] = useState(false);
-  const reload = async () => {
+  const reload = async (force=true) => {
     setLoading(true); setError('');
-    try { const response = await fetch('/api/economy', { cache: 'no-store' }); const data = await json(response); setFiles(data.files); setCatalog(data.catalog); setError(data.catalogError || ''); setOfflineCopy(response.headers.get('X-Nexus-Offline') === 'true'); }
+    try { const response = await fetch('/api/economy', { cache: force?'reload':'no-store' }); const data = await json(response); setFiles(data.files); setCatalog(data.catalog); setError(data.catalogError || ''); setOfflineCopy(response.headers.get('X-Nexus-Offline') === 'true'); }
     catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   };
-  useEffect(() => { void reload(); }, []);
+  useEffect(() => { void reload(false); }, []);
   useEffect(() => {
     const refresh = (event: Event) => {
       if ((event as CustomEvent).detail?.view !== 'ekonomi') return;

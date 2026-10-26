@@ -24,7 +24,7 @@ export async function mediaFetch(url: string, options: RequestInit = {}, force =
     let task = pending.get(url);
     if (!task) {
         const run = generation;
-        task = fetch(url, { cache: 'no-store' }).then(response => { if (response.ok && run === generation)
+        task = fetch(url, { cache: force?'reload':'no-store' }).then(response => { if (response.ok && run === generation)
             cache.set(url, { until: Date.now() + 10000, response: response.clone() }); return response; });
         pending.set(url, task);
         const own = task;

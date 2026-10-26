@@ -53,7 +53,7 @@ export function useDocumentBookmarks() {
                 setLoading(false);
         }
     }, []);
-    useEffect(() => { void reload(); return () => { generation.current++; }; }, [reload]);
+    useEffect(() => {const changed=()=>{if(!lock.current)void reload();};void reload();window.addEventListener('nexus-github-changed',changed);return () => { generation.current++;window.removeEventListener('nexus-github-changed',changed); }; }, [reload]);
     const mark = async (entry: any, value: boolean) => { if (lock.current)
         return false; lock.current = true; generation.current++; setBusy(true); setError(''); try {
         const data = await request({ action: 'set', entry, value });

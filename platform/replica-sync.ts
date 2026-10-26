@@ -23,7 +23,7 @@ async function refreshViews(){
  const urls=['/api/films','/api/series','/api/story-register','/api/story-status','/api/document-bookmarks','/api/economy','/api/ideas','/api/todos','/api/idea-plans'];
  for(let i=0;i<urls.length;i+=3){
   if(stop())return;
-  await Promise.all(urls.slice(i,i+3).map(async url=>{const r=await fetch(url);if(!r.ok||r.headers.get('X-Nexus-Offline')==='true')throw Error('Kunde inte uppdatera '+url+'. Lokala kopior finns kvar.');await r.arrayBuffer();}));
+  await Promise.all(urls.slice(i,i+3).map(async url=>{const r=await fetch(url,{cache:'reload'});if(!r.ok||r.headers.get('X-Nexus-Offline')==='true')throw Error('Kunde inte uppdatera '+url+'. Lokala kopior finns kvar.');await r.arrayBuffer();}));
  }
  window.dispatchEvent(new Event('nexus-github-changed'));
 }

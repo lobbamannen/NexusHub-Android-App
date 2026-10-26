@@ -90,7 +90,8 @@ function StoryCover({ story, big = false, revision }: {
  </div>;
 }
 export default function Stories({ documents, onNavigate, mirrorChecks, onInspect, onRefresh, loading = false, initialCategory = '', initialPath = '', onDirtyChange, initialRegister = false, onExitRead, onOpenRegister, onRegisterBack }: Props) {
-    const register = useStoryRegister();
+    const storyReloadAllowed=useRef(true);
+    const register = useStoryRegister(()=>storyReloadAllowed.current);
     const [pendingRead,setPendingRead]=useState<Record<string,boolean>>({}),[batchSaving,setBatchSaving]=useState(false),[saveMessage,setSaveMessage]=useState('');
     const returnScroll = useRef(0);
     const initialConsumed = useRef(false);
@@ -184,6 +185,8 @@ export default function Stories({ documents, onNavigate, mirrorChecks, onInspect
         setPendingRead(previous=>{const next={...previous},value=!(previous[path]??finished.includes(path));if(value===finished.includes(path))delete next[path];else next[path]=value;return next;});
         setSaveMessage('');register.clearMessage();
     };
+    storyReloadAllowed.current=!dirty&&!register.saving&&!batchSaving;
+    useEffect(()=>{const updated=()=>{if(storyReloadAllowed.current){void register.reload();void reloadMarks();}};window.addEventListener('nexus-github-changed',updated);return()=>window.removeEventListener('nexus-github-changed',updated);},[register.reload,reloadMarks]);
     const registerPending={...pending};
     for(const path of Object.keys(pendingRead))registerPending[path]={...registerPending[path]};
     const [font, setFont] = useState(17);

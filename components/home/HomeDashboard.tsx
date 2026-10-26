@@ -46,8 +46,6 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
     useEffect(() => {
         setMediaLoading(true);
         setMediaError('');
-        setFilmsLoaded(false);
-        setSeriesLoaded(false);
         void refreshPosters();
         const controller = new AbortController();
         const get = async (url: string) => {
@@ -71,6 +69,8 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
             setMediaLoading(false); });
         return () => controller.abort();
     }, [catalog?.fetchedAt, retry]);
+    const [additions,setAdditions]=useState<any>(null);
+    useEffect(()=>{let active=true;void fetch('/api/media-additions').then(async r=>{if(!r.ok)throw Error();const d=await r.json();if(active)setAdditions(d.data);}).catch(()=>{});return()=>{active=false;};},[catalog?.commit]);
     const plugins = Array.isArray(pluginRepo?.packages) ? pluginRepo.packages.filter((p: any) => !p.archived && !p.legacy) : [];
     // Same document scope as the Knowledge Bank overview.
     const knowledgeFiles = catalog ? catalog.documents.filter((d: any) => d.module === 'databas' && !d.technical && !d.asset).length : null;
@@ -91,6 +91,6 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
   <WatchHomeNotice onNavigate={onNavigate}/>
   <DatabaseStats now={now} counts={counts} checkedAt={catalog?.fetchedAt} onNavigate={onNavigate} loading={!catalog}/>
   <ModuleGrid counts={counts} onNavigate={onNavigate}/>
-  <RecentActivity loading={mediaLoading} error={mediaError} onRetry={() => setRetry(n => n + 1)} posterRevision={posterRevision} films={films} series={series} stories={stories} files={recentFiles} plugins={plugins} commits={commits} onNavigate={onNavigate} onOpenMedia={onOpenMedia} onOpenStory={onOpenStory} onOpenFile={onOpenFile}/>
+  <RecentActivity additions={additions} loading={mediaLoading} error={mediaError} onRetry={() => setRetry(n => n + 1)} posterRevision={posterRevision} films={films} series={series} stories={stories} files={recentFiles} plugins={plugins} commits={commits} onNavigate={onNavigate} onOpenMedia={onOpenMedia} onOpenStory={onOpenStory} onOpenFile={onOpenFile}/>
  </div>;
 }

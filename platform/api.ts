@@ -1,3 +1,6 @@
+import * as additions from '@/app/api/media-additions/route';
+import {localFirstReader,cacheCommitter,compatibleMutationModel} from '@/lib/local-first.mjs';
+import {localReadSeed} from './local-read-seed';
 import * as calendar from '@/app/api/calendar/route';
 import * as watchSettings from '@/app/api/series-watch-settings/route';
 import * as watchHistory from '@/app/api/watch-history/route';
@@ -23,13 +26,14 @@ export { pendingWrites, retryPendingWrites, discardPendingWrite, cancelQueuedEdi
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'PUT' | 'OPTIONS';
 type Route = Partial<Record<Method, (request: Request) => Promise<Response>>>;
 const routes: Record<string, Route> = {
+ '/api/media-additions':additions,
  '/api/calendar':calendar,'/api/series-watch-settings':watchSettings,'/api/watch-history':watchHistory,
   '/api/daily-activity':dailyActivity, '/api/todos':todos, '/api/incoming':incoming, '/api/idea-files':ideaFiles, '/api/idea-plans': ideaPlans, '/api/ideas': ideas, '/api/films': films, '/api/series': series, '/api/media-register': media,
   '/api/story-register': stories, '/api/story-status': storyStatus,
   '/api/document-bookmarks': bookmarks, '/api/posters': posters, '/api/economy': economy,
 };
 interface CachedResponse { body: ArrayBuffer; status: number; headers: [string, string][]; savedAt: string; repositorySavedAt?: Record<string, string> }
-const cacheable = (request: Request) => request.method === 'GET' && /^\/api\/(calendar|series-watch-settings|watch-history|daily-activity|todos|idea-files|idea-plans|ideas|films|series|story-register|story-status|document-bookmarks|economy|github\/browse|portal\/(overview|document))(?:\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search);
+const cacheable = (request: Request) => request.method === 'GET' && /^\/api\/(media-additions|calendar|series-watch-settings|watch-history|daily-activity|todos|idea-files|idea-plans|ideas|films|series|story-register|story-status|document-bookmarks|economy|github\/browse|portal\/(overview|document))(?:\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search);
 async function dispatch(request: Request): Promise<Response> {
   await initializeStorage();
   const path = new URL(request.url).pathname.replace(/\/$/, '');
@@ -48,9 +52,13 @@ function readCacheKey(request: Request) {
 function signalStale(path: string, savedAt: string | null, repositories?: string[]) {
   window.dispatchEvent(new CustomEvent('nexus-offline-read', { detail: { path, savedAt, repositories } }));
 }
+let apiEpoch=0;
+const commitReadCache=cacheCommitter(()=>apiEpoch);
 async function dispatchWithCache(request: Request) {
+  const epoch=apiEpoch;
   const response = await dispatch(request);
   if (!cacheable(request)) return response;
+  if(epoch!==apiEpoch){const headers=new Headers(response.headers);headers.set('X-Nexus-Superseded','true');return new Response(response.body,{status:response.status,headers});}
   const path = new URL(request.url).pathname;
   const key = readCacheKey(request);
   try {
@@ -84,14 +92,15 @@ async function dispatchWithCache(request: Request) {
       const result = Response.json(body, { status: response.status, headers });
       // Preserve each repository's last good snapshot, including its original age.
       // An entirely unavailable 200 must never erase a useful previous catalog.
-      if (Object.keys(merged).length) await durableSet(key, {
-        body: await result.clone().arrayBuffer(), status: result.status,
+      const cachedBody=await result.clone().arrayBuffer();
+      if (Object.keys(merged).length) await commitReadCache(epoch,()=>durableSet(key, {
+        body: cachedBody, status: result.status,
         headers: Array.from(result.headers.entries()), savedAt: at, repositorySavedAt,
-      } satisfies CachedResponse);
+      } satisfies CachedResponse));
       return result;
     }
     if (response.ok) {
-      await durableSet(key, { body: await response.clone().arrayBuffer(), status: response.status, headers: Array.from(response.headers.entries()), savedAt: new Date().toISOString() } satisfies CachedResponse);
+      const body=await response.clone().arrayBuffer();await commitReadCache(epoch,()=>durableSet(key, { body, status: response.status, headers: Array.from(response.headers.entries()), savedAt: new Date().toISOString() } satisfies CachedResponse));
     } else if (response.status >= 500) {
       const cached = await durableGet<CachedResponse>(key);
       if (cached) {
@@ -106,6 +115,12 @@ async function dispatchWithCache(request: Request) {
   return response;
 }
 
+const readUiLocal=localFirstReader({
+ get:async(key:string,request:Request)=>{await initializeStorage();const cached=await durableGet<CachedResponse>(key);if(cached)return cached;try{const data=await localReadSeed(new URL(request.url).pathname);if(data)return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString()};}catch{/* Missing or damaged local model falls through to fresh read. */}return null;},
+ refresh:(request:Request)=>dispatchWithCache(request),
+ changed:()=>window.dispatchEvent(new Event('nexus-github-changed')),
+ failure:(key:string,at:string)=>signalStale(key,at),
+});
 let installed = false;
 /** Intercept only this WebView's /api routes. GitHub uses the real network. */
 export function installLocalApi(): void {
@@ -121,13 +136,20 @@ export function installLocalApi(): void {
     if (url.origin === location.origin && url.pathname.startsWith('/api/')) {
       const request = new Request(input instanceof Request ? input : url.href, init);
       if (request.method === 'DELETE' && url.pathname === '/api/ideas') {
-        try {
-          const input = await request.clone().json();
-          await durableDelete('api-read:v1:/api/ideas');
-          await durableDelete('api-read:v1:/api/ideas?id=' + encodeURIComponent(input.id));
-        } catch { return Response.json({error:'Telefonens cache kunde inte uppdateras. Försök igen.'},{status:503}); }
+        apiEpoch++;let id:string;
+        try {id=(await request.clone().json()).id;await commitReadCache(null,async()=>{await durableDelete('api-read:v1:/api/ideas');await durableDelete('api-read:v1:/api/ideas?id='+encodeURIComponent(id));});}
+        catch {return Response.json({error:'Telefonens cache kunde inte uppdateras. Försök igen.'},{status:503});}
+        const response=await dispatchWithCache(request);apiEpoch++;
+        if(response.ok)await commitReadCache(null,async()=>{await durableDelete('api-read:v1:/api/ideas');await durableDelete('api-read:v1:/api/ideas?id='+encodeURIComponent(id));});
+        return response;
       }
-      return isQueuedMutation(request) ? enqueueMutation(request) : dispatchWithCache(request);
+      if(isQueuedMutation(request)){
+        apiEpoch++;const response=await enqueueMutation(request);apiEpoch++;
+        if(response.ok){try{const data=await response.clone().json();if(data.saved){const paths=url.pathname==='/api/media-register'?['/api/'+(await request.clone().json()).kind]:[url.pathname];for(const path of paths){await commitReadCache(null,async()=>{const compatible=compatibleMutationModel(path,data);if(!compatible)await durableDelete('api-read:v1:'+path);else await durableSet('api-read:v1:'+path,{body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString()});});}}}catch{/* Confirmed write is preserved even if cache update fails. */}}
+        return response;
+      }
+      const eligible=cacheable(request)&&!url.pathname.startsWith('/api/daily-activity')&&!url.pathname.startsWith('/api/portal/document')&&!url.pathname.startsWith('/api/github/');
+      return eligible&&request.headers.get('X-Nexus-Fresh')!=='true'&&request.cache!=='reload'&&!url.searchParams.has('refresh')?readUiLocal(readCacheKey(request),request):dispatchWithCache(request);
     }
     // Observe failures so routes that convert fetch's TypeError to HTTP 400 can
     // still retain the durable intent as pending, without changing server code.

@@ -1,8 +1,10 @@
+import {sortByAdded} from '@/lib/media-additions.mjs';
 'use client';
 import React, { useRef, useState } from 'react';
 import { ArrowRight, BookOpen, ChevronRight, Clapperboard, Clock3, FileText, Images, Puzzle, Tv } from 'lucide-react';
 import RepositoryPoster from '@/components/repository-poster';
 type Props = {
+    additions?: any;
     loading?: boolean;
     error?: string;
     onRetry?: () => void;
@@ -31,21 +33,21 @@ function Poster({ title, kind, posterKey, revision }: {
 }) {
     return <span className={'nh-recent-poster ' + (kind === 'series' ? 'nh-poster-series' : '')}><RepositoryPoster kind={kind === 'film' ? 'films' : kind === 'story' ? 'stories' : 'series'} posterKey={posterKey} revision={revision} alt={(kind === 'story' ? 'Omslag för ' : 'Affisch för ') + title}><span className="nh-poster-empty">{kind === 'series' ? <Tv size={32}/> : kind === 'story' ? <BookOpen size={32}/> : <Clapperboard size={32}/>}</span></RepositoryPoster></span>;
 }
-export default function RecentActivity({ loading = false, error, onRetry, films, series, stories, files, plugins, commits, posterRevision, onNavigate, onOpenMedia, onOpenStory, onOpenFile }: Props) {
+export default function RecentActivity({ additions, loading = false, error, onRetry, films, series, stories, files, plugins, commits, posterRevision, onNavigate, onOpenMedia, onOpenStory, onOpenFile }: Props) {
     const [tab, setTab] = useState<Tab>('filmer');
     const scroll = useRef<HTMLDivElement>(null);
     const selected = tabs.find(([id]) => id === tab)?.[1] || 'Filmer';
     const view = tab === 'filmer' ? 'filmer' : tab === 'serier' ? 'serier' : tab === 'berattelser' ? 'berattelser' : tab === 'plugins' ? 'plugins' : tab === 'andringar' ? 'installningar' : 'databas';
     const sortedCommits = [...commits].filter(c => c?.date).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 8);
-    const items = tab === 'filmer' ? [...films].slice(-9).reverse()
-        : tab === 'serier' ? [...series].slice(-9).reverse()
-            : tab === 'berattelser' ? stories.slice(0, 9)
+    const items = tab === 'filmer' ? sortByAdded(films,'films',additions).slice(0,9)
+        : tab === 'serier' ? sortByAdded(series,'series',additions).slice(0,9)
+            : tab === 'berattelser' ? sortByAdded(stories,'stories',additions).slice(0,9)
                 : tab === 'filer' ? files.slice(0, 9)
                     : tab === 'plugins' ? plugins.slice(0, 9)
                         : sortedCommits;
     const note = tab === 'filmer' || tab === 'serier'
-        ? 'Ur registret i postordning; enskilda tilläggsdatum saknas.'
-        : tab === 'berattelser' ? 'Ur berättelsebiblioteket.'
+        ? (additions?.source==='git-first-registration'?'Senast först tillagda i GitHub; ändrade betyg räknas inte som nya titlar.':'Tilläggsdatum läses in. Titlar utan verifierat datum visas sist.')
+        : tab === 'berattelser' ? 'Sorterade efter första registrering i GitHub när datum finns.'
             : tab === 'filer' ? 'Senast öppnade på den här enheten.'
                 : tab === 'plugins' ? 'Aktiva paket i GitHub-katalogen.'
                     : 'Senaste registrerade GitHub-ändringarna.';
@@ -57,7 +59,7 @@ export default function RecentActivity({ loading = false, error, onRetry, films,
   <div role="tablist" aria-label="Senaste innehåll per kategori" className="nh-recent-tabs">
    {tabs.map(([id, label]) => <button key={id} role="tab" type="button" aria-selected={tab === id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>{label}</button>)}
   </div>
-  {(tab === 'filmer' || tab === 'serier') && loading ? <div className="nh-recent-empty" role="status"><Clock3 size={28}/><p>Hämtar titlar från GitHub…</p></div> : (tab === 'filmer' || tab === 'serier') && error ? <div className="nh-recent-empty" role="alert"><p>{error}</p><button className="secondary" onClick={onRetry}>Försök igen</button></div> : items.length === 0 ? <div className="nh-recent-empty"><Images size={28}/><p>Inget innehåll att visa för {selected.toLowerCase()} just nu.</p><button className="nh-see-all" onClick={() => onNavigate(view)}>Öppna modulen <ArrowRight size={16}/></button></div> :
+  {(tab === 'filmer' || tab === 'serier') && loading && !items.length ? <div className="nh-recent-empty" role="status"><Clock3 size={28}/><p>Hämtar titlar från GitHub…</p></div> : (tab === 'filmer' || tab === 'serier') && error && !items.length ? <div className="nh-recent-empty" role="alert"><p>{error}</p><button className="secondary" onClick={onRetry}>Försök igen</button></div> : items.length === 0 ? <div className="nh-recent-empty"><Images size={28}/><p>Inget innehåll att visa för {selected.toLowerCase()} just nu.</p><button className="nh-see-all" onClick={() => onNavigate(view)}>Öppna modulen <ArrowRight size={16}/></button></div> :
             <div className="nh-recent-scroller">
    <div ref={scroll} className={'nh-recent-strip ' + (tab === 'filmer' || tab === 'serier' || tab === 'berattelser' ? 'nh-poster-strip' : 'nh-list-strip')}>
     {items.map((item: any, index: number) => {

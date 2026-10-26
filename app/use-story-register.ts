@@ -7,12 +7,13 @@ async function request(options?:RequestInit){
  if(!response.ok||data.error||!data.register)throw Error(data.error||'Berättelseregistret kunde inte läsas.');
  return data;
 }
-export function useStoryRegister(){
+export function useStoryRegister(canApply?:()=>boolean){
+ const applyGuard=useRef(canApply);applyGuard.current=canApply;
  const [data,setData]=useState<StoryRegisterData|null>(null),[loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const busy=useRef(false),live=useRef(true);
  const reload=useCallback(async()=>{
   setLoading(true);setError('');setMessage('');
-  try{const next=await request();if(live.current)setData(next);return true;}
+  try{const next=await request();if(live.current&&(!applyGuard.current||applyGuard.current()))setData(next);return true;}
   catch(e:any){if(live.current)setError(e.message);return false;}
   finally{if(live.current)setLoading(false);}
  },[]);

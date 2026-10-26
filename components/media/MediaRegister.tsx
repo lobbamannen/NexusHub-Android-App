@@ -1,8 +1,10 @@
+import './register-watch.css';
+import {toggleReleaseWatch} from '@/lib/media-additions.mjs';
 'use client';
 import {cancelDraftWrites} from '@/platform/draft-writes';
 import { mediaFetch } from '@/lib/media-client';
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { LibraryBig, Clapperboard, Tv, Search, Heart, Star, Pencil, Save, RotateCcw, RefreshCw, X, AlertCircle, CheckCircle2, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { LibraryBig, Clapperboard, Tv, Search, Heart, Star, Pencil, Save, RotateCcw, RefreshCw, X, AlertCircle, CheckCircle2, ChevronRight, Eye, EyeOff, Bell } from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
 import RepositoryPoster, { usePosterRevision } from '@/components/repository-poster';
@@ -22,6 +24,7 @@ type MediaItem = {
     allSeasonsAvailableInSwedenWatched?: boolean;
     watchedSeasons?: number[];
     wantToWatch?: boolean;
+    releaseWatch?: any;
     displayTitle?: string;
 };
 type Payload = {
@@ -36,7 +39,7 @@ type SaveResult = Payload & {
     error?: string;
     warning?: string;
 };
-type Changes = Partial<Pick<MediaItem, 'title' | 'year' | 'startYear' | 'genres' | 'ourRating' | 'favorite' | 'ourReview' | 'synopsis' | 'status' | 'allSeasonsAvailableInSwedenWatched' | 'wantToWatch'>>;
+type Changes = Partial<Pick<MediaItem, 'title' | 'year' | 'startYear' | 'genres' | 'ourRating' | 'favorite' | 'ourReview' | 'synopsis' | 'status' | 'allSeasonsAvailableInSwedenWatched' | 'wantToWatch' | 'releaseWatch'>>;
 type Pending = {
     films: Record<string, Changes>;
     series: Record<string, Changes>;
@@ -198,6 +201,7 @@ export default function MediaRegister({ onDirtyChange, selectedKind, hideSwitche
         });
         return () => { active = false; onDirtyChange?.(false); };
     }, [onDirtyChange]);
+    useEffect(()=>{let active=true;const update=()=>{if(pendingCount||editorDirty||saving)return;void Promise.allSettled([read('films'),read('series')]).then(results=>{if(!active)return;setData(old=>({films:results[0].status==='fulfilled'?results[0].value:old.films,series:results[1].status==='fulfilled'?results[1].value:old.series}));});};window.addEventListener('nexus-github-changed',update);return()=>{active=false;window.removeEventListener('nexus-github-changed',update);};},[pendingCount,editorDirty,saving]);
     const originals = data[kind]?.register[kind] || [];
     const projected = (item: MediaItem, which: Kind) => ({ ...item, ...pending[which][identity(which, item)] });
     const available = useMemo(() => GENRE_GROUPS.filter(group => originals.some(item => groupKey(projected(item, kind)) === group.id)), [originals, kind, pending]);
@@ -331,6 +335,7 @@ export default function MediaRegister({ onDirtyChange, selectedKind, hideSwitche
      <div className="nh-register-row-actions">
       <button type="button" className={'nh-register-viewed' + (seen ? ' selected' : '')} disabled={saving} aria-pressed={seen} aria-label={(seen ? (kind === 'films' ? 'Markera som inte sedd: ' : 'Markera som inte helt sedd: ') : (kind === 'films' ? 'Markera som sedd: ' : 'Markera hela serien som sedd: ')) + item.title} title={seen ? (kind === 'films' ? 'Markera som inte sedd' : 'Markera serien som inte helt sedd') : (kind === 'films' ? 'Markera som sedd' : 'Markera hela serien som sedd')} onClick={() => toggleSeen(kind, key, item, original)}>{seen ? <Eye size={19} aria-hidden="true"/> : <EyeOff size={19} aria-hidden="true"/>}</button>
       <button type="button" className={'nh-register-favorite' + (item.favorite ? ' selected' : '')} disabled={saving} aria-pressed={!!item.favorite} aria-label={(item.favorite ? 'Ta bort favorit: ' : 'Lägg till favorit: ') + item.title} title={item.favorite ? 'Ta bort favorit' : 'Lägg till favorit'} onClick={() => setChanges(kind, key, { favorite: !item.favorite })}><Heart fill={item.favorite ? 'currentColor' : 'none'} size={19}/></button>
+      {kind==='series'&&<button type="button" className={'nh-register-bell'+(item.releaseWatch?.enabled?' selected':'')} disabled={saving} aria-pressed={!!item.releaseWatch?.enabled} aria-label={(item.releaseWatch?.enabled?'Sluta bevaka: ':'Bevaka: ')+item.title} title={item.releaseWatch?.enabled?'Sluta bevaka nya släpp':'Bevaka nya släpp'} onClick={()=>{const next=toggleReleaseWatch(item.releaseWatch);setChanges(kind,key,{releaseWatch:!next.enabled&&!original.releaseWatch?undefined:next});}}><Bell size={19} fill={item.releaseWatch?.enabled?'currentColor':'none'}/></button>}
       <button type="button" className="nh-register-edit" disabled={saving} onClick={() => setEditing({ kind, key })}><Pencil size={15}/><span>Redigera</span></button>
      </div>
     </div>;

@@ -46,7 +46,7 @@ export function useIdeas() {
             setRows(data.items); setNumbering(data.numbering||{entries:[],dailyCounts:{}}); setConfirmedIds([]); setStale(response.headers.get('X-Nexus-Offline') === 'true'); setError('');
             const queued = await refreshPending();
             // Remove a draft only after a verified live read proves its exact content saved.
-            if (!response.headers.get('X-Nexus-Offline')) {
+            if (!response.headers.get('X-Nexus-Offline')&&!response.headers.get('X-Nexus-Local')) {
                 const next = { ...draftsRef.current }; let changed = false;
                 for (const row of data.items as IdeaRow[]) if (!queued[row.idea.id] && next[row.idea.id] && sameIdea(next[row.idea.id].idea, row.idea)) { delete next[row.idea.id]; changed = true; }
                 if (changed) await commitDrafts(next);
@@ -150,7 +150,7 @@ export function useIdeas() {
         if (busyRef.current) return;
         busyRef.current = true; setBusy(true);
         try {
-            const response = await fetch('/api/ideas?id=' + encodeURIComponent(id), { cache: 'no-store' }), data = await response.json();
+            const response = await fetch('/api/ideas?id=' + encodeURIComponent(id), { cache: 'reload' }), data = await response.json();
             if (!response.ok || response.headers.get('X-Nexus-Offline')) throw Error(data.error || 'En aktuell GitHub-version kunde inte verifieras.');
             setRemote(data);
         } catch (e: any) { setError(e.message); }
@@ -168,7 +168,7 @@ export function useIdeas() {
         busyRef.current=true;setBusy(true);sequence.current++;setError('');
         try{
             await persistence.current;
-            const response=await fetch('/api/ideas?id='+encodeURIComponent(remote.idea.id),{cache:'no-store'}),latest=await response.json();
+            const response=await fetch('/api/ideas?id='+encodeURIComponent(remote.idea.id),{cache:'reload'}),latest=await response.json();
             if(!response.ok||response.headers.get('X-Nexus-Offline'))throw Error('En aktuell GitHub-version behövs. Båda texterna ligger kvar.');
             if(latest.sha!==remote.sha){setRemote(latest);throw Error('GitHub-versionen ändrades igen. Läs den nya texten nedan och välj på nytt.');}
             // Do not cancel a queued intent or replace a draft before both versions are durable.

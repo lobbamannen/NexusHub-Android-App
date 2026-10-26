@@ -6,7 +6,7 @@ import {pendingWrites} from './outbox';
 let started=false,active:Promise<void>|null=null,wanted=false;
 let lastConfig='',lastHistory='';
 export let watchSyncError='';
-async function fresh(url:string){const response=await fetch(url,{cache:'no-store'}),data=await response.json();if(!response.ok||response.headers.get('X-Nexus-Offline')==='true')throw Error(data.error||'En aktuell GitHub-version behövs för bevakningssynken.');return data;}
+async function fresh(url:string){const response=await fetch(url,{cache:'reload'}),data=await response.json();if(!response.ok||response.headers.get('X-Nexus-Offline')==='true')throw Error(data.error||'En aktuell GitHub-version behövs för bevakningssynken.');return data;}
 export function syncWatchState(){
  wanted=true;if(active)return active;
  active=(async()=>{while(wanted){wanted=false;if(!nativeAvailable()||!hasGithubToken())return;
