@@ -1,3 +1,4 @@
+import {startWatchSync} from '@/platform/watch-sync';
 import '@/app/globals.css';
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -22,6 +23,7 @@ async function start() {
   await initializeStorage(); installLocalApi(); installResourceHandling();
   createRoot(document.getElementById('root')!).render(<App/>);
   startReplicaSync();
+  startWatchSync();
 
 }
 void start().catch(error=>{

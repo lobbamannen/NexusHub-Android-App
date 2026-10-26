@@ -1,3 +1,4 @@
+import {applyReleaseWatch} from '@/lib/calendar/domain.mjs';
 import {github} from '@/lib/github';
 import {gitBlobSha} from '@/lib/github-inbox.mjs';
 import {applySeriesWatchlistChange} from '@/lib/series-watchlist.mjs';
@@ -29,12 +30,12 @@ export async function POST(request:Request){
   if(Number(request.headers.get('content-length')||0)>4096)return reply({error:'Ändringen är för stor.'},413);
   const raw=await request.text();if(new TextEncoder().encode(raw).byteLength>4096)return reply({error:'Ändringen är för stor.'},413);
   const input:any=JSON.parse(raw);
-  if(!input||!['set-watchlist','set-watched-seasons'].includes(input.action)||!/^[a-f0-9]{40}$/.test(input.expectedSha||''))return reply({error:'Ogiltig serieändring eller saknad versionsnyckel.'},400);
+  if(!input||!['set-watchlist','set-watched-seasons','set-release-watch'].includes(input.action)||!/^[a-f0-9]{40}$/.test(input.expectedSha||''))return reply({error:'Ogiltig serieändring eller saknad versionsnyckel.'},400);
   if(input.action==='set-watchlist'&&typeof input.wantToWatch!=='boolean')return reply({error:'Vill se måste vara sant eller falskt.'},400);
   if(input.action==='set-watched-seasons'&&!Array.isArray(input.watchedSeasons))return reply({error:'Sedda säsonger måste vara en lista.'},400);
   const current=await read();
   if(current.sha!==input.expectedSha)return reply({error:'Serieregistret har ändrats i GitHub. Uppdatera sidan innan du sparar igen.'},409);
-  const result=input.action==='set-watchlist'
+  const result=input.action==='set-release-watch'?{changed:true,register:applyReleaseWatch(current.register,input.target,input.releaseWatch)}:input.action==='set-watchlist'
    ?applySeriesWatchlistChange(current.register,input.target,input.wantToWatch)
    :applySeriesWatchedSeasonsChange(current.register,input.target,input.watchedSeasons);
   if(!result.changed)return reply({saved:true,unchanged:true,sha:current.sha,commit:current.commit,register:result.register});

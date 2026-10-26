@@ -216,3 +216,11 @@ Se `docs/verification.md` för utförda kontroller och gränsen mellan lokal gra
 I en befintlig idé sparar filvalet originalen och idékopplingen beständigt på telefonen. Det skickar ingenting till GitHub förrän användaren trycker **Spara**. Knappen aktiveras av väntande bilagor även när idétext och status är oförändrade. Filnamn och lokal väntestatus visas. Stängning eller appomstart behåller bilagorna, som också kan hittas i Mottagningsinkorgen.
 
 Spara skickar väntande bilagor och visar bekräftelse först efter GitHub-verifiering. Bilagor kräver ingen omskrivning av idé-JSON eller ändring av dess datum. Om text också ändrats sparas den först med befintligt SHA-skydd; ett misslyckande eller en konflikt stoppar den kombinerade sparningen. Vid delvis misslyckad bilageöverföring behålls originalen och kvittenserna, så nästa Spara hoppar över redan bekräftade filer.
+
+## Kalender och seriebevakning (idé 12 och 8)
+
+Kalender och Seriebevakning nås från startsidan, menyn och inställningarna. En serie har separat bevakningsval i sin detaljvy. Kalendern läser telefonens bokningar lokalt efter ditt tillstånd; egna NexusHub-händelser sparas med Spara/Ångra och versionsskydd till GitHub. Telefonbokningar skickas aldrig dit.
+
+Seriebevakning använder din egen **Streaming Availability API-nyckel** i ett krypterat Android-fönster under Seriebevakning → Inställningar. Detta är en separat nyckel från GitHub-token; appen aktiverar ingen betaltjänst. Lokalt tak är 900 API-anrop per månad. Täckning och API-kvot visas i appen. Exakta svenska premieredatum visas bara när datakällan faktiskt bekräftar dem.
+
+Se [funktion, lagring, begränsningar och designregler](docs/calendar-release/implementation.md) och [utförda kontroller](docs/calendar-release/verification.md). Kalenderns guld och bevakningens blå modulaccent använder **samma låsta NexusHub-designsystem**: svarta paneler, gemensamma materialikoner, lila handlingar, diskret glöd bakom innehållet och en alltid synlig Spara/Ångra-fot i rullbara dialoger.

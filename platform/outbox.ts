@@ -22,7 +22,7 @@ function completed(item: PendingWrite) { if (typeof window !== 'undefined') wind
 export function noteGithubFailure() { if (observing) networkFailure = true; }
 export function configureOutbox(handler: Dispatcher) { dispatch = handler; }
 export function isQueuedMutation(request: Request) {
-  return request.method === 'POST' && /^\/api\/(ideas|films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
+  return request.method === 'POST' && /^\/api\/(calendar|series-watch-settings|watch-history|ideas|films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
 }
 async function locked<T>(work: () => Promise<T>): Promise<T> {
   const run = async (): Promise<T> => {
@@ -37,7 +37,7 @@ export async function pendingWrites(): Promise<PendingWrite[]> {
 export async function discardPendingWrite(id: string): Promise<void> {
   await locked(async () => { await durableDelete(PREFIX + id); changed(); });
 }
-export type DraftScope = 'media' | 'film' | 'stories' | 'economy' | 'all-drafts';
+export type DraftScope = 'calendar' | 'watch' | 'media' | 'film' | 'stories' | 'economy' | 'all-drafts';
 /** Cancel only explicit editor drafts. Direct saved/read flags and uploads are retained. */
 export async function cancelQueuedEdits(scope: DraftScope, target: { path: string; id: string; kind?: string } | null = null): Promise<void> {
   await locked(async () => {
@@ -102,7 +102,7 @@ async function reconcile(item: PendingWrite): Promise<Response | null> {
   const endpoint = item.path === '/api/media-register' ? '/api/' + input.kind : item.path;
   const response = await dispatch(new Request(new URL(endpoint, location.origin)));
   if (!response.ok) return null;
-  const data: any = await response.clone().json(), register = data.register;
+  const data: any = await response.clone().json(), register = data.register || data.data;
   if (item.path === '/api/economy') {
     if (input.action === 'upsert' && /^Ekonomi\/Katalog\/(?:kategorier|produkter)\.json$/.test(input.path || '')) {
       const receipt = catalogReconciledReceipt(data, input);
@@ -126,9 +126,16 @@ async function reconcile(item: PendingWrite): Promise<Response | null> {
   } else if (item.path === '/api/films') {
     const hits = register.films?.filter((row: any) => row.imdbId === input.film?.imdbId);
     complete = hits?.length === 1 && matches(hits[0], input.film);
+  } else if(item.path==='/api/calendar'){
+    const change=input.change,found=register?.events?.find((e:any)=>e.id===(change?.event?.id||change?.id));
+    complete=change?.action==='delete'?!!found?.deletedAt:!!found&&matches(found,change?.event||{});
+  } else if(item.path==='/api/series-watch-settings'){
+    complete=matches(register,input.data||{});
+  } else if(item.path==='/api/watch-history'){
+    complete=Array.isArray(input.events)&&input.events.every((e:any)=>register?.events?.some((r:any)=>r.id===e.id&&Date.parse(r.observedAt)>=Date.parse(e.observedAt)&&(!e.readAt||Date.parse(r.readAt)>=Date.parse(e.readAt))));
   } else if (item.path === '/api/series') {
     const hits = register.series?.filter((row: any) => row.title === input.target?.title && row.startYear === input.target?.startYear && (row.imdbId || null) === (input.target?.imdbId || null));
-    complete = hits?.length === 1 && (input.action === 'set-watchlist' ? (hits[0].wantToWatch === true || (hits[0].wantToWatch !== false && hits[0].status === 'Vill se')) === input.wantToWatch : input.action === 'set-watched-seasons' && same([...(hits[0].watchedSeasons || [])].sort((a: number,b: number) => a-b), [...input.watchedSeasons].sort((a: number,b: number) => a-b)));
+    complete = hits?.length === 1 && (input.action === 'set-watchlist' ? (hits[0].wantToWatch === true || (hits[0].wantToWatch !== false && hits[0].status === 'Vill se')) === input.wantToWatch : input.action === 'set-release-watch' ? matches(hits[0].releaseWatch,input.releaseWatch) : input.action === 'set-watched-seasons' && same([...(hits[0].watchedSeasons || [])].sort((a: number,b: number) => a-b), [...input.watchedSeasons].sort((a: number,b: number) => a-b)));
   } else if (item.path === '/api/story-register') {
     complete = Array.isArray(input.edits) && input.edits.length > 0 && input.edits.every((edit: any) => matches(register.entries?.[edit.path], edit.changes));
   } else if (item.path === '/api/story-status') {

@@ -22,7 +22,7 @@ test('Servern verifierar GitHub-registret och begränsar Vill se-skrivningar',()
  assert.match(api,/no-store/);
  assert.match(api,/export async function GET/);
  assert.match(api,/export async function POST\(request:Request\)/);
- assert.match(api,/\['set-watchlist','set-watched-seasons'\]\.includes\(input\.action\)/);
+ assert.match(api,/\['set-watchlist','set-watched-seasons','set-release-watch'\]\.includes\(input\.action\)/);
  assert.match(api,/applySeriesWatchedSeasonsChange\(current\.register,input\.target,input\.watchedSeasons\)/);
  assert.match(api,/current\.sha!==input\.expectedSha/);
  assert.match(api,/applySeriesWatchlistChange\(current\.register,input\.target,input\.wantToWatch\)/);

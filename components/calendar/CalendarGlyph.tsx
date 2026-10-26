@@ -1,0 +1,3 @@
+import React from 'react';
+/** One continuous SVG path keeps the shared object-bounding-box gradient visible on straight strokes. */
+export function CalendarGlyph({size=24,...props}:React.SVGProps<SVGSVGElement>&{size?:number}){return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M8 2v3 M16 2v3 M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z M3 9h18 M8 13h.01 M12 13h.01 M16 13h.01 M8 17h.01 M12 17h.01 M16 17h.01"/></svg>;}

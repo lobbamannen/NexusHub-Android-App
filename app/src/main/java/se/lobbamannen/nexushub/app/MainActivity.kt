@@ -38,6 +38,8 @@ class MainActivity : Activity() {
         private const val PENDING_SAVE_NAME = "nexushub.pendingSave.name"
     }
     private lateinit var webView: WebView
+    private lateinit var nexusMessages: NexusMessageBridge
+    private var pendingSeries: String? = null
     private lateinit var incomingShares: IncomingShareStore
     private lateinit var credentials: GithubCredentialStore
     private var fileCallback: ValueCallback<Array<Uri>>? = null
@@ -106,6 +108,9 @@ class MainActivity : Activity() {
             }
         }).build()
         webView.addJavascriptInterface(NativeBridge(), "Android")
+        nexusMessages = NexusMessageBridge(this, webView)
+        nexusMessages.install()
+        pendingSeries = intent.getStringExtra("nexus.series")?.take(200)
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                 loader.shouldInterceptRequest(request.url)
@@ -125,6 +130,7 @@ class MainActivity : Activity() {
                     view.evaluateJavascript("location.hash='mottaget';window.dispatchEvent(new Event('nexus-incoming-changed'));", null)
                 }
                 if (trustedDocument) {
+                    openPendingSeries()
                     // Match the original Android wrapper: native insets already reserve
                     // the system navigation area, so the portal must not add it twice.
                     view.evaluateJavascript("""
@@ -187,12 +193,26 @@ class MainActivity : Activity() {
         }
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) webView.loadUrl(HOME)
         if (savedInstanceState == null) captureShare(intent)
+        pendingSeries = intent.getStringExtra("nexus.series")?.take(200)
+        if (trustedDocument) openPendingSeries()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         captureShare(intent)
+        intent.getStringExtra("nexus.series")?.take(200)?.let { pendingSeries = it; if (trustedDocument) openPendingSeries() }
+    }
+    private fun openPendingSeries() {
+        val target = pendingSeries ?: return
+        pendingSeries = null
+        webView.evaluateJavascript("location.hash=" + JSONObject.quote("serier?item=" + Uri.encode(target)) + ";", null)
+    }
+    override fun onResume() { super.onResume(); if (::nexusMessages.isInitialized) nexusMessages.resume() }
+    override fun onStop() { if (::nexusMessages.isInitialized) nexusMessages.stop(); super.onStop() }
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (::nexusMessages.isInitialized) nexusMessages.permissions(requestCode)
     }
     private fun captureShare(sharedIntent: Intent) {
         if (sharedIntent.action != Intent.ACTION_SEND && sharedIntent.action != Intent.ACTION_SEND_MULTIPLE) return
@@ -380,6 +400,7 @@ class MainActivity : Activity() {
     }
     override fun onDestroy() {
         trustedDocument = false
+        if (::nexusMessages.isInitialized) nexusMessages.destroy()
         if (Build.VERSION.SDK_INT >= 33) backCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
         fileCallback?.onReceiveValue(null); fileCallback = null
         webView.stopLoading(); webView.removeJavascriptInterface("Android"); webView.destroy()

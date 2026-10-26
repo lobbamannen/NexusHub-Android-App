@@ -1,3 +1,4 @@
+import {WatchSeriesControl} from '@/components/watch/ReleaseWatch';
 'use client';
 import { mediaFetch } from '@/lib/media-client';
 import MaterialIcon from '@/components/MaterialIcon';
@@ -132,6 +133,7 @@ function Detail({ item, back, onToggleWatchlist, onToggleSeason, watchSaving, se
     <p className="nh-season-source">Avsnittslängder kan vara uppskattade; internationella avsnittslistor bekräftar inte svenskt utbud.</p>
     {seasonSaving && <p role="status">Sparar sedda säsonger i GitHub…</p>}
    </section>
+   <WatchSeriesControl item={item}/>
    <div className="series-watchlist-action"><button type="button" className={'secondary series-wishlist-toggle' + (seriesIsWatchlisted(item) ? ' selected' : '')} disabled={watchSaving || seasonSaving} aria-pressed={seriesIsWatchlisted(item)} onClick={onToggleWatchlist}><Bookmark size={17} fill={seriesIsWatchlisted(item) ? 'currentColor' : 'none'}/>{watchSaving ? 'Sparar i GitHub…' : seriesIsWatchlisted(item) ? 'Ta bort från Vill se' : 'Lägg till i Vill se'}</button><small>Önskelistan sparas separat från sedda säsonger och betyg.</small></div>
   <div className="series-season-overview"><div><small>Individuellt belagda svenska säsonger</small><strong>{sv.length || '–'}</strong><span>{textNumbers(sv)}</span></div><div><small>Registrerade sedda säsonger</small><strong>{seen.length || '–'}</strong><span>{textNumbers(seen)}</span></div><div><small>Internationellt utgivna enligt registret</small><strong>{r?.internationalVerifiedReleasedSeasonCount ?? item.releasedSeasonsAsOfDate ?? '–'}</strong><span>Separat från svenska kataloger</span></div></div>
   {seasonsComplete && <p className="series-coverage"><CheckCircle2 size={18}/>Alla säsonger tillgängliga i Sverige är markerade som sedda (bekräftat {item.seasonCoverageConfirmedOn || 'datum okänt'}). Detta innebär inte att internationellt otillgängliga säsonger är sedda.</p>}

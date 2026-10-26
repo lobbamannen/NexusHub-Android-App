@@ -1,14 +1,10 @@
+import {CalendarGlyph as CalendarDays} from '@/components/calendar/CalendarGlyph';
 'use client';
 import React from 'react';
 import MaterialIcon from '@/components/MaterialIcon';
-import { BookOpen, Clapperboard, Database, FolderOpen, Bookmark, Puzzle, Dumbbell, Coins, ChevronRight } from 'lucide-react';
-/** Complete bulb silhouette, including the base, for both icon and background art. */
+import { BookOpen, Clapperboard, Database, FolderOpen, Bookmark, Puzzle, Dumbbell, Coins, ChevronRight, Bell } from 'lucide-react';
 function IdeaBulb({size=24,strokeWidth=2,className,...props}: React.SVGProps<SVGSVGElement> & {size?:number;strokeWidth?:number}) {
- return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
-  <path d="M9 18h6" />
-  <path d="M10 22h4" />
-  <path d="M15.09 14a6 6 0 1 0-6.18 0c.8.54 1.09 1.2 1.09 2v.5h4V16c0-.8.29-1.46 1.09-2Z" />
- </svg>;
+ return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} {...props}><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14a6 6 0 1 0-6.18 0c.8.54 1.09 1.2 1.09 2v.5h4V16c0-.8.29-1.46 1.09-2Z"/></svg>;
 }
 type Counts = {
     ideas: number | null;
@@ -36,6 +32,8 @@ const modules = [
     { id: 'traning', title: 'Träning', description: 'Din träning och utveckling', icon: Dumbbell, tone: 'orange', art: 'training' },
     { id: 'filer', title: 'Utforska filer', description: 'Sök och bläddra i GitHub-databasen', icon: FolderOpen, tone: 'blue', art: 'files' },
     { id: 'ideer', title: 'Idéinkorg', description: 'Fånga tanken. Utveckla den senare.', icon: IdeaBulb, tone: 'orange', art: 'ideas' },
+    { id: 'kalender', title: 'Kalender', description: 'Dina bokningar och egna händelser', icon: CalendarDays, tone: 'orange', art: 'ideas' },
+    { id: 'bevakning', title: 'Seriebevakning', description: 'Nya säsonger och avsnitt i Sverige', icon: Bell, tone: 'blue', art: 'stories' },
     { id: 'villse', title: 'Vill se', description: 'Filmer och serier på din lista', icon: Bookmark, tone: 'purple', art: 'upload' }
 ] as const;
 export default function ModuleGrid({ counts, onNavigate }: Props) {
@@ -44,7 +42,7 @@ export default function ModuleGrid({ counts, onNavigate }: Props) {
     const details: Record<string, string | null> = { ideer: counts.ideas === null ? 'Kunde inte verifiera antal' : counts.ideas.toLocaleString('sv-SE') + ' nya idéer' + (counts.ideasStale ? ' · lokal vy' : ''), filmer: films !== null && series !== null ? films + ' filmer · ' + series + ' serier' : null, berattelser: stories !== null ? stories + ' berättelser' : null, databas: knowledgeFiles !== null ? knowledgeFiles + ' dokument' : null, filer: files !== null ? files + ' filer' : null, plugins: plugins !== null ? plugins + ' pluginpaket' : null, villse: watchlist !== null ? watchlist + ' objekt' : null };
     return <section className="nh-modules" aria-label="Utforska Nexus Hub">
   <div className="nh-module-grid">{modules.map(({ id, title, description, icon: Icon, tone, art }) => <button type="button" key={id} className={'nh-module-card nh-tone-' + tone + ' nh-art-' + art} onClick={() => onNavigate(id)}>
-    <MaterialIcon size="module" tone={id === 'mottaget' ? 'pink' : id === 'attgora' ? 'violet' : id === 'filmer' ? 'ruby' : id === 'plugins' ? 'pink' : id === 'filer' || id === 'ekonomi' ? 'green' : id === 'villse' ? 'violet' : id === 'traning' || id === 'ideer' ? 'orange' : 'blue'} className="nh-module-symbol">
+    <MaterialIcon size="module" tone={id === 'kalender' ? 'gold' : id === 'mottaget' ? 'pink' : id === 'attgora' ? 'violet' : id === 'filmer' ? 'ruby' : id === 'plugins' ? 'pink' : id === 'filer' || id === 'ekonomi' ? 'green' : id === 'villse' ? 'violet' : id === 'traning' || id === 'ideer' ? 'orange' : 'blue'} className="nh-module-symbol">
      <Icon size={35} aria-hidden="true"/>
     </MaterialIcon>
     <span className="nh-module-copy"><strong>{title}</strong><span>{description}</span>{details[id] && <span className="nh-module-count">{details[id]}</span>}</span>
