@@ -18,6 +18,8 @@ type Props = {
     onNavigate: (view: string) => void;
 };
 const modules = [
+    {id:'mottaget',title:'Mottagningsinkorg',description:'Delade filer, bilder, länkar och text',icon:FolderOpen,tone:'pink',art:'files'},
+    {id:'attgora',title:'Att göra',description:'Dina uppgifter och nästa steg',icon:Bookmark,tone:'purple',art:'upload'},
     { id: 'filmer', title: 'Film & serier', description: 'Dina filmer, serier och betyg', icon: Clapperboard, tone: 'purple', art: 'cinema' },
     { id: 'berattelser', title: 'Berättelser', description: 'Research, mysterier och historier', icon: BookOpen, tone: 'pink', art: 'stories' },
     { id: 'databas', title: 'Kunskapsbanken', description: 'Dokument, metoder och forskning', icon: Database, tone: 'blue', art: 'knowledge' },
@@ -34,7 +36,7 @@ export default function ModuleGrid({ counts, onNavigate }: Props) {
     const details: Record<string, string | null> = { ideer: counts.ideas === null ? 'Kunde inte verifiera antal' : counts.ideas.toLocaleString('sv-SE') + ' nya idéer' + (counts.ideasStale ? ' · lokal vy' : ''), filmer: films !== null && series !== null ? films + ' filmer · ' + series + ' serier' : null, berattelser: stories !== null ? stories + ' berättelser' : null, databas: knowledgeFiles !== null ? knowledgeFiles + ' dokument' : null, filer: files !== null ? files + ' filer' : null, plugins: plugins !== null ? plugins + ' pluginpaket' : null, villse: watchlist !== null ? watchlist + ' objekt' : null };
     return <section className="nh-modules" aria-label="Utforska Nexus Hub">
   <div className="nh-module-grid">{modules.map(({ id, title, description, icon: Icon, tone, art }) => <button type="button" key={id} className={'nh-module-card nh-tone-' + tone + ' nh-art-' + art} onClick={() => onNavigate(id)}>
-    <MaterialIcon size="module" tone={id === 'filmer' ? 'ruby' : id === 'plugins' ? 'pink' : id === 'filer' || id === 'ekonomi' ? 'green' : id === 'villse' ? 'violet' : id === 'traning' || id === 'ideer' ? 'orange' : 'blue'} className="nh-module-symbol">
+    <MaterialIcon size="module" tone={id === 'mottaget' ? 'pink' : id === 'attgora' ? 'violet' : id === 'filmer' ? 'ruby' : id === 'plugins' ? 'pink' : id === 'filer' || id === 'ekonomi' ? 'green' : id === 'villse' ? 'violet' : id === 'traning' || id === 'ideer' ? 'orange' : 'blue'} className="nh-module-symbol">
      <Icon size={35} aria-hidden="true"/>
     </MaterialIcon>
     <span className="nh-module-copy"><strong>{title}</strong><span>{description}</span>{details[id] && <span className="nh-module-count">{details[id]}</span>}</span>

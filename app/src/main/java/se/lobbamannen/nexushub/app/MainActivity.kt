@@ -38,12 +38,14 @@ class MainActivity : Activity() {
         private const val PENDING_SAVE_NAME = "nexushub.pendingSave.name"
     }
     private lateinit var webView: WebView
+    private lateinit var incomingShares: IncomingShareStore
     private lateinit var credentials: GithubCredentialStore
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var pendingSave: File? = null
     private var backCallback: OnBackInvokedCallback? = null
     private val io = Executors.newSingleThreadExecutor()
     @Volatile private var trustedDocument = false
+    @Volatile private var pendingIncomingOpen = false
 
     private fun isLocal(uri: Uri): Boolean = uri.scheme == "https" && uri.host == HOST &&
         (uri.port == -1 || uri.port == 443) && uri.userInfo == null
@@ -52,6 +54,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         credentials = GithubCredentialStore(applicationContext)
+        incomingShares = IncomingShareStore(applicationContext)
         pendingSave = restorePendingSave(savedInstanceState)
         val root = FrameLayout(this)
         webView = WebView(this)
@@ -117,6 +120,10 @@ class MainActivity : Activity() {
             }
             override fun onPageFinished(view: WebView, url: String?) {
                 trustedDocument = url != null && isLocal(Uri.parse(url))
+                if (trustedDocument && pendingIncomingOpen) {
+                    pendingIncomingOpen = false
+                    view.evaluateJavascript("location.hash='mottaget';window.dispatchEvent(new Event('nexus-incoming-changed'));", null)
+                }
                 if (trustedDocument) {
                     // Match the original Android wrapper: native insets already reserve
                     // the system navigation area, so the portal must not add it twice.
@@ -179,10 +186,34 @@ class MainActivity : Activity() {
             backCallback = callback
         }
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) webView.loadUrl(HOME)
+        if (savedInstanceState == null) captureShare(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        captureShare(intent)
+    }
+    private fun captureShare(sharedIntent: Intent) {
+        if (sharedIntent.action != Intent.ACTION_SEND && sharedIntent.action != Intent.ACTION_SEND_MULTIPLE) return
+        io.execute {
+            try {
+                if (incomingShares.receive(sharedIntent)) { pendingIncomingOpen = true; runOnUiThread {
+                    if (!isFinishing && !isDestroyed) {
+                        Toast.makeText(this, "Sparat i NexusHubs mottagningsinkorg", Toast.LENGTH_SHORT).show()
+                        if (trustedDocument) { pendingIncomingOpen = false; webView.evaluateJavascript("window.NexusHubIncomingOpen=true;window.dispatchEvent(new Event('nexus-incoming-changed'));window.dispatchEvent(new Event('nexus-native-share'));", null) }
+                    }
+                } }
+            } catch (error: Exception) { runOnUiThread { Toast.makeText(this, "Kunde inte spara delningen: " + error.message, Toast.LENGTH_LONG).show() } }
+        }
     }
 
     /** Called only from the bundled document; CSP excludes foreign child frames. */
     inner class NativeBridge {
+        @JavascriptInterface fun listIncoming(): String = if (trustedDocument) incomingShares.list() else "[]"
+        @JavascriptInterface fun readIncomingFile(id: String, fileId: String): String = if (trustedDocument) incomingShares.read(id, fileId) else ""
+        @JavascriptInterface fun removeIncoming(id: String): Boolean = trustedDocument && incomingShares.remove(id)
+
         @JavascriptInterface fun getGithubToken(): String = if (trustedDocument) credentials.get() else ""
         @JavascriptInterface fun setGithubToken(token: String): Boolean = trustedDocument && credentials.set(token)
         @JavascriptInterface fun saveFile(name: String, mime: String, base64: String) {

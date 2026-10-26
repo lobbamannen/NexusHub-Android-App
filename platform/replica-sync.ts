@@ -15,7 +15,7 @@ const report = (patch: Partial<ReplicaStatus>) => { state={...state,...patch}; w
 export const replicatePath = (_path: string) => true;
 async function primeViews() {
     invalidateMedia(); invalidatePortalCache();
-    for (const url of ['/api/films','/api/series','/api/story-register','/api/story-status','/api/document-bookmarks','/api/economy','/api/ideas','/api/idea-plans','/api/portal/overview?refresh=1','/api/posters?index=1&refresh=1']) {
+    for (const url of ['/api/films','/api/series','/api/story-register','/api/story-status','/api/document-bookmarks','/api/economy','/api/ideas','/api/todos','/api/idea-plans','/api/portal/overview?refresh=1','/api/posters?index=1&refresh=1']) {
         const response=await fetch(url);
         if(!response.ok || response.headers.get('X-Nexus-Offline') === 'true') throw Error('Kunde inte uppdatera '+url.split('?')[0]+'. Den lokala kopian behålls.');
         await response.arrayBuffer();

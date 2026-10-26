@@ -5,6 +5,8 @@ import { useBackHandler } from '@/components/NativeBackBridge';
 import { IDEA_STATUSES } from '@/lib/ideas.mjs';
 import type { IdeasController, IdeaStatus } from './use-ideas';
 import './ideas.css';
+import IdeaAttachments from '@/components/personal/IdeaAttachments';
+import {ideaDay} from '@/lib/idea-numbers.mjs';
 import IdeaPlans from './IdeaPlans';
 import { useLibraryState } from '@/lib/library-state';
 const date = (value: string) => new Date(value).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
@@ -25,12 +27,13 @@ export default function IdeasInbox({ ideas, onOpenPlan }: { ideas: IdeasControll
         {ideas.stale && <p className="nh-ideas-note"><AlertTriangle size={16}/>GitHub kunde inte uppdateras. Visar tillgängliga kopior och dina lokala utkast.</p>}
         <div className="nh-idea-filters" role="group" aria-label="Filtrera idéstatus">{[['all', 'Alla'], ...Object.entries(IDEA_STATUSES)].map(([status, label]) => <button key={status} aria-pressed={filter === status} onClick={() => setFilter(status)}>{label}<span>{ideas.items.filter(row => status === 'all' || row.idea.status === status).length}</span></button>)}</div>
         <div className="nh-ideas-list">{shown.map(({ idea }) => <button className="nh-idea-card" key={idea.id} onClick={() => ideas.open(idea.id)}>
-            <span className="nh-idea-card-top"><span className={'nh-idea-status ' + idea.status}>{IDEA_STATUSES[idea.status]}</span><time dateTime={idea.updatedAt}>{date(idea.updatedAt)}</time></span>
+            <span className="nh-idea-card-top"><span className={'nh-idea-status ' + idea.status}>{IDEA_STATUSES[idea.status]}</span><span className="nh-ideas-note">{ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number ? 'Idé '+ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number : 'Nummer tilldelas vid sparning'}</span><time dateTime={idea.updatedAt}>{date(idea.updatedAt)}</time></span>
             <span className="nh-idea-preview">{idea.text.trim() || 'Din nya tanke…'}</span>
             <span className={'nh-idea-sync' + (ideas.pending[idea.id] || ideas.drafts[idea.id] ? ' local' : '')}>{ideas.pending[idea.id] ? <CloudUpload size={15}/> : ideas.drafts[idea.id] ? <FilePenLine size={15}/> : <CloudCheck size={15}/>} {ideaSyncLabel(ideas, idea.id)}<ChevronRight size={17}/></span>
         </button>)}</div>
         {!shown.length && <div className="hub-empty"><Lightbulb size={35}/><strong>{ideas.loading ? 'Hämtar idéer…' : filter === 'all' ? 'Här börjar nästa idé' : 'Inga idéer med den statusen'}</strong><p>{filter === 'all' ? 'En mening räcker. Du kan alltid fortsätta senare.' : 'Idéerna finns kvar när du byter filter.'}</p>{filter === 'all' && <button className="secondary" disabled={!ideas.ready} onClick={ideas.create}>Skriv en idé <Plus size={16}/></button>}</div>}
     </>}
+    <details className="panel settings-panel"><summary>Idéhistorik per dag</summary>{Object.entries(ideas.numbering.entries.reduce<Record<string,number>>((counts,entry)=>{const day=ideaDay(entry.createdAt);counts[day]=(counts[day]||0)+1;return counts;},{})).sort(([a],[b])=>b.localeCompare(a)).map(([day,count])=><p key={day}>{day} · {count} idéer</p>)}</details>
     </section>;
 }
 export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
@@ -58,7 +61,7 @@ export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
     const { idea } = draft, local = ideas.drafts[idea.id], pending = ideas.pending[idea.id];
     const readonly = ideas.busy || !!pending;
     return <div className="modal-backdrop nh-idea-backdrop" onClick={() => ideas.close()}><form className="nh-idea-editor" role="dialog" aria-modal="true" aria-labelledby="idea-editor-title" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); void ideas.save(idea.id); }}>
-        <div className="modal-heading"><h2 id="idea-editor-title"><Lightbulb size={23}/>{draft.sha ? 'Din idé' : 'Ny idé'}</h2><button type="button" className="icon-button" aria-label="Stäng idén och behåll utkast" disabled={ideas.busy} onClick={ideas.close}><X/></button></div>
+        <div className="modal-heading"><h2 id="idea-editor-title"><Lightbulb size={23}/>{ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number ? 'Idé '+ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number : draft.sha ? 'Din idé' : 'Ny idé'}</h2><button type="button" className="icon-button" aria-label="Stäng idén och behåll utkast" disabled={ideas.busy} onClick={ideas.close}><X/></button></div>
         <div className="nh-idea-editor-body"><label className="field" htmlFor="idea-text">Vad har du på gång?</label><textarea ref={textRef} id="idea-text" value={idea.text} maxLength={50000} readOnly={readonly} placeholder="Skriv din tanke här…" onChange={e => ideas.edit(idea.id, { text: e.target.value })}/>
             <label className="field">Status<select aria-label="Idéstatus" value={idea.status} disabled={readonly} onChange={e => ideas.edit(idea.id, { status: e.target.value as IdeaStatus })}>{Object.entries(IDEA_STATUSES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <p className={'nh-idea-sync' + (local || pending ? ' local' : '')} role="status">{ideas.busy ? <Loader2 className="spin" size={16}/> : pending ? <CloudUpload size={16}/> : local ? <FilePenLine size={16}/> : <CloudCheck size={16}/>} {ideas.busy ? 'Arbetar…' : ideaSyncLabel(ideas, idea.id)}</p>
@@ -70,6 +73,7 @@ export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
             {pending?.status === 'conflict'  && <button className="secondary" type="button" disabled={ideas.busy} onClick={() => void ideas.fetchRemote(idea.id)}>Visa GitHub-versionen</button>}
             {ideas.remote && <section className="nh-idea-conflict"><h3>Nuvarande GitHub-version</h3><p>{ideas.remote.idea.text}</p><small>Status: {IDEA_STATUSES[ideas.remote.idea.status]}</small><button type="button" className="secondary" disabled={ideas.busy} onClick={() => { if (confirm('Använd GitHub-versionen och kasta det lokala utkastet? Kopiera först din text om du vill behålla den.')) void ideas.useRemote(); }}>Använd GitHub-versionen</button></section>}
             {draft.sha && <button type="button" className="secondary nh-idea-delete" disabled={ideas.busy || !!pending} onClick={() => { if (confirm('Radera idén från GitHub och telefonen? Eventuellt lokalt utkast kastas också. Idén försvinner ur NexusHub; GitHubs versionshistorik finns kvar.')) void ideas.remove(idea.id); }}><Trash2 size={17}/>Radera idé</button>}
+            <IdeaAttachments id={idea.id} saved={!!draft.sha} busy={ideas.busy}/>
             <small className="nh-ideas-note">Skapad {date(idea.createdAt)}</small>
         </div>
         <div className="nh-idea-editor-actions">{local ? <button type="button" className="secondary" disabled={ideas.busy} onClick={() => { if (confirm('Kasta det lokala utkastet och dess väntande sparförsök? En eventuell GitHub-version finns kvar.')) void ideas.discard(idea.id); }}><Undo2 size={17}/>Ångra utkast</button> : <button type="button" className="secondary" onClick={ideas.close}>Stäng</button>}<button className="primary" disabled={ideas.busy || !local || !idea.text.trim() || !!pending && pending.status !== 'pending'}>{ideas.busy ? <Loader2 className="spin" size={17}/> : <Save size={17}/>} {pending ? 'Försök igen' : 'Spara'}</button></div>

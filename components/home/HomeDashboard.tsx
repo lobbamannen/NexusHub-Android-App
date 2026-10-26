@@ -6,9 +6,11 @@ import ModuleGrid from './ModuleGrid';
 import RecentActivity from './RecentActivity';
 import { usePosterRevision } from '@/components/repository-poster';
 import './home-dashboard.css';
+import {ideaDay} from '@/lib/idea-numbers.mjs';
 import { seriesIsWatchlisted } from '@/lib/media-discovery.mjs';
 type Props = {
     ideaCount: number | null;
+    ideaEntries?: {id:string;number:number;createdAt:string}[];
     ideasStale: boolean;
     catalog: any;
     pluginRepo: any;
@@ -20,17 +22,18 @@ type Props = {
     onOpenStory: (path: string) => void;
     onOpenFile: (item: any) => void;
 };
-export default function HomeDashboard({ ideaCount, ideasStale, catalog, pluginRepo, stories, recentFiles, commits, onNavigate, onOpenMedia, onOpenStory, onOpenFile }: Props) {
+export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, catalog, pluginRepo, stories, recentFiles, commits, onNavigate, onOpenMedia, onOpenStory, onOpenFile }: Props) {
     const [posterRevision, refreshPosters] = usePosterRevision();
     const [now, setNow] = useState<Date | null>(null);
     useEffect(() => {
         const update = () => setNow(new Date());
         update();
         const timer = window.setInterval(update, 60000);
+        const midnight = window.setInterval(()=>setNow(previous=>{const current=new Date();return previous&&ideaDay(previous.toISOString())===ideaDay(current.toISOString())?previous:current;}),1000);
         const onVisible = () => { if (document.visibilityState === 'visible')
             update(); };
         document.addEventListener('visibilitychange', onVisible);
-        return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+        return () => { window.clearInterval(timer);window.clearInterval(midnight); document.removeEventListener('visibilitychange', onVisible); };
     }, []);
     const greeting = now ? (now.getHours() < 5 ? 'God natt' : now.getHours() < 10 ? 'God morgon' : now.getHours() < 17 ? 'God dag' : now.getHours() < 22 ? 'God kväll' : 'God natt') : null;
     const [films, setFilms] = useState<any[]>([]);
@@ -82,6 +85,7 @@ export default function HomeDashboard({ ideaCount, ideasStale, catalog, pluginRe
     };
     return <div className="nh-home">
   <div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div>
+  {now&&<p className="nh-ideas-note">{ideaEntries.filter(entry=>ideaDay(entry.createdAt)===ideaDay(now.toISOString())).length} nya idéer idag</p>}
   <DatabaseStats now={now} counts={counts} checkedAt={catalog?.fetchedAt} onNavigate={onNavigate} loading={!catalog}/>
   <ModuleGrid counts={counts} onNavigate={onNavigate}/>
   <RecentActivity loading={mediaLoading} error={mediaError} onRetry={() => setRetry(n => n + 1)} posterRevision={posterRevision} films={films} series={series} stories={stories} files={recentFiles} plugins={plugins} commits={commits} onNavigate={onNavigate} onOpenMedia={onOpenMedia} onOpenStory={onOpenStory} onOpenFile={onOpenFile}/>

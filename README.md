@@ -59,6 +59,18 @@ SHA-konflikter stoppas och kräver omläsning/beslut. Appen byter aldrig ut en g
 - En förlorad kvittens återläses innan nytt försök. Vid konflikt kan GitHub-versionen visas bredvid din lokala text; användaren väljer uttryckligen om den ska ersätta utkastet. Kopiera egen text före kassering om den ska kombineras med den andra versionen.
 - ChatGPT kan läsa idéerna direkt från GitHub. Att spara en idé startar inte automatiskt forskning eller genomförande. Android-delning ingår inte.
 
+## Idénummer, dagshistorik, bilagor och mottagning
+
+- Idéer har fortsatt UUID som tekniskt ID och får dessutom ett permanent löpnummer. `Databas/Ideer/System/nummer.json` innehåller uppslag UUID ↔ nummer, nästa nummer och datum → antal. Nya idéer och nummerindex skrivs atomiskt via Git-träd/commit och fast-forward-skyddad main. Nummer återanvänds inte efter radering. Läs [idékontraktet](https://github.com/lobbamannen/Databas/blob/main/Ideer/README.md).
+- Startsidan visar nya sparade idéer idag; dag räknas i **Europe/Stockholm** och räknaren följer dygnsskiftet. Lokala osparade utkast räknas inte som GitHub-sparade idéer. Dagshistoriken kan öppnas i Idéinkorgen.
+- Sparade idéer har **Bilagor** i editorn. Bilder och dokument sparas först lokalt och skickas till `Ideer/Bilagor/<idé-UUID>/`. Bilder förhandsvisas med samma privata filtransport som övrigt innehåll. Välj Spara för idétext separat; en bilaga skriver inte över idétexten.
+- **Mottagningsinkorg** är en egen modul. Androids Dela-meny kan lämna text, länkar, bilder, dokument och flera filer till NexusHub. Native-mottagningen kopierar strömmar till privat beständig lagring medan URI-behörigheten gäller. Inga breda lagringsbehörigheter behövs.
+- Markera flera objekt och välj **Databas/00-Inkorg** och/eller **en vald idé** som destination. Sorteringspluginet hanterar kunskapsintegrationen från 00-Inkorg; appen tilldelar inte automatiskt ämne eller låtsas att en rapport är en färdig plan.
+- Varje fil och destination har egen beständig kvittens. Återförsök är create-only och jämför filhash; gamla filer skrivs inte över. Originalen får rensas först när alla valda destinationer är verifierade. Delvis överförda objekt ligger kvar och kan återförsökas.
+- **Att göra** har en separat lokal draft och ett SHA-skyddat GitHub-register, `Att-gora/register.json`. Lägg till, redigera, klarmarkera och ta bort med gemensamma Spara/Ångra-knappar. GitHub-fel behåller utkastet; ingen automatisk uppspelning sker.
+
+Dessa tillägg återanvänder befintliga svarta modulpaneler, materialikoner och lila handlingsknappar. Se [mottagningskontraktet](https://github.com/lobbamannen/Databas/blob/main/System/NexusHub/mottagningsinkorg.md). Share-mottagning och privata original kräver APK; webbförhandsvisning använder filväljaren. Full lokal kopiering och GitHub som huvudkälla gäller fortsatt.
+
 ## Färdigutvecklade idéer och planpaket
 
 **Idéinkorg → Färdiga planer** visar förberedda planpaket från `Databas/Fardiga-ideer/<UUID>/`. Flikvalet behålls när du öppnar ett underlag och går tillbaka.

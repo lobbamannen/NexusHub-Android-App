@@ -1,3 +1,6 @@
+import * as todos from '@/app/api/todos/route';
+import * as incoming from '@/app/api/incoming/route';
+import * as ideaFiles from '@/app/api/idea-files/route';
 import * as ideaPlans from '@/app/api/idea-plans/route';
 import * as ideas from '@/app/api/ideas/route';
 import * as films from '@/app/api/films/route';
@@ -16,12 +19,12 @@ export { pendingWrites, retryPendingWrites, discardPendingWrite, cancelQueuedEdi
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'PUT' | 'OPTIONS';
 type Route = Partial<Record<Method, (request: Request) => Promise<Response>>>;
 const routes: Record<string, Route> = {
-  '/api/idea-plans': ideaPlans, '/api/ideas': ideas, '/api/films': films, '/api/series': series, '/api/media-register': media,
+  '/api/todos':todos, '/api/incoming':incoming, '/api/idea-files':ideaFiles, '/api/idea-plans': ideaPlans, '/api/ideas': ideas, '/api/films': films, '/api/series': series, '/api/media-register': media,
   '/api/story-register': stories, '/api/story-status': storyStatus,
   '/api/document-bookmarks': bookmarks, '/api/posters': posters, '/api/economy': economy,
 };
 interface CachedResponse { body: ArrayBuffer; status: number; headers: [string, string][]; savedAt: string; repositorySavedAt?: Record<string, string> }
-const cacheable = (request: Request) => request.method === 'GET' && /^\/api\/(idea-plans|ideas|films|series|story-register|story-status|document-bookmarks|economy|github\/browse|portal\/(overview|document))(?:\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search);
+const cacheable = (request: Request) => request.method === 'GET' && /^\/api\/(todos|idea-files|idea-plans|ideas|films|series|story-register|story-status|document-bookmarks|economy|github\/browse|portal\/(overview|document))(?:\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search);
 async function dispatch(request: Request): Promise<Response> {
   await initializeStorage();
   const path = new URL(request.url).pathname.replace(/\/$/, '');

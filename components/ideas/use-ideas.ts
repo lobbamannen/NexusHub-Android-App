@@ -9,6 +9,7 @@ export type IdeaDraft = IdeaRow & { error?: string };
 const KEY = 'ideas:drafts:v1';
 
 export function useIdeas() {
+    const [numbering,setNumbering]=useState<{entries:{id:string;number:number;createdAt:string}[];dailyCounts:Record<string,number>}>({entries:[],dailyCounts:{}});
     const [rows, setRows] = useState<IdeaRow[]>([]), [drafts, setDrafts] = useState<Record<string, IdeaDraft>>({});
     const draftsRef = useRef<Record<string, IdeaDraft>>({}), persistence = useRef(Promise.resolve());
     const [pending, setPending] = useState<Record<string, PendingWrite>>({}), [selected, setSelected] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export function useIdeas() {
             const response = await fetch('/api/ideas', { cache: 'no-store' }), data = await response.json();
             if (!response.ok) throw Error(data.error || 'Idéerna kunde inte hämtas.');
             if (own !== sequence.current) return;
-            setRows(data.items); setConfirmedIds([]); setStale(response.headers.get('X-Nexus-Offline') === 'true'); setError('');
+            setRows(data.items); setNumbering(data.numbering||{entries:[],dailyCounts:{}}); setConfirmedIds([]); setStale(response.headers.get('X-Nexus-Offline') === 'true'); setError('');
             const queued = await refreshPending();
             // Remove a draft only after a verified live read proves its exact content saved.
             if (!response.headers.get('X-Nexus-Offline')) {
@@ -89,6 +90,7 @@ export function useIdeas() {
             const response = await fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idea: draft.idea, expectedSha: draft.sha }) });
             const data = await response.json();
             if (!response.ok || !data.saved) throw Error(data.error || 'Idén väntar på synk.');
+            if(data.number) setNumbering(current=>({...current,entries:[...current.entries.filter(e=>e.id!==id),{id,number:data.number,createdAt:draft.idea.createdAt}]}));
             setConfirmedIds(current => [...current.filter(value => value !== id), id]);
             setRows(current => [data, ...current.filter(row => row.idea.id !== id)]);
             const next = { ...draftsRef.current }; delete next[id]; await commitDrafts(next); setRemote(null);
@@ -157,6 +159,6 @@ export function useIdeas() {
     for (const [id, draft] of Object.entries(drafts)) merged.set(id, draft);
     const items = [...merged.values()].sort((a, b) => b.idea.updatedAt.localeCompare(a.idea.updatedAt));
     const current = selected ? merged.get(selected) : undefined;
-    return { items, current, drafts, pending, selected, ready, loading, error, stale, confirmedIds, busy, remote, create, open, close, edit, save, discard, continueEditing, fetchRemote, useRemote, reload, remove };
+    return { numbering, items, current, drafts, pending, selected, ready, loading, error, stale, confirmedIds, busy, remote, create, open, close, edit, save, discard, continueEditing, fetchRemote, useRemote, reload, remove };
 }
 export type IdeasController = ReturnType<typeof useIdeas>;
