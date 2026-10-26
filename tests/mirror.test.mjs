@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {DatabaseSync} from 'node:sqlite';import ts from 'typescript';import {gitBlobSha} from '../lib/github-inbox.mjs';
-const sql=new DatabaseSync(':memory:');for(const file of ['0000_orange_spyke.sql','0001_pretty_richard_fisk.sql'])sql.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
+const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../platform/storage-schema.ts',import.meta.url),'utf8').split('`')[1]);
 const objects=new Map();const db={prepare(query){let args=[];const s={bind(...a){args=a;return s;},async first(){return sql.prepare(query).get(...args)||null;},async all(){return {results:sql.prepare(query).all(...args)};},async run(){const r=sql.prepare(query).run(...args);return {meta:{changes:Number(r.changes)}};}};return s;},async batch(statements){return Promise.all(statements.map(s=>s.all()));}};
 const bucket={async put(k,b){objects.set(k,new Uint8Array(b).slice());},async get(k){const b=objects.get(k);return b?{async arrayBuffer(){return b.slice().buffer;}}:null;}};
 const hash=async b=>Buffer.from(await crypto.subtle.digest('SHA-256',b)).toString('hex');globalThis.__mirrorTest={db:()=>db,bucket:()=>bucket,sha256:hash,now:()=>new Date().toISOString()};
@@ -56,4 +56,14 @@ test('fullständig R2-kontroll använder låst GitHub-commit, kan återupptas oc
  assert.ok(verify.items.every(x=>x.state==='same'));
  assert.equal(new TextDecoder().decode(objects.get(badKey)),'skadat');
  assert.ok(status.repairPending>=0);
+});
+
+test('batch saves verified originals and metadata, rejects bad bytes without publishing metadata',async()=>{
+ const a=await file('batch/a.md','Första originalet'),b=await file('batch/b.md','Andra originalet');
+ await m.saveMirrorBatch('databas',[{file:a,bytes:a.bytes},{file:b,bytes:b.bytes}],commit);
+ const rows=sql.prepare("SELECT path,blob_sha FROM mirror_versions WHERE path LIKE 'batch/%'").all();assert.equal(rows.length,2);
+ assert.equal(objects.has('mirror/databas/'+a.sha),true);
+ const c=await file('batch/rejected.md','Korrekt original');
+ await assert.rejects(()=>m.saveMirrorBatch('databas',[{file:c,bytes:new TextEncoder().encode('Felaktiga bytes').buffer}],commit),/kontrollsumma/);
+ assert.equal(sql.prepare('SELECT count(*) n FROM mirror_versions WHERE path=?').get(c.path).n,0);
 });

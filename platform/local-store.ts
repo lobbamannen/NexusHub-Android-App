@@ -165,6 +165,17 @@ export class LocalDatabase {
 
 type StoredBinary = { bytes: Uint8Array; httpMetadata: Record<string, string>; uploaded: string; };
 export class LocalBucket {
+  /** Inventory keys without deserializing hundreds of MB of stored originals. */
+  async keys(prefix = ''): Promise<string[]> {
+    const db = await openStorage();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('binaries', 'readonly');
+      const request = tx.objectStore('binaries').getAllKeys(IDBKeyRange.bound(prefix, prefix + '\uffff'));
+      tx.oncomplete = () => resolve(request.result.filter((key): key is string => typeof key === 'string'));
+      tx.onabort = () => reject(tx.error || request.error || new Error('Kunde inte inventera lokala filer.'));
+    });
+  }
+
   async put(key: string, value: ArrayBuffer | ArrayBufferView | Blob | ReadableStream<Uint8Array> | string, options?: { httpMetadata?: Record<string, string> }): Promise<{ key: string; size: number }> {
     let bytes: Uint8Array;
     if (typeof value === 'string') bytes = new TextEncoder().encode(value);

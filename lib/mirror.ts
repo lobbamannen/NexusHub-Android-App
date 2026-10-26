@@ -19,6 +19,21 @@ export async function saveMirror(repo:string,file:any,bytes:ArrayBuffer,commit:s
  await observe(repo,file.path,file.sha,file.fetchedAt||verifiedAt);
  return {...document,mirror:{state:'verified',verifiedAt,contentHash:hash}};
 }
+// One durable database transaction per download batch, rather than two complete
+// SQLite exports for every file. Binary writes finish before metadata is committed.
+export async function saveMirrorBatch(repo:string,files:Array<{file:any;bytes:ArrayBuffer}>,commit:string){
+ const statements=[];
+ for(const {file,bytes} of files){
+  if(bytes.byteLength!==file.size||await gitBlobSha(bytes)!==file.sha)throw Error('GitHub-filens storlek eller kontrollsumma stämmer inte.');
+  const hash=await sha256(bytes),objectKey='mirror/'+repo+'/'+file.sha,verifiedAt=now();
+  await bucket().put(objectKey,bytes);
+  const document=renderMirror(bytes,file.path,{repoKey:repo,sha:file.sha,commit,size:file.size,url:'https://github.com/'+(REPOSITORIES as any)[repo]+'/blob/'+commit+'/'+file.path,fetchedAt:verifiedAt,origin:'github-mirror'});
+  const indexed=new TextEncoder().encode(document.body||'').length<350000;
+  statements.push(db().prepare('INSERT INTO mirror_versions(repo,path,blob_sha,commit_sha,object_key,content_hash,size,document,body,text_indexed,verified_at) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(repo,path,blob_sha) DO UPDATE SET object_key=excluded.object_key,content_hash=excluded.content_hash,size=excluded.size,verified_at=excluded.verified_at').bind(repo,file.path,file.sha,commit,objectKey,hash,bytes.byteLength,JSON.stringify({...document,body:indexed?document.body:''}),indexed?document.body:'',indexed?1:0,verifiedAt));
+  statements.push(db().prepare("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE json_extract(settings.value,'$.observedAt')<=json_extract(excluded.value,'$.observedAt')").bind('mirror_head:'+repo+':'+file.path,JSON.stringify({sha:file.sha,observedAt:file.fetchedAt||verifiedAt})));
+ }
+ if(statements.length)await db().batch(statements);
+}
 // Repair creates a fresh R2 object, verifies its actual bytes, then repoints the
 // exact existing version (if any). Older GitHub blob revisions remain untouched.
 export async function repairMirrorVersion(repo:string,file:any,bytes:ArrayBuffer,commit:string){

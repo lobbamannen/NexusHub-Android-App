@@ -1,0 +1,11 @@
+.nh-android-settings .nh-replica-repo{padding:14px 0;border-bottom:1px solid #ffffff10;min-width:0}
+.nh-replica-repo>div{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.nh-replica-repo span,.nh-replica-repo small{color:#aaa3b4;font-size:12px}
+.nh-replica-repo progress{display:block;width:100%;height:8px;margin:10px 0;accent-color:#bd83ff}
+.nh-android-settings .nh-android-settings-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.nh-android-settings .nh-android-settings-actions button{width:auto;min-height:44px;flex:1 1 180px}
+.nh-android-settings .nh-replica-status{color:#cfa9f2}
+.nh-settings-token{margin:20px 0;padding:16px 0;border-block:1px solid #ffffff10}
+.nh-settings-token>summary{display:flex;align-items:center;gap:8px;cursor:pointer;min-height:44px;color:#d4b4f3}
+.nh-settings-token form{padding:16px 0}
+.nh-android-settings .break{overflow-wrap:anywhere;min-width:0}

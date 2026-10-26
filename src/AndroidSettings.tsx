@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Database, KeyRound, RefreshCw, Save, ChevronDown, AlertCircle } from 'lucide-react';
+import { Database, KeyRound, RefreshCw, Save, ChevronDown, AlertCircle, Pause, CloudCheck } from 'lucide-react';
 import { setGithubToken } from '@/platform/env';
 import { pendingWrites, retryPendingWrites, discardPendingWrite } from '@/platform/api';
-import { replicaStatus, type ReplicaStatus } from '@/platform/replica-sync';
+import { replicaStatus, syncReplicaNow, pauseReplicaSync, type ReplicaStatus } from '@/platform/replica-sync';
+import { github } from '@/lib/github';
+import './android-settings.css';
 import type { PendingWrite } from '@/platform/outbox';
 
 export function TokenForm({ onConnected, initial = false }: { onConnected?: () => void; initial?: boolean }) {
@@ -12,7 +14,7 @@ export function TokenForm({ onConnected, initial = false }: { onConnected?: () =
     try {
       if (!/^(github_pat_|ghp_)[A-Za-z0-9_]+$/.test(token.trim())) throw Error('Ange en giltig GitHub-token.');
       for (const path of ['Databas/contents/Filmer/register.json', 'ChatGPT-Plugin/contents/catalog.json']) {
-        const response = await fetch('https://api.github.com/repos/lobbamannen/' + path, {headers:{Authorization:'Bearer '+token.trim(),Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
+        const response = await fetch('https://api.github.com/repos/lobbamannen/' + path, {signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+token.trim(),Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
         if (!response.ok) throw Error(response.status===401?'Token är ogiltig eller har gått ut.':'Token kunde inte läsa '+path.split('/')[0]+'. Kontrollera åtkomst och Contents-behörigheten.');
         await response.arrayBuffer();
       }
@@ -38,10 +40,21 @@ export default function AndroidSettings() {
   const reload = () => { void pendingWrites().then(setItems).catch(e=>setError(e.message)); };
   useEffect(()=>{reload();window.addEventListener('nexus-outbox-changed',reload);return()=>window.removeEventListener('nexus-outbox-changed',reload);},[]);
   const retry = async (id?:string) => {setBusy(true);setError('');try {setItems(await retryPendingWrites(id));}catch(e:any){setError(e.message);}finally{setBusy(false);}};
-  return <details className="nh-settings-section" open={items.length>0}>
-    <summary><Database size={22}/><span><strong>Android-app & GitHub</strong><small>Token och väntande sparningar på den här telefonen.</small></span><ChevronDown size={18} className="nh-details-chevron"/></summary>
-    <div className="panel settings-panel"><h2><KeyRound size={18}/> GitHub-anslutning</h2><TokenForm/>
-      <h2>Beständig lokal kopia</h2><p>Hela Databas, inklusive Kunskap, samt plugin-repot kopieras automatiskt och beständigt till telefonen. GitHub kontrolleras var 15:e sekund medan appen är öppen och direkt när den återupptas. Öppna redigeringar behålls.</p><p role="status">{replica.running ? 'Kopierar: '+replica.done+' av '+replica.total+' filer i aktuellt repository.' : replica.checkedAt ? 'Senast kontrollerat: '+new Date(replica.checkedAt).toLocaleString('sv-SE') : 'Väntar på första lokala kopieringen.'}</p>{replica.error && <p className="error-banner">{replica.error}</p>}
+  const [checking,setChecking]=useState(false),[connection,setConnection]=useState('');
+  const check=async()=>{setChecking(true);setConnection('');try{await Promise.all([github().status(),github('plugins').status()]);setConnection('Anslutningen fungerar till Databas och ChatGPT-Plugin.');}catch(e:any){setConnection(e.message);}finally{setChecking(false);}};
+  const size=(n:number)=>n<1048576?(n/1024).toFixed(0)+' kB':(n/1048576).toFixed(1)+' MB';
+  return <details id="nh-android-settings" className="nh-settings-section nh-android-settings" open>
+    <summary><Database size={22}/><span><strong>GitHub & lokal lagring</strong><small>Hämtning, anslutning och väntande sparningar.</small></span><ChevronDown size={18} className="nh-details-chevron"/></summary>
+    <div className="panel settings-panel"><h2><Database size={18}/> Beständig lokal kopia</h2>
+      <p>Hela Databas, inklusive Kunskap och bilder, samt ChatGPT-Plugin sparas på telefonen. Appen jämför filernas GitHub-hashar och hämtar bara nya eller ändrade filer. Första hämtningen kan ta en stund.</p>
+      <p role="status" className="nh-replica-status">{replica.paused?'Hämtningen är pausad.':replica.running?replica.phase==='checking'?'Jämför GitHub med telefonens filer…':replica.phase==='refreshing'?'Uppdaterar appens register…':'Hämtar nya och ändrade filer…':replica.error?'Hämtningen behöver ett nytt försök.':replica.checkedAt?'Alla filer i senaste kontrollen finns lokalt.':'Redo att kontrollera GitHub.'}</p>
+      {Object.entries(replica.repositories).map(([repo,status])=><div className="nh-replica-repo" key={repo}><div><strong>{repo==='databas'?'Databas':'ChatGPT-Plugin'}</strong><span>{status.done.toLocaleString('sv-SE')} / {status.total.toLocaleString('sv-SE')} filer</span></div><progress aria-label={'Lokalt sparat i '+repo} max={Math.max(1,status.total)} value={status.done}/><small>{size(status.doneBytes)} av {size(status.totalBytes)} · {Math.max(0,status.total-status.done).toLocaleString('sv-SE')} återstår</small></div>)}
+      {replica.currentPath&&replica.running&&<p className="small break">{replica.currentPath}</p>}
+      {replica.checkedAt&&<p className="small muted">Senaste fullständiga kontroll: {new Date(replica.checkedAt).toLocaleString('sv-SE')}</p>}
+      {replica.error&&<p className="error-banner" role="alert">{replica.error}</p>}
+      <div className="nh-android-settings-actions"><button type="button" className="primary" disabled={replica.running&&!replica.paused} onClick={()=>void syncReplicaNow()}><RefreshCw size={17}/>{replica.paused?'Fortsätt hämtningen':replica.error?'Försök igen':'Hämta allt nytt från GitHub'}</button>{replica.running&&!replica.paused&&<button type="button" className="secondary" onClick={pauseReplicaSync}><Pause size={17}/>Pausa</button>}</div>
+      <p className="muted small">Automatisk kontroll var 15:e sekund medan appen är öppen och när du återvänder. Paus stoppar efter pågående filer. Hämtningen ändrar inga GitHub-filer och skickar inga väntande utkast.</p>
+      <details className="nh-settings-token"><summary><KeyRound size={17}/> GitHub-anslutning & token</summary><p className="small">Token lagras krypterad i Android. Du behöver bara byta den om den går ut eller behörigheten ändras.</p><button type="button" className="secondary" disabled={checking} onClick={()=>void check()}><CloudCheck size={17}/>{checking?'Kontrollerar…':'Kontrollera anslutningen'}</button>{connection&&<p role="status" className="small">{connection}</p>}<TokenForm/></details>
       <h2>Väntande sparningar ({items.length})</h2>
       {!items.length && <p>Inga ändringar väntar på synk.</p>}
       {items.map(item=><div className="panel" key={item.id} style={{padding:16,marginBlock:12}}>

@@ -1,81 +1,104 @@
 import { github, invalidatePortalCache } from '@/lib/github';
-import { saveMirror } from '@/lib/mirror';
-import { bucket } from '@/lib/store';
+import { saveMirrorBatch } from '@/lib/mirror';
+import { bucket, db } from '@/lib/store';
 import { durableGet, durableSet } from './local-store';
 import { hasGithubToken } from './env';
 import { invalidateMedia } from '@/lib/media-client';
+import { gitBlobSha } from '@/lib/github-inbox.mjs';
+import { planReplica } from '@/lib/replica-plan.mjs';
 
-type File = { path: string; sha: string; size: number; type: string };
-export type ReplicaStatus = { running: boolean; done: number; total: number; checkedAt?: string; error?: string };
-let state: ReplicaStatus = {running:false,done:0,total:0};
-let running=false, installed=false, cooldown=0;
-export const replicaStatus = () => state;
-const report = (patch: Partial<ReplicaStatus>) => { state={...state,...patch}; window.dispatchEvent(new Event('nexus-replica-status')); };
-// All repository files belong in the durable local replica.
-export const replicatePath = (_path: string) => true;
-async function primeViews() {
-    invalidateMedia(); invalidatePortalCache();
-    for (const url of ['/api/films','/api/series','/api/story-register','/api/story-status','/api/document-bookmarks','/api/economy','/api/ideas','/api/todos','/api/idea-plans','/api/portal/overview?refresh=1','/api/posters?index=1&refresh=1']) {
-        const response=await fetch(url);
-        if(!response.ok || response.headers.get('X-Nexus-Offline') === 'true') throw Error('Kunde inte uppdatera '+url.split('?')[0]+'. Den lokala kopian behålls.');
-        await response.arrayBuffer();
+type File = { path:string; sha:string; size:number; type?:string };
+export type RepoReplica = {commit:string; total:number; done:number; totalBytes:number; doneBytes:number; failed:number; checkedAt?:string};
+export type ReplicaStatus = {running:boolean; done:number; total:number; phase?:'checking'|'downloading'|'refreshing'; repo?:string; currentPath?:string; paused?:boolean; checkedAt?:string; error?:string; repositories:Record<string,RepoReplica>};
+let state:ReplicaStatus={running:false,done:0,total:0,repositories:{}};
+let active:Promise<void>|null=null,installed=false,cooldown=0,paused=false,rescan=false,viewsDirty=false;
+export const replicaStatus=()=>state;
+const report=(patch:Partial<ReplicaStatus>)=>{state={...state,...patch};window.dispatchEvent(new Event('nexus-replica-status'));};
+export const replicatePath=(_path:string)=>true;
+const stop=()=>paused||document.visibilityState!=='visible';
+export function pauseReplicaSync(){paused=true;report({paused:true});}
+async function refreshViews(){
+ invalidateMedia();invalidatePortalCache();
+ // Update small registers first; catalog rendering follows its existing listener.
+ const urls=['/api/films','/api/series','/api/story-register','/api/story-status','/api/document-bookmarks','/api/economy','/api/ideas','/api/todos','/api/idea-plans'];
+ for(let i=0;i<urls.length;i+=3){
+  if(stop())return;
+  await Promise.all(urls.slice(i,i+3).map(async url=>{const r=await fetch(url);if(!r.ok||r.headers.get('X-Nexus-Offline')==='true')throw Error('Kunde inte uppdatera '+url+'. Lokala kopior finns kvar.');await r.arrayBuffer();}));
+ }
+ window.dispatchEvent(new Event('nexus-github-changed'));
+}
+async function cycle(force=false){
+ if(!hasGithubToken()||stop()||(!force&&Date.now()<cooldown))return;
+ report({running:true,paused:false,error:'',phase:'checking',currentPath:''});
+ let changed=false;
+ try{
+  for(const repo of ['databas','plugins']){
+   if(stop())return;
+   report({repo,phase:'checking',currentPath:''});
+   const client=github(repo),head=await client.head();
+   const previous=await durableGet<{commit:string;at:string}>('replica-complete:v2:'+repo);
+   if(!force&&previous?.commit===head&&state.repositories[repo]?.commit===head)continue;
+   const snapshot=await client.snapshot();
+   if(snapshot.truncated)throw Error('GitHub gav ett ofullständigt filträd. Ingen fullständig synk markeras.');
+   const files:File[]=snapshot.tree.filter((f:File)=>f.type==='blob');
+   const [versions,keys]=await Promise.all([db().prepare('SELECT path,blob_sha,object_key FROM mirror_versions WHERE repo=?').bind(repo).all(),bucket().keys('mirror/')]);
+   const plan=planReplica(files,versions.results,keys,repo);
+   let progress:RepoReplica={commit:snapshot.commit,total:plan.total,done:plan.done,totalBytes:plan.totalBytes,doneBytes:plan.doneBytes,failed:0};
+   const update=()=>report({done:progress.done,total:progress.total,repositories:{...state.repositories,[repo]:{...progress}}});
+   update();
+   await db().prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('mirror_manifest:'+repo,JSON.stringify({commit:snapshot.commit,fetchedAt:snapshot.fetchedAt,files})).run();
+   // Publish register changes promptly, without blocking the copy on catalog rebuilding.
+   if(previous?.commit!==snapshot.commit){changed=true;viewsDirty=true;invalidateMedia();invalidatePortalCache();window.dispatchEvent(new Event('nexus-github-changed'));}
+   const errors:Record<string,unknown>={};
+   let headCheckedAt=Date.now();
+   for(let offset=0;offset<plan.missing.length;offset+=4){
+    if(stop())return;
+    const batch=plan.missing.slice(offset,offset+4);
+    report({phase:'downloading',currentPath:batch[0].path});
+    const results=await Promise.allSettled(batch.map(async(file:File)=>{
+     const cached=await bucket().get('mirror/'+repo+'/'+file.sha);
+     let bytes=cached?await cached.arrayBuffer():null;
+     if(!bytes||bytes.byteLength!==file.size||await gitBlobSha(bytes)!==file.sha)bytes=(await client.blob(file.sha)).buffer as ArrayBuffer;
+     return {file:{...file,fetchedAt:snapshot.fetchedAt},bytes};
+    }));
+    const good:Array<{file:File;bytes:ArrayBuffer}>=[];
+    let fatal:Error|undefined;
+    for(let i=0;i<results.length;i++){
+     const result=results[i];
+     if(result.status==='fulfilled')good.push(result.value);
+     else{if([401,403,429].includes(result.reason?.status))fatal=result.reason;errors[batch[i].path]={sha:batch[i].sha,error:result.reason?.message||String(result.reason)};progress.failed++;}
     }
-    window.dispatchEvent(new Event('nexus-github-changed'));
+    await saveMirrorBatch(repo,good,snapshot.commit);
+    progress.done+=good.length;progress.doneBytes+=good.reduce((sum,item)=>sum+item.file.size,0);update();
+    if(progress.failed)await durableSet('replica-errors:v1:'+repo,errors);
+    if(fatal)throw fatal;
+    if(Date.now()-headCheckedAt>15000){headCheckedAt=Date.now();if(await client.head()!==snapshot.commit){rescan=true;return;}}
+    await new Promise(resolve=>setTimeout(resolve,0));
+   }
+   if(stop())return;
+   if(progress.failed)throw Error(progress.failed+' filer kunde inte hämtas. Övriga filer har sparats. Tryck Försök igen. '+Object.values(errors).map((e:any)=>e.error)[0]);
+   progress.checkedAt=new Date().toISOString();update();
+   await durableSet('replica-inventory:v1:'+repo,{commit:snapshot.commit,files});
+   await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:progress.checkedAt});
+   await durableSet('replica-errors:v1:'+repo,{});
+   // Retire stale failures from the former 20-file worker after successful copying.
+   await db().batch(['mirror_error:','mirror_file_errors:'].map(prefix=>db().prepare('DELETE FROM settings WHERE key=?').bind(prefix+repo)));
+  }
+  if(changed||viewsDirty){report({phase:'refreshing',currentPath:''});await refreshViews();if(!stop())viewsDirty=false;}
+  if(stop())return;
+  report({checkedAt:new Date().toISOString(),error:'',currentPath:''});
+ }catch(error:any){cooldown=Date.now()+60000;report({error:error.message||'Lokal kopiering kunde inte slutföras.'});}
+ finally{report({running:false,paused,phase:undefined});}
 }
-async function cycle() {
-    if(running || !hasGithubToken() || document.visibilityState !== 'visible' || Date.now()<cooldown) return;
-    running=true; report({running:true,error:''});
-    try {
-        for(const repo of ['databas','plugins']) {
-            const client=github(repo), head=await client.head();
-            const previous=await durableGet<{commit:string}>('replica-complete:v2:'+repo);
-            if(previous?.commit===head) continue;
-            const snapshot=await client.snapshot();
-            if(snapshot.truncated) throw Error('GitHub gav ett ofullständigt filträd. Ingen fullständig synk markeras.');
-            const files: File[]=snapshot.tree.filter((f:File)=>f.type==='blob' && (repo!=='databas'||replicatePath(f.path)));
-            const index=await durableGet<Record<string,string>>('replica-files:v1:'+repo)||{};
-            const missing:File[]=[];
-            for(const file of files) {
-                if(index[file.path]!==file.sha || !await bucket().get('mirror/'+repo+'/'+file.sha)) missing.push(file);
-            }
-            report({done:files.length-missing.length,total:files.length});
-            // Warm current registers before a potentially long initial image/document download.
-            if(repo==='databas') {try {await primeViews();} catch(error:any) {report({error:error.message});}}
-            for(let offset=0;offset<missing.length;offset+=4) {
-                if(document.visibilityState!=='visible') return;
-                const results=await Promise.allSettled(missing.slice(offset,offset+4).map(async file=>{
-                    const bytes=await client.blob(file.sha);
-                    await saveMirror(repo,{...file,fetchedAt:snapshot.fetchedAt},bytes.buffer as ArrayBuffer,snapshot.commit);
-                    return file;
-                }));
-                let failure:unknown;
-                for(const result of results) {
-                    if(result.status==='fulfilled') {index[result.value.path]=result.value.sha;report({done:state.done+1});}
-                    else failure=result.reason;
-                }
-                await durableSet('replica-files:v1:'+repo,index);
-                if(failure) throw failure;
-                // Yield between batches so editing and navigation stay responsive.
-                await new Promise(resolve=>setTimeout(resolve,0));
-            }
-            // Keep older bytes as history, but record the exact current file inventory.
-            await durableSet('replica-inventory:v1:'+repo,{commit:snapshot.commit,files});
-            await primeViews();
-            await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:new Date().toISOString()});
-        }
-        report({checkedAt:new Date().toISOString(),error:''});
-    } catch(error:any) {
-        cooldown=Date.now()+60000;
-        report({error:error.message||'Lokal kopiering kunde inte slutföras. Försöker igen.'});
-    } finally {running=false;report({running:false});}
+function run(force=false):Promise<void>{
+ if(active)return active;
+ active=cycle(force).finally(()=>{active=null;if(rescan){rescan=false;window.setTimeout(()=>void run(),0);}});return active;
 }
-export function startReplicaSync() {
-    if(installed) return; installed=true;
-    void cycle();
-    window.setInterval(()=>void cycle(),15000);
-    const wake=()=>{cooldown=0;void cycle();};
-    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake();});
-    window.addEventListener('online',wake);
-    window.addEventListener('nexus-credentials-changed',wake);
-    window.addEventListener('nexus-write-completed',wake);
+export function syncReplicaNow(){paused=false;cooldown=0;report({paused:false});return run(true);}
+export function startReplicaSync(){
+ if(installed)return;installed=true;void run();
+ window.setInterval(()=>void run(),15000);
+ const wake=()=>{cooldown=0;void run();};
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake();});
+ window.addEventListener('online',wake);window.addEventListener('nexus-credentials-changed',()=>{paused=false;wake();});window.addEventListener('nexus-write-completed',wake);
 }

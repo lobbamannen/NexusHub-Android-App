@@ -26,15 +26,18 @@ Token kan senare bytas under **Inställningar & system → Android-app & GitHub*
 
 ## Beständig lokal kopia och automatisk uppdatering
 
-Telefonen och GitHub behåller varsin lagring. Automatisk kopiering använder befintlig SQLite/IndexedDB och spegelarkiv. **Hela Databas kopieras, inklusive Kunskap, alla bilder, dokument, register och planpaket.** Ingen innehållsmapp undantas. Befintlig lokal kopiering kompletteras utan att rensa utkast eller inställningar. En ny slutförandemarkör gör att äldre installationer inventerar även Kunskap trots oförändrad GitHub-commit.
+Telefonen och GitHub behåller varsin lagring. **Hela Databas kopieras, inklusive Kunskap, bilder, dokument, register och planpaket.** ChatGPT-Plugin kopieras också. Ingen innehållsmapp undantas.
 
-- Kopiering startar när appen öppnas och token finns. GitHubs `main` kontrolleras var **15:e sekund medan appen är synlig**, vid återupptagning och när nätet återkommer. Ingen Android-bakgrundstjänst håller en stängd app aktiv. Detta är polling, inte push från GitHub.
-- Ny commit ger en komplett filträdsinventering. Endast saknade eller ändrade filhashar hämtas; bytes verifieras mot GitHubs blob-SHA före beständig lagring. Första kopieringen sker i omgångar om fyra filer och fortsätter vid nästa användning om den avbryts.
-- Inställningar → Android-app & GitHub visar kopieringsförlopp och fel. Nätfel eller full lagring innebär att kopian inte är komplett. Kopieringen försöks igen och befintliga filer behålls.
-- Registervyer uppdateras vid upptäckta GitHub-ändringar. Öppna utkast och väntande sparningar skrivs inte över; uppdatering av gränssnittet skjuts upp när en registerredigering pågår. Automatisk hämtning spelar **inte** upp skrivkön.
-- Bildindex sparas beständigt så att hämtade affischer/omslag också kan hittas efter omstart utan nät. Tidigare filversioner behålls i spegelarkivet. Radering i GitHub tar bort posten ur den aktuella vyn men innebär inte utradering av versionshistorik.
-- Appens tidigare storlekstak för registerläsning, spegelfiler och affischer är borttagna. Större Contents-filer hämtas via GitHubs blob-API. Kontrollsummor, SHA-konfliktskydd och formatvalidering behålls. GitHubs egna API-gränser och telefonens tillgängliga minne/lagring gäller fortfarande; filuppladdning har sitt separata kontrakt.
-- En lokal kopia är inte bevis på att en ändring har sparats i GitHub. Spara/Ångra, uttryckliga återförsök och konflikthantering gäller som tidigare.
+- Automatisk kontroll av GitHubs `main` sker var **15:e sekund medan appen är synlig**, vid återupptagning, återanslutning och efter egna sparningar. Under en längre första hämtning kontrolleras också om GitHub ändras, så att kopieringen kan börja om mot den nya inventeringen. Ingen bakgrundstjänst håller en stängd app aktiv.
+- **Inställningar → GitHub & lokal lagring → Hämta allt nytt från GitHub** använder samma arbetare som automatiken. Ett extra knapptryck startar inte en konkurrerande synk. Det gamla gränssnittet med 20 filer per omgång är borttaget.
+- Inventeringen jämför sökväg, Git-blob-SHA, befintlig spegelversion och lagringsnyckel. Den laddar inte in alla lokala filbytes bara för att kontrollera om de finns. Befintliga kopior från det äldre synkflödet återanvänds. Saknade bytes och nya filversioner hämtas; oförändrade filer hämtas inte igen.
+- Register och text prioriteras, sedan mindre filer. Högst fyra filhämtningar pågår samtidigt för att hålla minnesanvändningen rimlig. Detta är samtidighet, inte ett tak på antal filer eller filstorlek. Varje hämtad fil kontrolleras mot storlek och GitHub-hash innan metadata skrivs. Metadata sparas i en beständig databastransaktion per grupp.
+- Förloppet visar filer, MB, återstående antal och aktuell fil per repository. Första hämtningen av hundratals MB är inte omedelbar. **Pausa** slutför pågående filer och stoppar nästa grupp. **Fortsätt** återanvänder allt som redan sparats. Ett filfel hindrar inte övriga filer i samma inventering från att hämtas. Ingen fullständig kopia markeras förrän alla aktuella filer lyckats.
+- Efter avbrott eller omstart jämförs de beständiga kopiorna igen. Äldre versioner och filer som försvunnit från GitHub behålls lokalt som historik. Det finns ingen automatisk gallring.
+- Normal inventering kontrollerar att originalobjektet finns. **Fullständig integritetskontroll** läser och verifierar verkliga bytes separat och används för att hitta eller reparera skadade kopior.
+- En lokal kopia är inte bevis på att en egen ändring sparats i GitHub. Spara/Ångra, utkast, uttryckliga återförsök och konfliktskydd gäller som tidigare. Automatisk hämtning spelar aldrig upp skrivkön och skriver inte över öppna utkast.
+
+Inställningarna visar även krypterad tokenhantering, kontroll av GitHub-anslutningen, väntande sparningar, byteverifiering och avancerad versionshistorik. Äldre lokal administration ligger separat och dess metadataexport är inte en export av hela GitHub-kopian.
 
 ## Samma innehåll och arbetsflöden
 
