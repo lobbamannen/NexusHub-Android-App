@@ -1,5 +1,6 @@
+import Lightbulb from '@/components/ideas/IdeaBulb';
 import React,{useEffect,useState} from 'react';
-import {Clapperboard,Tv,BookOpen,Lightbulb,ChevronRight} from 'lucide-react';
+import {Clapperboard,Tv,BookOpen,ChevronRight} from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import {ideaDay} from '@/lib/idea-numbers.mjs';
 import './daily-activity.css';

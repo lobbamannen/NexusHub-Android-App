@@ -1,5 +1,6 @@
+import Lightbulb from '@/components/ideas/IdeaBulb';
 import React, { useEffect, useRef, useState } from 'react';
-import { Trash2, Lightbulb, Plus, RefreshCw, ChevronRight, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
+import { Trash2,  Plus, RefreshCw, ChevronRight, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
 import { IDEA_STATUSES } from '@/lib/ideas.mjs';

@@ -1,3 +1,4 @@
+import Lightbulb from '@/components/ideas/IdeaBulb';
 import {CalendarGlyph as CalendarDays} from '@/components/calendar/CalendarGlyph';
 import CalendarPage from '@/components/calendar/CalendarPage';
 import ReleaseWatch from '@/components/watch/ReleaseWatch';
@@ -13,7 +14,7 @@ import {LocalImage} from '@/platform/resources';
 import { invalidateMedia } from '@/lib/media-client';
 import { useDocumentBookmarks } from './use-document-bookmarks';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Home, Search, Plus, Inbox, Menu, X, ArrowLeft, ArrowRight, ChevronRight, Layers, Puzzle, Eye, Clapperboard, Tv, Network, Wrench, Settings, FileText, Folder, FolderOpen, Bookmark, Upload, Download, RefreshCw, Clock, ShieldCheck, ExternalLink, BookOpen, LibraryBig, Loader2, Archive, Database, AlertCircle, ChevronDown, Dumbbell, Coins, Lightbulb, Bell } from 'lucide-react';
+import { Home, Search, Plus, Inbox, Menu, X, ArrowLeft, ArrowRight, ChevronRight, Layers, Puzzle, Eye, Clapperboard, Tv, Network, Wrench, Settings, FileText, Folder, FolderOpen, Bookmark, Upload, Download, RefreshCw, Clock, ShieldCheck, ExternalLink, BookOpen, LibraryBig, Loader2, Archive, Database, AlertCircle, ChevronDown, Dumbbell, Coins,  Bell } from 'lucide-react';
 import NativeBackBridge, { useBackHandler } from '@/components/NativeBackBridge';
 import LegacyNexus, { Markdown } from './nexus';
 import Films from './films';
