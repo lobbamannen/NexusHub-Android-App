@@ -21,3 +21,5 @@
 .nh-idea-attachments summary{cursor:pointer;min-height:32px;padding:7px 0;color:#cda8ef}
 .nh-idea-attachments-files{max-height:min(20dvh,160px);overflow:auto;overscroll-behavior:contain;overflow-wrap:anywhere}
 @media(max-width:600px){.nh-idea-editor>.nh-idea-attachments{padding:10px 14px}}
+
+.nh-idea-attachments-content{max-height:min(25dvh,220px);overflow:auto;overscroll-behavior:contain}
