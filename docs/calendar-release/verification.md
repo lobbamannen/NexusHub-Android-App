@@ -28,3 +28,7 @@ Ingen fysisk Samsung, verkliga kalenderkonton eller autentiserad Streaming Avail
 - Synlig Android-push och dess serielänk, Doze, omstart och Samsungs batteriinställningar.
 
 Efter uppdatering: öppna Kalender och välj åtkomst. Öppna Seriebevakning → Inställningar, ange din kostnadsfria leverantörsnyckel, välj abonnemang/notiser och spara. Slå på en serie, spara och begär Kontrollera nu. Första insamlingen är avsiktligt en tyst baslinje. Se sedan status/historik; jämför faktiska fynd med den svenska tjänsten innan notisernas träffsäkerhet betraktas som praktiskt verifierad.
+
+## Slutförd Android-CI
+
+[Byggjobb40373092339](https://github.com/lobbamannen/NexusHub-Android-App/actions/runs/40373092339) slutfördes med success för kodrevision `3b7c4b8e7a40417f2dad72cf8572141f209db765`. TypeScript, originaldesign,67 riktade JavaScript-tester,9 Kotlin/JUnit-tester i Android-projektet, Android-kompilering, release-lint, APK-signaturkontroll och publicering gick igenom. [APK1.0.33](https://github.com/lobbamannen/NexusHub-Android-App/releases/tag/app-v1.0.33) publicerades26 oktober2026 med `nexus-hub-app.apk` och `SHA256SUMS.txt`. Fysisk telefon/providerprovning är fortfarande inte utförd här.
