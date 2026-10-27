@@ -244,3 +244,7 @@ Robin valde samma gratis PostHog EU-projekt som Cortex, med separata rapportsido
 Kontrollhistoriken för serier visar nu även antal källändringar, bevakade träffar, avvisade belägg, nya fynd, baslinje och notisförsök. En genomförd API-kontroll betyder inte att källan har rapporterat ett nytt HBO-avsnitt. Notisförsök betyder inte verifierad synlig leverans. Manuella kontroller synkar aktuella bevakningsval först. Första intervallet omfattar aktiveringen; följande har 24 timmars överlapp för sent indexerade ändringar, med befintlig dubblettkontroll och kvotgräns.
 
 Se [implementation och verifiering](docs/telemetry/implementation.md). Fysisk telefonverifiering efter aktivering återstår tills verkliga Android-händelser har återlästs i rätt rapport. Idé 15 arkiveras först efter det; utvecklingsmiljö eller servergenererade testevent räknas inte som Samsung-test.
+
+### Daglig seriebevakning
+
+Automatisk kontroll körs en gång per svensk kalenderdag omkring **15.00 Europe/Stockholm**. Datumstyrd WorkManager-planering räknas om efter körning och följer sommar/vintertid; Android kan försena körning vid nät-/batteribegränsning. Uppdateringen tar bort äldre sex-timmarsjobb. Appstart, konfigurationssynk och API-nyckeländring schemalägger nästa dagliga kontroll utan extra omedelbart API-anrop. **Kontrollera nu** är ett uttryckligt manuellt undantag med samma månadsbudget och spärrtid. Befintliga händelser, baslinjer, sidmarkörer och nycklar bevaras. Äldre inställningsfiler med `checkIntervalHours:6` normaliseras till `24` och `dailyCheckTime:"15:00"` i nya appen.

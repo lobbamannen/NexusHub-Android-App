@@ -20,5 +20,10 @@ test('merge event history is idempotent, keeps latest facts/read receipt and nev
  assert.equal(calendarMediaEvents(merged.events).length,0);
  assert.equal(calendarMediaEvents([{...a,releaseDate:'2026-10-27',datePrecision:'day'}]).length,1);
 });
-test('settings validate providers and quiet-hour times',()=>{assert.equal(watchSettings({providers:['netflix']}).checkIntervalHours,6);assert.throws(()=>watchSettings({providers:['unknown']}));assert.throws(()=>watchSettings({quietHours:{enabled:true,from:'25:00',to:'08:00'}}));});
+test('settings validate providers and quiet-hour times',()=>{assert.equal(watchSettings({providers:['netflix']}).checkIntervalHours,24);assert.throws(()=>watchSettings({providers:['unknown']}));assert.throws(()=>watchSettings({quietHours:{enabled:true,from:'25:00',to:'08:00'}}));});
 test('history compares instants rather than ISO text when source precision differs',()=>{const e={id:'precision',seriesKey:'tt1234567',title:'Test',season:1,episode:2,provider:'netflix',country:'SE',kind:'episode',availability:'confirmed_upcoming',sourceName:'Test',observedAt:'2026-10-26T12:00:00.123Z',readAt:'2026-10-26T12:00:00.123Z',notifiedAt:'2026-10-26T12:00:00.123Z'};const later=mergeWatchHistory({schemaVersion:1,events:[e]},[{...e,availability:'confirmed_available',observedAt:'2026-10-26T12:00:00Z',readAt:'2026-10-26T12:00:00Z',notifiedAt:'2026-10-26T12:00:00Z'}]);assert.equal(later.events[0].availability,'confirmed_upcoming');assert.equal(later.events[0].readAt,e.readAt);assert.equal(later.events[0].notifiedAt,e.notifiedAt);});
+test('daily watch normalizes legacy interval without losing providers or quiet hours',()=>{
+ const current=watchSettings({checkIntervalHours:6,providers:['hbo'],quietHours:{enabled:true,from:'22:00',to:'08:00'},custom:42});
+ assert.equal(current.checkIntervalHours,24);assert.equal(current.dailyCheckTime,'15:00');assert.deepEqual(current.providers,['hbo']);assert.equal(current.custom,42);assert.equal(current.quietHours.enabled,true);
+ assert.equal(watchSettings().checkIntervalHours,24);assert.throws(()=>watchSettings({checkIntervalHours:12}));assert.throws(()=>watchSettings({dailyCheckTime:'09:00'}));
+});

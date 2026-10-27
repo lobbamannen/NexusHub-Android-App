@@ -25,8 +25,20 @@ class ReleaseWatch(private val context:Context) {
         @Volatile var listener:(()->Unit)?=null
         @Volatile var running=false
         fun schedule(c:Context) {
-            val constraints=Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-            WorkManager.getInstance(c).enqueueUniquePeriodicWork("nexus-release-periodic",ExistingPeriodicWorkPolicy.KEEP,PeriodicWorkRequestBuilder<ReleaseWorker>(6,TimeUnit.HOURS).setConstraints(constraints).build())
+            val manager=WorkManager.getInstance(c)
+            val migration=c.getSharedPreferences("nexus-watch-schedule",Context.MODE_PRIVATE)
+            if(!migration.getBoolean("daily1500v1",false)) {
+                // Retire old automatic jobs once; never cancel a newly requested manual check.
+                manager.cancelUniqueWork("nexus-release-periodic")
+                manager.cancelUniqueWork("nexus-release-now")
+                migration.edit().putBoolean("daily1500v1",true).commit()
+            }
+            val now=Instant.now();val target=WatchSchedule.next(now)
+            val work=OneTimeWorkRequestBuilder<ReleaseWorker>()
+                .setInputData(workDataOf("daily" to true))
+                .setInitialDelay(Duration.between(now,target).toMillis(),TimeUnit.MILLISECONDS)
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build()
+            manager.enqueueUniqueWork("nexus-release-daily-"+WatchSchedule.day(target),ExistingWorkPolicy.KEEP,work)
         }
         fun check(c:Context) { WorkManager.getInstance(c).enqueueUniqueWork("nexus-release-now",ExistingWorkPolicy.KEEP,OneTimeWorkRequestBuilder<ReleaseWorker>().setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build()) }
     }
@@ -43,7 +55,7 @@ class ReleaseWatch(private val context:Context) {
         require(p.getInt("v")==1 && p.getLong("generation")>=0)
         val shas=p.getJSONObject("sourceShas");require(shas.getString("series").matches(Regex("[a-fA-F0-9]{40}")))
         require(shas.isNull("settings") || shas.getString("settings").matches(Regex("[a-fA-F0-9]{40}")))
-        val settings=p.getJSONObject("settings");require(settings.getString("country")=="se" && settings.getString("timeZone")=="Europe/Stockholm" && settings.getInt("checkIntervalHours")==6)
+        val settings=p.getJSONObject("settings");require(settings.getString("country")=="se" && settings.getString("timeZone")=="Europe/Stockholm" && settings.getInt("checkIntervalHours") in listOf(6,24) && settings.optString("dailyCheckTime","15:00")=="15:00")
         val series=p.getJSONArray("series");require(series.length()<=500 && p.toString().length<=500000)
         val keys=mutableSetOf<String>()
         for(i in 0 until series.length()) { val row=series.getJSONObject(i);require(row.getString("key").length in 1..200 && keys.add(row.getString("key")));val w=row.getJSONObject("releaseWatch");require(w.getString("providerMode") in listOf("my_subscriptions","custom"));require(w.getJSONArray("providerIds").length()<=30) }
@@ -65,8 +77,7 @@ class ReleaseWatch(private val context:Context) {
                     providers(row,settings).forEach { provider -> val stem=row.getString("key")+"|"+provider;bases.put(stem,Instant.now().epochSecond);bases.remove("$stem|upcomingReady|episode");bases.remove("$stem|upcomingReady|season") }
             }
         }
-        val needsCheck=old==null || old.optJSONArray("series").toString()!=series.toString() || old.optJSONObject("settings").toString()!=settings.toString()
-        s.put("baselines",bases).put("snapshot",JSONObject(p.toString()));save(s);schedule(context);if(needsCheck)check(context);JSONObject().put("accepted",true)
+        s.put("baselines",bases).put("snapshot",JSONObject(p.toString()));save(s);schedule(context);JSONObject().put("accepted",true)
     }
     private fun providers(row:JSONObject,settings:JSONObject):Set<String> { val w=row.getJSONObject("releaseWatch");val a=if(w.optString("providerMode")=="custom") w.getJSONArray("providerIds") else settings.getJSONArray("providers");return (0 until a.length()).map { a.getString(it) }.toSet().intersect(WatchRules.providers) }
     fun markRead(ids:JSONArray):JSONObject=synchronized(lock){require(ids.length()<=10000);val wanted=(0 until ids.length()).map { ids.getString(it) }.toSet();val s=load();val events=s.optJSONArray("events") ?: JSONArray();for(i in 0 until events.length()){val e=events.getJSONObject(i);if(e.getString("id") in wanted){e.put("readAt",Instant.now());e.remove("pendingAvailableNotification")}};save(s);JSONObject().put("updated",true)}
@@ -90,6 +101,18 @@ class ReleaseWatch(private val context:Context) {
     }
 
     private fun history(s:JSONObject,message:String) {val old=s.optJSONArray("history") ?: JSONArray();val h=JSONArray();for(i in maxOf(0,old.length()-99) until old.length())h.put(old.get(i));h.put(JSONObject().put("at",Instant.now()).put("message",message));s.put("history",h)}
+    /** A late/replayed dated job cannot start another automatic check on the same local day. */
+    fun runDaily():Boolean=synchronized(workerLock) {
+        val now=Instant.now()
+        val due=synchronized(lock){WatchSchedule.due(now,load().optString("lastDailyAttemptDay"))}
+        if(!due)return@synchronized true
+        val completed=run()
+        // Pagination resumes the same pinned daily check; do not defer unread pages a whole day.
+        val morePages=synchronized(lock){val latest=load();latest.optString("error").startsWith("Delvis") && WatchRules.quota(latest.optInt("used")) && !latest.optBoolean("unauthorized")}
+        val finished=completed && !morePages
+        if(finished)synchronized(lock){val latest=load();latest.put("lastDailyAttemptDay",WatchSchedule.day(now));save(latest)}
+        finished
+    }
     /** Each stream keeps a pinned interval and cursor; only a fully consumed interval advances watermark. */
     fun run():Boolean=synchronized(workerLock) {
         if(running)return@synchronized true
@@ -267,4 +290,12 @@ class ReleaseWatch(private val context:Context) {
         }
     }
 }
-class ReleaseWorker(context:Context,params:WorkerParameters):Worker(context,params) { override fun doWork():Result=if(ReleaseWatch(applicationContext).run())Result.success() else Result.retry() }
+class ReleaseWorker(context:Context,params:WorkerParameters):Worker(context,params) {
+ override fun doWork():Result {
+  val daily=inputData.getBoolean("daily",false)
+  return try {
+   val watch=ReleaseWatch(applicationContext)
+   if(if(daily)watch.runDaily() else watch.run())Result.success() else Result.retry()
+  } finally { if(daily)ReleaseWatch.schedule(applicationContext) }
+ }
+}
