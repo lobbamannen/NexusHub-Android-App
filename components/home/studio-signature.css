@@ -1,0 +1,12 @@
+.portal-shell.nh-chroma-site.nh-locked-home .nh-studio-signature{width:100%;max-width:560px;min-width:0;margin:8px auto 4px}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-studio-trigger{display:block;width:100%;padding:0;border:0;background:transparent;box-shadow:none;cursor:pointer}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-studio-trigger img{display:block;width:100%;height:auto;object-fit:contain}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-studio-trigger:focus-visible{outline:2px solid #c084fc;outline-offset:4px;border-radius:12px}
+.portal-shell .nh-studio-dialog{width:calc(100vw - 24px);max-width:1100px;max-height:calc(100dvh - 32px);padding:14px;margin:auto;border:1px solid #ffffff20;border-radius:20px;background:#08080a;color:#f5f2fa;overflow:auto;box-shadow:0 20px 70px #000b}
+.portal-shell .nh-studio-dialog::backdrop{background:#000d}
+.portal-shell .nh-studio-dialog-body{min-width:0}
+.portal-shell .nh-studio-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.portal-shell .nh-studio-toolbar button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;min-width:44px}
+.portal-shell .nh-studio-scroll{width:100%;max-height:calc(100dvh - 132px);overflow:auto;overscroll-behavior:contain}
+.portal-shell .nh-studio-scroll img{display:block;width:100%;max-width:none;height:auto;object-fit:contain}
+.portal-shell .nh-studio-scroll.is-zoomed img{width:300%}

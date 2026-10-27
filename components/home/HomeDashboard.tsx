@@ -1,3 +1,4 @@
+import StudioSignature from './StudioSignature';
 import {incomingItems} from '@/platform/incoming-store';
 import {incomingDocumentCount} from '@/lib/shared-incoming.mjs';
 import {WatchHomeNotice} from '@/components/watch/ReleaseWatch';
@@ -100,5 +101,6 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
   <WatchHomeNotice onNavigate={onNavigate} state={watchState}/>
   <ModuleGrid counts={counts} onNavigate={onNavigate}/>
   <RecentActivity additions={additions} loading={mediaLoading} error={mediaError} onRetry={() => setRetry(n => n + 1)} posterRevision={posterRevision} films={films} series={series} stories={stories} files={recentFiles} plugins={plugins} commits={commits} onNavigate={onNavigate} onOpenMedia={onOpenMedia} onOpenStory={onOpenStory} onOpenFile={onOpenFile}/>
+  <StudioSignature/>
  </div>;
 }
