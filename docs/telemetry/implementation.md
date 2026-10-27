@@ -25,7 +25,7 @@ Kontrollhistoriken visar nu källändringar, träffar på bevakade serier, avvis
 
 ## Verifiering
 - Node:81/81 relevanta tester inklusive canaries/filter/dedup/sampling; typkontroll och42 originaldesignkontroller godkända.
-- Kotlin:17/17 policy-, consent- och bevakningsregler via JVM/JUnit. SDK/Android-kompilering, Gradle unit/lint och signerat APK-bygge verifieras i Actions.
+- Kotlin:17/17 policy-, consent- och bevakningsregler via JVM/JUnit. SDK/Android-kompilering, Gradle testDebugUnitTest, lintRelease och assembleRelease godkända i Actions40462222865. APK1.0.39 publicerad och signatur verifierad: https://github.com/lobbamannen/NexusHub-Android-App/releases/tag/app-v1.0.39.
 - Hela gamla Site-sviten innehåller nio redan befintliga fel: github-inbox.test.mjs (saknad drizzle-migration); två local-posters-scriptfall (saknat äldre sync-posters.mjs); tre series-ui-fall (äldre regexformat); series-watchlist UI-fall (äldre kodformat); source-sync-dynamic (Site integritetsmodell); upload-api.test.mjs (gammal servermiljö). Samtliga nio återkom även vid faktisk körning i isolerad oförändrad upstream-checkout (184 tester:175 godkända,9 underkända). Dessa används inte som bevis för Android-funktionen. Fullrapport i arbetslogg, ingen påstådd total grön svit.
 
 Återstående fysisk verifiering: installera uppdateringen över befintlig app, slå på diagnostik, öppna några moduler och kör Kontrollera nu. Läs faktiska händelser i Nexus-dashboard/live stream, kontrollera endast godkända egenskaper. Avstängning/omstart ska förbli av. Utge inte ett servergenererat testevent för att vara en faktisk Samsung-körning. Idé15 lämnas som redo tills APK och verkligt telefon-event verifierats enligt originalplanens acceptansvillkor.
