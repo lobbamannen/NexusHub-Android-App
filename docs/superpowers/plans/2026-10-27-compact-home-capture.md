@@ -29,5 +29,5 @@
 - [ ] Visual mobile browser check could not run: cloud browser rejected local preview by security policy. No workaround attempted. Actual controller behavior is exercised with React renderer; CSS reviewed for 360/412px, no screenshot claim.
 ### Task 4: Deliver
 - [x] Typecheck/design checks/targeted domain tests/build; final fresh review.
-- [ ] Publish via existing Actions; verify release/signing/check results.
-- [ ] CAS archive six original ideas, preserving numbering and attachments; verify GitHub destinations.
+- [x] Publish via existing Actions; APK1.0.41 / run40491776454 succeeded, including stable signing and release upload.
+- [x] CAS archive ideas17–22; all six destination files verified, sources absent, numbering and attachment SHAs unchanged (Databas de8985203e4f5d4911e0c6113a04075fd3afbdfa).

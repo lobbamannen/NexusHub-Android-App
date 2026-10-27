@@ -19,3 +19,5 @@
 ## Beslut och leverans
 
 Återanvänd befintlig uppgiftsfil i stället för ny parallell datamodell. Arkiverade idéer är skrivskyddade så de inte kan återskapas som aktiva av redigerings-API:et. Behåll originalens statusfält och numrering. Inga befintliga innehållsposter, token- eller Android-identiteter ändras av appbygget.
+
+Levererad: [APK1.0.41](https://github.com/lobbamannen/NexusHub-Android-App/releases/tag/app-v1.0.41), Actions40491776454 med godkända React-kontroller (89/89), native enhetstester, releasebygge, lint och signaturkontroll. Källkod bcd5c41fe89166ca56f64f7807ee8fc3f744081b. Idé17–22 flyttade och återlästa i Databas de8985203e4f5d4911e0c6113a04075fd3afbdfa; nummerindex och bilagor byteidentiska enligt SHA.
