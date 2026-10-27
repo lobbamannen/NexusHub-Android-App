@@ -79,6 +79,10 @@ object NexusTelemetry {
         if(!enabled || !ready)return false
         return try {val clean=policy.sanitize(name,properties) ?: return false;PostHog.capture(event=name,properties=clean+common(source));true}catch(_:Exception){false}
     }
+    @Synchronized fun captureForEpoch(name:String,properties:JSONObject,expectedEpoch:Long,producedAt:Long):Boolean {
+        if(!gate.allowsProduced(expectedEpoch,producedAt))return false
+        return capture(name,properties)
+    }
     @Synchronized fun foreground() {
         if(foregroundAt!=0L)return
         foregroundAt=SystemClock.elapsedRealtime().coerceAtLeast(1)

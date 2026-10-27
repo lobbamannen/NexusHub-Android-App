@@ -18,18 +18,21 @@ object BatteryTelemetry {
   val store=BatteryStore(c);if(node!=store.node())return
   try{
    val j=JSONObject(String(raw,Charsets.UTF_8));if(j.optInt("v")!=1)return
-   val entries=j.optJSONArray("events") ?: return;val seen=store.prefs.getStringSet("seenDiagnostics",emptySet()).orEmpty().toMutableSet()
+   val entries=j.optJSONArray("events") ?: return;val prior=try{JSONArray(store.prefs.getString("seenDiagnosticOrder","[]"))}catch(_:Exception){JSONArray()};val seen=linkedSetOf<String>();for(i in 0 until prior.length())seen.add(prior.optString(i))
    val enabled=NexusTelemetry.status().optBoolean("enabled");val since=NexusTelemetry.enabledSince()
    for(i in 0 until minOf(entries.length(),24)) {
     val e=entries.optJSONObject(i) ?: continue;val id=e.optString("eventId");if(!BatteryProtocol.UUID.matches(id) || id in seen)continue
     seen.add(id);val at=e.optLong("at");if(!eligibleDiagnostic(at,since,enabled) || at>System.currentTimeMillis()+600000)continue
     val stage=e.optString("stage");val outcome=e.optString("outcome");if(stage !in listOf("read","publish") || outcome !in listOf("success","failed"))continue
     val snapshot=BatterySnapshot(e.optString("snapshotId"),e.optInt("percent",-1),e.optInt("status",1),0,e.optLong("measuredAt"))
-    if(!snapshot.valid(System.currentTimeMillis()))continue
-    event("watch_$stage",snapshot,outcome)
+    if(!snapshot.valid(System.currentTimeMillis())) {
+     if(outcome=="failed")NexusTelemetry.captureForEpoch("battery_flow",JSONObject().put("stage","watch_$stage").put("outcome","failed"),since,at)
+     continue
+    }
+    val props=JSONObject().put("stage","watch_$stage").put("outcome",outcome).put("snapshot_id",snapshot.id).put("watch_percent",snapshot.percent.toString()).put("charging",snapshot.status==2).put("measured_at",snapshot.measuredAt)
+    NexusTelemetry.captureForEpoch("battery_flow",props,since,at)
    }
-   store.prefs.edit().putStringSet("seenDiagnostics",seen.takeLastSet(96)).apply()
+   store.prefs.edit().putString("seenDiagnosticOrder",JSONArray(seen.toList().takeLast(192)).toString()).apply()
   }catch(_:Exception){}
  }
- private fun Set<String>.takeLastSet(n:Int)=toList().takeLast(n).toSet()
 }

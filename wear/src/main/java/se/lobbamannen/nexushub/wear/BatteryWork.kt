@@ -18,8 +18,8 @@ object BatteryWork {
   prefs(c).edit().putBoolean("started",true).putInt("interval",BatteryProtocol.interval(minutes)).apply()
   WorkManager.getInstance(c).enqueueUniquePeriodicWork(BatteryProtocol.WORK,ExistingPeriodicWorkPolicy.UPDATE,PeriodicWorkRequestBuilder<BatteryPublishWorker>(BatteryProtocol.interval(minutes).toLong(),TimeUnit.MINUTES).setInputData(workDataOf("trigger" to "periodic")).build())
  }
- fun now(c:Context,trigger:String="manual") {
-  WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-now",ExistingWorkPolicy.KEEP,OneTimeWorkRequestBuilder<BatteryPublishWorker>().setInputData(workDataOf("trigger" to trigger)).build())
+ fun now(c:Context,trigger:String="manual",requestId:String="") {
+  WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-now",ExistingWorkPolicy.APPEND_OR_REPLACE,OneTimeWorkRequestBuilder<BatteryPublishWorker>().setInputData(workDataOf("trigger" to trigger,"requestId" to requestId)).build())
  }
  @Synchronized fun log(c:Context,stage:String,s:BatterySnapshot?,outcome:String="success") {
   val p=prefs(c);val old=try{JSONArray(p.getString("journal","[]"))}catch(_:Exception){JSONArray()};val next=JSONArray()
@@ -38,7 +38,7 @@ object BatteryWork {
 }
 class BatteryPublishWorker(c:Context,p:WorkerParameters):Worker(c,p) {
  override fun doWork():Result {
-  val c=applicationContext;val snapshot=LocalBattery.read(c)
+  val c=applicationContext;val snapshot=LocalBattery.read(c)?.copy(requestId=inputData.getString("requestId").orEmpty())
   if(snapshot==null){BatteryWork.log(c,"read",null,"failed");return Result.retry()}
   return try {
    BatteryWork.log(c,"read",snapshot)
@@ -59,9 +59,9 @@ class BatteryPublishWorker(c:Context,p:WorkerParameters):Worker(c,p) {
 class BatteryListener:WearableListenerService() {
  override fun onMessageReceived(event:MessageEvent) {
   if(event.path!=BatteryProtocol.REQUEST || event.data.size>512)return
-  try{if(JSONObject(String(event.data,Charsets.UTF_8)).optInt("v")!=1)return}catch(_:Exception){return}
+  val requestId=try{val j=JSONObject(String(event.data,Charsets.UTF_8));if(j.optInt("v")!=1)return;j.getString("requestId").takeIf{BatteryProtocol.UUID.matches(it)} ?: return}catch(_:Exception){return}
   val p=BatteryWork.prefs(this);val now=System.currentTimeMillis();if(now-p.getLong("lastRequest",0)<10000)return
-  p.edit().putLong("lastRequest",now).apply();BatteryWork.schedule(this);BatteryWork.now(this,"request")
+  p.edit().putLong("lastRequest",now).apply();BatteryWork.schedule(this);BatteryWork.now(this,"request",requestId)
  }
  override fun onDataChanged(events:DataEventBuffer){for(e in events)if(e.type==DataEvent.TYPE_CHANGED && e.dataItem.uri.path==BatteryProtocol.CONFIG)BatteryWork.applyConfig(this,e.dataItem.data)}
 }

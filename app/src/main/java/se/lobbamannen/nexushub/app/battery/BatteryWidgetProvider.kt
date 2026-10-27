@@ -27,7 +27,7 @@ class BatteryWidgetProvider:AppWidgetProvider() {
     views.setInt(R.id.battery_root,"setBackgroundResource",bg)
     val date=watch?.let{SimpleDateFormat(if(now-it.measuredAt>=86400000)"d/M HH:mm" else "HH:mm",Locale("sv","SE")).format(Date(it.measuredAt))}
     val freshness=watch?.freshness(now,store.interval()) ?: "unknown"
-    val suffix=when{watch==null->"inväntar klocka";freshness=="stale"->"gammal · $date";freshness=="delayed"->"senast $date";watch.status==2->"laddar · $date";else->date}
+    val suffix=when{store.requestStatus()=="pending"->"uppdaterar"+(date?.let{" · $it"} ?: "");store.prefs.getString("error","").orEmpty().isNotBlank() && watch!=null->"senaste · $date";watch==null->"inväntar klocka";freshness=="stale"->"gammal · $date";freshness=="delayed"->"senast $date";watch.status==2->"laddar · $date";else->date}
     views.setTextViewText(R.id.phone_label,if(phone?.status==2)"Telefon · laddar" else if(compact)"Telefon" else "Galaxy S26 Ultra")
     views.setTextViewText(R.id.watch_label,(if(compact)"Klocka" else "Watch8 Classic")+" · "+suffix)
     views.setTextViewText(R.id.phone_percent,phone?.let{"${it.percent}%"} ?: "—")

@@ -44,7 +44,13 @@ class BatterySettingsActivity:Activity() {
   root.addView(text("Diagnostik",18f));root.addView(text("PostHog följer NexusHubs befintliga diagnostikval. Batteriprocent, laddningsstatus, mättid och slumpmässigt mät-ID ingår när diagnostik är på. Inga enhetsnamn, Bluetooth-adresser eller privata NexusHub-uppgifter skickas."))
   history=text("",12f);root.addView(history)
   button("Tillbaka"){finish()}
-  setContentView(ScrollView(this).apply{addView(root)})
+  val scroll=ScrollView(this).apply{addView(root)}
+  scroll.setOnApplyWindowInsetsListener { view,insets ->
+   val bars=if(Build.VERSION.SDK_INT>=30)insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout()) else null
+   if(bars!=null)view.setPadding(bars.left,bars.top,bars.right,bars.bottom)
+   insets
+  }
+  setContentView(scroll)
   BatterySync.refresh(this)
  }
  private fun update() {

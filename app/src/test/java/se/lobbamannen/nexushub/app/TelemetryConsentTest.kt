@@ -16,4 +16,12 @@ class TelemetryConsentTest {
         try{gate.change(true,1){_,_->false};fail("expected persistence failure")}catch(_:IllegalStateException){}
         assertFalse(gate.enabled);assertFalse(gate.allows(1))
     }
+    @Test fun delayedJournalNeverCrossesOffOnEpoch() {
+        val gate=TelemetryConsent(true,100)
+        assertTrue(gate.allowsProduced(100,110))
+        gate.change(false,120){_,_->true};gate.change(true,130){_,_->true}
+        assertFalse(gate.allowsProduced(100,110))
+        assertFalse(gate.allowsProduced(130,110))
+        assertTrue(gate.allowsProduced(130,140))
+    }
 }

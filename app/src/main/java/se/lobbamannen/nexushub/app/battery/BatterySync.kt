@@ -57,12 +57,13 @@ class BatterySyncWorker(c:Context,p:WorkerParameters):Worker(c,p) {
    if(manual) {
     BatterySync.configure(c)
     val chosen=nodes.firstOrNull{it.id==store.node()}
-    if(chosen==null){store.prefs.edit().putString("error",if(nodes.size>1)"Välj klocka i Batteriwidget." else "Ingen NexusHub-klockapp nåbar. Installera och öppna klockappen.").putLong("requestAt",0).apply();BatteryTelemetry.event("connection",outcome="unavailable")}
+    if(chosen==null){store.unavailable(if(nodes.size>1)"Välj klocka i Batteriwidget." else "Ingen NexusHub-klockapp nåbar. Installera och öppna klockappen.");BatteryTelemetry.event("connection",outcome="unavailable")}
     else {
-     store.prefs.edit().putLong("requestAt",System.currentTimeMillis()).putString("error","").commit()
-     Tasks.await(Wearable.getMessageClient(c).sendMessage(chosen.id,BatteryProtocol.REQUEST,JSONObject().put("v",1).toString().toByteArray(Charsets.UTF_8)),12,TimeUnit.SECONDS)
+     val requestId=store.beginRequest(chosen.id)
+     if(requestId.isBlank())return Result.success()
+     Tasks.await(Wearable.getMessageClient(c).sendMessage(chosen.id,BatteryProtocol.REQUEST,JSONObject().put("v",1).put("requestId",requestId).toString().toByteArray(Charsets.UTF_8)),12,TimeUnit.SECONDS)
      store.log("request","Ny mätning begärd från klockan");BatteryTelemetry.event("request",outcome="pending")
-     WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-timeout",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<BatteryTimeoutWorker>().setInitialDelay(65,TimeUnit.SECONDS).build())
+     WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-timeout",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<BatteryTimeoutWorker>().setInputData(workDataOf("requestId" to requestId)).setInitialDelay(65,TimeUnit.SECONDS).build())
     }
    }
    BatteryWidgetProvider.render(c);return Result.success()
@@ -70,7 +71,7 @@ class BatterySyncWorker(c:Context,p:WorkerParameters):Worker(c,p) {
  }
 }
 class BatteryTimeoutWorker(c:Context,p:WorkerParameters):Worker(c,p) {
- override fun doWork():Result {val store=BatteryStore(applicationContext);if(store.requestStatus()=="timeout"){store.prefs.edit().putString("error","Klockan har inte svarat ännu. Senaste mätningen visas.").putLong("requestAt",0).apply();store.log("timeout","Ingen ny mätning inom en minut");BatteryTelemetry.event("request",outcome="timeout");BatteryWidgetProvider.render(applicationContext)};return Result.success()}
+ override fun doWork():Result {val store=BatteryStore(applicationContext);if(store.timeout(inputData.getString("requestId").orEmpty())){store.log("timeout","Ingen ny mätning inom en minut");BatteryTelemetry.event("request",outcome="timeout");BatteryWidgetProvider.render(applicationContext)};return Result.success()}
 }
 class PhoneBatteryListener:WearableListenerService() {
  override fun onDataChanged(events:DataEventBuffer){for(event in events)if(event.type==DataEvent.TYPE_CHANGED)try{BatterySync.accept(this,event.dataItem)}catch(_:Exception){BatteryStore(this).log("failure","Mätningen kunde inte sparas")}}

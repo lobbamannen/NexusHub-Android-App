@@ -269,3 +269,15 @@ Denna README beskriver aktuell användning. [Gemensam inkorg](docs/shared-incomi
 
 ## Two Thumbs Incorporated™ – studiosignatur
 Startsidan avslutas efter Senaste med den av Robin levererade originalbilden i `public/two-thumbs-incorporated.jpg`. Den uppladdade filen hade PNG-namn men innehåller JPEG; den kopieras byteidentiskt utan omkodning, beskärning, filter eller ny grafik. Bilden följer kortens sidmarginaler, behåller 1536×560-proportionerna och har ingen extra kortyta/ram. Tryck öppnar en större dialog med förstoring, scroll och stängning via knapp, Escape eller Android Tillbaka. Hälsningens befintliga textsignatur finns kvar.
+
+## Two Thumbs Battery – telefon och Wear OS
+
+NexusHub har en native två­radswidget för telefonens och vald Wear OS-klockas batteri. Öppna Inställningar & system → GitHub & lokal lagring → Two Thumbs Battery. Samma widget kan läggas till via hemskärmen och Good Lock/LockStar; LockStar/AOD och faktisk bakgrundsleverans kräver test på enheterna. Svart, mörk genomskinlig och transparent bakgrund stöds. Klockraden visar verklig mättid och behålls även utan data.
+
+Modulen `:wear` bygger en minimal följeapp med samma installerade paketnamn och releasecertifikat som `:app`. Installera **nexus-hub-watch.apk på klockan**, öppna den och begär uppdatering från telefonen. Ingen Play Store-publicering eller automatisk klockinstallation ingår. Se [installationsguiden](docs/battery-widget-install.md). Actions bygger, testar och signerar båda APK:erna; release publiceras endast från main.
+
+Klockan läser var cirka 15/30/60 minuter (30 standard), telefonen uppdaterar cirka var 15:e minut; WorkManager och Data Layer kan fördröja arbetet. Manuella förfrågningar har eget request-ID och en timeout som inte kan nollställa en senare förfrågan. Native lagring bevarar senaste mätning över processdöd. DataClient transporterar senaste tillstånd; egen synk till Databas används inte. Vid flera klockor krävs uttryckligt val. Högst tio minuters framtida klockskillnad tolereras; större avvikelser avvisas.
+
+PostHog använder befintligt diagnostikval och EU-projekt 280222, `app=nexushub_android`, event `battery_flow`. Godkända fält: steg, utfall, slumpmässigt snapshot-ID, exakta procent, laddningsflagga och mättid. Nod-ID/namn/Bluetooth-adress stannar lokalt. Wear har ingen egen PostHog-SDK; begränsad lokal diagnostik vidarebefordras av telefonen inom aktuellt aktiveringsintervall och med beständig dubblettkontroll. Av/på-byte får inte återaktivera äldre journalposter. React-bryggan får inte skicka `battery_flow`.
+
+[Batteriflöde i PostHog](https://eu.posthog.com/project/280222/insights/yKz1xQtu) finns på NexusHubs befintliga dashboard. Vyn väntar på riktiga händelser efter installation; inga testhändelser har injicerats i produktionsdata. `widget_updated` bekräftar att Android accepterat RemoteViews, inte faktisk LockStar-visning.

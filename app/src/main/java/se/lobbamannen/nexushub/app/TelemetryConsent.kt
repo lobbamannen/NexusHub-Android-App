@@ -11,5 +11,6 @@ class TelemetryConsent(initial:Boolean=false,initialEpoch:Long=0L) {
         check(persist(value,nextEpoch)) {"Diagnostikvalet kunde inte sparas"}
         enabled=value;epoch=nextEpoch
     }
+    fun allowsProduced(generation:Long,producedAt:Long)=allows(generation) && producedAt>=generation
     fun allows(generation:Long)=enabled && epoch==generation
 }
