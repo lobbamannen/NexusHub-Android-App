@@ -1,4 +1,6 @@
-# NexusHub Android – implementationplan
+# NexusHub Android – historisk grundplan 2026-10-25
+
+**Historiskt underlag:** Detta dokument beskriver den första appversionens avgränsningar. Senare uttryckliga uppdrag har infört full lokal spegling, automatisk GitHub-hämtning, gemensam NexusHub inkorg, native kalender och schemalagd seriebevakning. Formuleringar nedan om inga bakgrundsjobb, ingen full spegling och publicering endast av ett nytt repo är inte aktuella regler för dessa senare uppdrag. Läs README.md och områdeskontrakten för dagens funktioner.
 
 Godkänd omfattning: Robins instruktioner i chatten 2026-10-25. Separat parallell app, originaldesign, befintliga GitHub-format och konfliktregler. Befintliga repositoryn och produktionsdata är skrivskyddade under utvecklingen.
 

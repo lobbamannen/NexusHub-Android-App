@@ -1,3 +1,15 @@
+# Aktuell verifieringsöversikt – 2026-10-27
+
+## Senaste appleveransen och dokumentationssynk
+
+- APK 1.0.47: [Actions 40540366871](https://github.com/lobbamannen/NexusHub-Android-App/actions/runs/40540366871) har slutförts med success. Versionsskyddad inkorg, flerval, synlig återförsökning, innehållshashar för dubbletter och bakåtkompatibelt namnbyte ingår. 105 releaseavgränsade Node-tester samt TypeScript, produktionsbygge och kontroll av 42 designoriginal passerade vid leveransen. De historiska gamla Site-testerna är inte därmed en helt grön fullsvit.
+- Databasens 19 då befintliga mottagningspaket flyttades till NexusHub inkorg. Dokument-/bild-/textoriginalens blob-SHA:n bevarades; metadata uppdaterades för de nya sökvägarna. Detta är en daterad migrationskontroll, inte aktuellt dokumentantal. Gamla Mottagningsinkorg/README.md är en vägvisare.
+- Daglig bevakning omkring 15.00 Europe/Stockholm har schemakontroller och native byggverifiering. Robin har tidigare visat en faktisk Gold Rush-notis på telefon och klocka samt fynd i appen. Det är inte i sig bevis för en senare specifik schemakörning kl. 15.
+- Flerval och den senaste inkorgens retry-/dubblettgränssnitt behöver fortfarande bekräftas i verklig användning på Samsung. Ingen visuell browserkontroll av de senaste startsidesändringarna har utförts efter miljöns säkerhetsblockering. Kodkontroller och renderer är inte fysisk användning.
+- Denna dokumentationssynk ändrar inga appfunktioner eller personliga register och kör inte om APK-bygget. Ursprungliga daterade resultat nedan bevaras som historik.
+
+---
+
 # Verifiering 2026-10-25
 
 ## Idéinkorg och ekonomirättningar – 2026-10-25
