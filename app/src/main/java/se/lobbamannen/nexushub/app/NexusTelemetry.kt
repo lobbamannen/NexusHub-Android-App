@@ -38,6 +38,7 @@ object NexusTelemetry {
     private fun setup() {
         if(ready || !configured())return
         val generation=epoch
+        val queuePath=File(context.cacheDir,"nexus-telemetry/$generation").absolutePath
         val config=PostHogAndroidConfig(BuildConfig.POSTHOG_PROJECT_TOKEN,BuildConfig.POSTHOG_HOST).apply {
             optOut=true;persistOptOut=false
             captureApplicationLifecycleEvents=false;captureScreenViews=false;captureDeepLinks=false
@@ -50,7 +51,7 @@ object NexusTelemetry {
             debug=false;flushAt=20;flushIntervalSeconds=30;maxQueueSize=200
             // An old SDK queue cannot send after opt-out or after a new consent epoch.
             networkStatus=object:PostHogNetworkStatus {override fun isConnected()=gate.allows(generation)}
-            storagePrefix=File(context.cacheDir,"nexus-telemetry/$generation").absolutePath
+            storagePrefix=queuePath
             addBeforeSend {event ->
                 if(!enabled || generation!=epoch)null else {
                     val safe=policy.sanitize(event.event,JSONObject(event.properties ?: emptyMap<String,Any>()))

@@ -15,3 +15,8 @@ Full-suite initial run189:179passed,10failed; extra failure replica-sync harness
 Task E: in progress: Nexus dashboard1058562 with six app-filtered insights; Cortex dashboard1058570 with package-filtered existing screen events. No synthetic phone telemetry sent. Final review agent inspecting whole change; publish after findings/checks.
 Final review: fresh reviewer completed whole-change inspection. No Critical issues. Important HTTP401/429 now persist current diagnostics and emit failure/auth or failure/rate_limit once. Important provider-match count now excludes services not selected for that individual series. Regression tests added (RED missing helpers → GREEN). Self-found malformed action metadata could throw after receipt; guarded classifier + failing-canary regression now green.
 Final verification: Node81/81 targeted; pure Kotlin/JUnit17/17; TypeScript and42 originaldesign checks pass; Vitebuild pass. Full old Site suite: baseline comparison pending; Android CI pending. Phone/live-provider verification not claimed.
+
+Baseline comparison verified: isolated unchanged upstream ran184tests,175passed/9failed. Exactly the same nine historical Site/environment failures; new replica harness failure resolved.
+Published source main5e9e3a2; Actions40461888905 / APK1.0.38 running. Dashboard saved and all six Nexus queries executed (empty until phone opt-in); Cortex package-filtered dashboard has real screen events.
+
+Android CI1.0.38: dependencyInsight verified PostHog3.72.10/core6.47.6/OkHttp4.12.1. Compile RED caught context receiver shadowing inside SDK.apply; fix calculates queue path before entering config. Rebuild required before APK claim.
