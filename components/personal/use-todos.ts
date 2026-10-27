@@ -9,16 +9,16 @@ export function useTodos(){
  const [snapshot,setSnapshot]=useState<Snapshot>({sha:null,data:{schemaVersion:1,items:[]}}),[dirty,setDirty]=useState(false),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[compose,setCompose]=useState<TaskDraft|null>(null);
  const current=useRef(snapshot),dirtyRef=useRef(false),busyRef=useRef(false),writes=useRef(Promise.resolve()),composeWrites=useRef(Promise.resolve()),generation=useRef(0);
  const assign=useCallback((next:Snapshot,isDirty:boolean)=>{current.current=next;dirtyRef.current=isDirty;setSnapshot(next);setDirty(isDirty);},[]);
- const reload=useCallback(async()=>{
+ const reload=useCallback(async(fresh=false)=>{
   if(dirtyRef.current||busyRef.current)return;
   const own=++generation.current;
-  try{const r=await fetch('/api/todos',{cache:'reload'}),d=await r.json();if(!r.ok)throw Error(d.error||'Listan kunde inte hämtas.');if(own===generation.current&&!dirtyRef.current&&!busyRef.current){assign(d,false);setReady(true);setError('');}}
+  try{const r=await fetch('/api/todos',{cache:fresh?'reload':'no-store'}),d=await r.json();if(!r.ok)throw Error(d.error||'Listan kunde inte hämtas.');if(own===generation.current&&!dirtyRef.current&&!busyRef.current){assign(d,false);setReady(true);setError('');}}
   catch(e:any){if(own===generation.current)setError(e.message);}
  },[assign]);
  useEffect(()=>{let active=true;void(async()=>{
   try{const [draft,savedCompose]=await Promise.all([durableGet<Snapshot>(KEY),durableGet<TaskDraft>(COMPOSE)]);if(!active)return;if(draft){assign(draft,true);setReady(true);}if(savedCompose)setCompose(savedCompose);if(!draft)await reload();}
   catch(e:any){if(active)setError('Lokala utkast kunde inte öppnas: '+e.message);}
- })();const refresh=(event:Event)=>{if((event as CustomEvent).detail?.view==='attgora')void reload();};const changed=()=>void reload();window.addEventListener('nexus-refresh-module',refresh);window.addEventListener('nexus-github-changed',changed);return()=>{active=false;generation.current++;window.removeEventListener('nexus-refresh-module',refresh);window.removeEventListener('nexus-github-changed',changed);};},[assign,reload]);
+ })();const refresh=(event:Event)=>{if((event as CustomEvent).detail?.view==='attgora')void reload(true);};const changed=()=>void reload();window.addEventListener('nexus-refresh-module',refresh);window.addEventListener('nexus-github-changed',changed);return()=>{active=false;generation.current++;window.removeEventListener('nexus-refresh-module',refresh);window.removeEventListener('nexus-github-changed',changed);};},[assign,reload]);
  const edit=(items:TodoItem[])=>{
   if(busyRef.current)return;
   generation.current++;const next={...current.current,data:{...current.current.data,items}};assign(next,true);setNotice('');

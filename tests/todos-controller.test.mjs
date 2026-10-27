@@ -17,7 +17,7 @@ let controller;
 function Probe(){controller=useTodos();return null;}
 async function mount(){
  harness.values.clear();harness.put=async()=>{};harness.reads=0;harness.posts=0;harness.fail=false;harness.sha='a'.repeat(40);harness.items=[];
- globalThis.fetch=async(_,opts={})=>{if(opts.method==='POST'){harness.posts++;const b=JSON.parse(opts.body);if(harness.fail||b.expectedSha!==harness.sha)return Response.json({error:'Konflikt'},{status:409});harness.items=b.data.items;harness.sha='b'.repeat(40);return Response.json({saved:true,sha:harness.sha,data:b.data});}harness.reads++;return Response.json({sha:harness.sha,data:{schemaVersion:1,items:harness.items}});};
+ globalThis.fetch=async(_,opts={})=>{if(opts.method==='POST'){harness.posts++;const b=JSON.parse(opts.body);if(harness.fail||b.expectedSha!==harness.sha)return Response.json({error:'Konflikt'},{status:409});harness.items=b.data.items;harness.sha='b'.repeat(40);return Response.json({saved:true,sha:harness.sha,data:b.data});}harness.reads++;harness.lastReadCache=opts.cache;return Response.json({sha:harness.sha,data:{schemaVersion:1,items:harness.items}});};
  let tree;await act(async()=>{tree=create(React.createElement(Probe));});return tree;
 }
 test('quick save locks before awaiting persistence; duplicate submit or editing cannot lose text',async()=>{
@@ -42,7 +42,7 @@ test('failed quick save retains draft and stable ID; retry preserves other edits
  await act(async()=>tree.unmount());
 });
 test('GitHub change reloads clean list but never replaces local draft',async()=>{
- const tree=await mount();harness.items=[{id:'22345678-1234-4234-8234-123456789abc',text:'From GitHub',done:false}];
+ const tree=await mount();assert.equal(harness.lastReadCache,'no-store','initial read keeps local-first API projection available');harness.items=[{id:'22345678-1234-4234-8234-123456789abc',text:'From GitHub',done:false}];
  await act(async()=>window.dispatchEvent(new Event('nexus-github-changed')));
  assert.equal(controller.snapshot.data.items[0]?.text,'From GitHub');
  await act(async()=>controller.edit([{...harness.items[0],text:'Local draft'}]));
