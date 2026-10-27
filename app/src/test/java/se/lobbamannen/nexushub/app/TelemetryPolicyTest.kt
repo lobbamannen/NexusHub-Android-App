@@ -17,7 +17,7 @@ class TelemetryPolicyTest {
         val policy=TelemetryPolicy(schema)
         for(name in schema.keys()) {
             val fields=schema.getJSONObject(name);val valid=JSONObject()
-            for(key in fields.keys()){val values=fields.get(key);valid.put(key,if(values=="boolean")true else fields.getJSONArray(key).getString(0))}
+            for(key in fields.keys()){val values=fields.get(key);valid.put(key,when(values){"boolean"->true;"uuid"->"12345678-1234-4234-9234-123456789abc";"timestamp"->System.currentTimeMillis();else->fields.getJSONArray(key).getString(0)})}
             assertNotNull(name,policy.sanitize(name,valid))
             for(key in fields.keys()){val bad=JSONObject(valid.toString()).put(key,"PRIVATE_CANARY");assertNull("$name/$key",policy.sanitize(name,bad))}
         }

@@ -1,1 +1,3 @@
-<resources><string name="app_name">Nexus Hub App</string></resources>
+<resources><string name="app_name">Nexus Hub App</string><string name="battery_widget_name">NexusHub · Two Thumbs Battery</string>
+<string name="battery_widget_description">Telefon och klocka i två rader. Tryck på klockraden för att uppdatera.</string>
+</resources>

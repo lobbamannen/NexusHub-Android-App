@@ -35,3 +35,10 @@ test('only confirmed writes derive safe domain events',()=>{
 test('malformed action metadata cannot turn a confirmed write into a failure',()=>{
  for(const input of [null,{edits:{}},{edits:[null]},42])assert.doesNotThrow(()=>confirmedActions('/api/media-register',{kind:'json',text:JSON.stringify(input)}));
 });
+test('battery telemetry accepts a generated trace and exact percentages but strips identifiers',()=>{
+ const p={stage:'phone_received',outcome:'success',snapshot_id:'12345678-1234-4234-9234-123456789abc',watch_percent:'36',phone_percent:'18',charging:false,measured_at:1793124000000,nodeId:'PRIVATE_CANARY',name:'PRIVATE_CANARY'};
+ const e=sanitizeEvent('battery_flow',p);assert(e);assert.equal(e.properties.watch_percent,'36');assert.equal(e.properties.snapshot_id,p.snapshot_id);assert(!JSON.stringify(e).includes('PRIVATE_CANARY'));
+ assert.equal(sanitizeEvent('battery_flow',{...p,snapshot_id:'PRIVATE_CANARY'}),null);
+ assert.equal(sanitizeEvent('battery_flow',{...p,watch_percent:'101'}),null);
+ assert.equal(sanitizeEvent('battery_flow',{...p,measured_at:'1793124000000'}),null);
+});

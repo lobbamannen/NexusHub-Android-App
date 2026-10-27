@@ -1,3 +1,4 @@
+import BatteryWidgetSettings from './BatteryWidgetSettings';
 import TelemetrySettings from './TelemetrySettings';
 import React, { useEffect, useState } from 'react';
 import { Database, KeyRound, RefreshCw, Save, ChevronDown, AlertCircle, Pause, CloudCheck } from 'lucide-react';
@@ -46,6 +47,7 @@ export default function AndroidSettings() {
   const size=(n:number)=>n<1048576?(n/1024).toFixed(0)+' kB':(n/1048576).toFixed(1)+' MB';
   return <details id="nh-android-settings" className="nh-settings-section nh-android-settings" open>
     <summary><Database size={22}/><span><strong>GitHub & lokal lagring</strong><small>Hämtning, anslutning och väntande sparningar.</small></span><ChevronDown size={18} className="nh-details-chevron"/></summary>
+    <BatteryWidgetSettings/>
     <TelemetrySettings/>
     <div className="panel settings-panel"><h2><Database size={18}/> Beständig lokal kopia</h2>
       <p>Hela Databas, inklusive Kunskap och bilder, samt ChatGPT-Plugin sparas på telefonen. Appen jämför filernas GitHub-hashar och hämtar bara nya eller ändrade filer. Första hämtningen kan ta en stund.</p>

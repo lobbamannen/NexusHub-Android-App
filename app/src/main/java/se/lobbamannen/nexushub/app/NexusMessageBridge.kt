@@ -42,7 +42,8 @@ class NexusMessageBridge(private val activity:Activity,private val web:WebView) 
                 when(method) {
                     "telemetry.getStatus" -> perform {NexusTelemetry.status()}
                     "telemetry.setEnabled" -> {require(p.opt("enabled") is Boolean);perform {NexusTelemetry.setEnabled(p.getBoolean("enabled"))}}
-                    "telemetry.capture" -> perform {JSONObject().put("accepted",NexusTelemetry.capture(p.getString("name"),p.getJSONObject("properties"),"react"))}
+                    "telemetry.capture" -> perform {require(p.optString("name")!="battery_flow");JSONObject().put("accepted",NexusTelemetry.capture(p.getString("name"),p.getJSONObject("properties"),"react"))}
+                    "battery.openSettings" -> {activity.startActivity(Intent(activity,se.lobbamannen.nexushub.app.battery.BatterySettingsActivity::class.java));done(JSONObject().put("opened",true))}
                     "calendar.getPermission" -> done(permission())
                     "calendar.requestPermission" -> { if(granted())done(permission()) else if(!permission().getBoolean("canRequest")) {activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+activity.packageName)));done(permission().put("settingsOpened",true))} else if(permissionReply!=null)fail("BUSY","En behörighetsfråga är redan öppen") else {permissionReply=::done;activity.getPreferences(0).edit().putBoolean("calendarAsked",true).apply();activity.requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR),4101)} }
                     "calendar.getSources" -> perform(true){JSONObject().put("sources",calendar.sources())}

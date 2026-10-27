@@ -62,6 +62,7 @@ object NexusTelemetry {
         PostHogAndroid.setup(context,config);PostHog.optIn();ready=true
     }
     private fun common(source:String):Map<String,Any> = mapOf("app" to "nexushub_android","platform" to "android","environment" to if(BuildConfig.DEBUG)"debug" else "production","source" to source,"app_version" to BuildConfig.VERSION_NAME.takeIf {it.matches(Regex("[0-9]+(?:\\.[0-9]+){1,3}"))}.orEmpty(),"android_api" to android.os.Build.VERSION.SDK_INT)
+    @Synchronized fun enabledSince():Long=if(enabled)epoch else Long.MAX_VALUE
     @Synchronized fun status()=JSONObject().put("supported",true).put("enabled",enabled).put("sdkReady",configured() && initialized && (!enabled || ready)).put("project","nexushub-android-eu")
     @Synchronized fun setEnabled(value:Boolean):JSONObject {
         check(initialized && configured()) {"Diagnostik saknar byggkonfiguration"}

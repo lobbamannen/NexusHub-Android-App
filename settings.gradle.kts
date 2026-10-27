@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "NexusHubApp"
-include(":app")
+include(":app", ":wear")

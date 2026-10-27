@@ -1,0 +1,22 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/battery_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="8dp" android:background="@drawable/battery_glass">
+ <LinearLayout android:id="@+id/phone_row" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical" android:paddingBottom="3dp">
+  <ImageView android:layout_width="18dp" android:layout_height="22dp" android:src="@drawable/battery_phone" android:contentDescription="@null"/>
+  <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:orientation="vertical">
+   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+    <TextView android:id="@+id/phone_label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Telefon" android:textColor="#EAE6DD" android:textSize="12sp" android:maxLines="1" android:ellipsize="end"/>
+    <TextView android:id="@+id/phone_percent" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:text="—" android:textSize="15sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+   </LinearLayout>
+   <ProgressBar android:id="@+id/phone_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="3dp" android:progressDrawable="@drawable/battery_progress" android:max="100"/>
+  </LinearLayout>
+ </LinearLayout>
+ <LinearLayout android:id="@+id/watch_row" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="3dp">
+  <ImageView android:layout_width="18dp" android:layout_height="22dp" android:src="@drawable/battery_watch" android:contentDescription="@null"/>
+  <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:orientation="vertical">
+   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+    <TextView android:id="@+id/watch_label" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Klocka · inväntar klocka" android:textColor="#EAE6DD" android:textSize="12sp" android:maxLines="1" android:ellipsize="end"/>
+    <TextView android:id="@+id/watch_percent" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp" android:text="—" android:textSize="15sp" android:textStyle="bold" android:textColor="#FFFFFF"/>
+   </LinearLayout>
+   <ProgressBar android:id="@+id/watch_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:layout_marginTop="3dp" android:progressDrawable="@drawable/battery_progress" android:max="100"/>
+  </LinearLayout>
+ </LinearLayout>
+</LinearLayout>

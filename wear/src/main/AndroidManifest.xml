@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ <uses-feature android:name="android.hardware.type.watch" android:required="true"/>
+ <uses-permission android:name="android.permission.INTERNET"/>
+ <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+ <application android:label="NexusHub Battery" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:usesCleartextTraffic="false">
+  <meta-data android:name="com.google.android.wearable.standalone" android:value="false"/>
+  <activity android:name=".BatteryActivity" android:exported="true">
+   <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+  </activity>
+  <service android:name=".BatteryListener" android:exported="true">
+   <intent-filter><action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED"/><action android:name="com.google.android.gms.wearable.DATA_CHANGED"/><data android:scheme="wear" android:host="*" android:pathPrefix="/nexushub/battery/v1/"/></intent-filter>
+  </service>
+  <receiver android:name=".BatteryBootReceiver" android:exported="true">
+   <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter>
+  </receiver>
+ </application>
+</manifest>

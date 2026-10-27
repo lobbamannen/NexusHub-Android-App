@@ -11,6 +11,8 @@ class TelemetryPolicy(private val schema:JSONObject) {
             if(!properties.has(key))continue
             val value=properties.get(key);val allowed=fields.get(key)
             if(allowed=="boolean") {if(value !is Boolean)return null}
+            else if(allowed=="uuid") {if(value !is String || !Regex("[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}").matches(value))return null}
+            else if(allowed=="timestamp") {if(value !is Number || value.toDouble()!=value.toLong().toDouble() || value.toLong() !in 1..(System.currentTimeMillis()+600000))return null}
             else {val choices=fields.getJSONArray(key);if(value !is String || (0 until choices.length()).none {choices.getString(it)==value})return null}
             clean[key]=value
         }

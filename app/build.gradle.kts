@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
+    sourceSets["main"].java.srcDir("../shared/src/main/java")
     namespace = "se.lobbamannen.nexushub.app"
     buildFeatures { buildConfig = true }
     compileSdk = 35
@@ -39,6 +40,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
     implementation("com.posthog:posthog-android:3.72.10")
     implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.1"))
     implementation("androidx.webkit:webkit:1.12.1")

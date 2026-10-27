@@ -1,7 +1,7 @@
 name: Build Nexus Hub App APK
 on:
   push:
-    branches: [main]
+    branches: [main, feat/watch-battery-widget]
   workflow_dispatch:
 permissions:
   contents: write
@@ -50,23 +50,28 @@ jobs:
           source .github/posthog.env
           set +a
           gradle --no-daemon -PskipWebBuild=true :app:dependencyInsight --dependency okhttp --configuration releaseRuntimeClasspath
-          gradle --no-daemon -PskipWebBuild=true :app:testDebugUnitTest :app:assembleRelease :app:lintRelease
+          gradle --no-daemon -PskipWebBuild=true :app:testDebugUnitTest :wear:testDebugUnitTest :app:assembleRelease :wear:assembleRelease :app:lintRelease :wear:lintRelease
       - name: Verify APK signature and prepare download
         run: |
           mkdir -p apk
           cp app/build/outputs/apk/release/app-release.apk apk/nexus-hub-app.apk
+          cp wear/build/outputs/apk/release/wear-release.apk apk/nexus-hub-watch.apk
+          cp docs/battery-widget-install.md apk/INSTALLATION.md
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs apk/nexus-hub-app.apk
-          sha256sum apk/nexus-hub-app.apk > apk/SHA256SUMS.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs apk/nexus-hub-watch.apk
+          python3 scripts/verify-battery-apks.py apk/nexus-hub-app.apk apk/nexus-hub-watch.apk
+          sha256sum apk/nexus-hub-app.apk apk/nexus-hub-watch.apk > apk/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: nexus-hub-app-apk
           path: apk/
           retention-days: 30
       - name: Publish installable APK
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "app-v1.0.${GITHUB_RUN_NUMBER}" apk/nexus-hub-app.apk apk/SHA256SUMS.txt --title "Nexus Hub App 1.0.${GITHUB_RUN_NUMBER}" --notes "Fristående Android-app med lokalt paketerat Nexus Hub-gränssnitt. Installera nexus-hub-app.apk. Senare versioner uppdaterar samma app och bevarar lokala inställningar och GitHub-token."
+          gh release create "app-v1.0.${GITHUB_RUN_NUMBER}" apk/nexus-hub-app.apk apk/nexus-hub-watch.apk apk/INSTALLATION.md apk/SHA256SUMS.txt --title "Nexus Hub App 1.0.${GITHUB_RUN_NUMBER}" --notes "Fristående Android-app med lokalt paketerat Nexus Hub-gränssnitt. Installera nexus-hub-app.apk. Senare versioner uppdaterar samma app och bevarar lokala inställningar och GitHub-token."
       - name: Remove runner signing material
         if: always()
         run: rm -rf "$RUNNER_TEMP/nexushub-signing"
