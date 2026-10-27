@@ -19,7 +19,7 @@ function loadTsx(url){
 }
 const {default:ModuleGrid}=await import(loadTsx(new URL('components/home/ModuleGrid.tsx',root)));
 globalThis.IS_REACT_ACT_ENVIRONMENT=true;
-const counts={ideas:5,ideasStale:false,files:4484,knowledgeFiles:1214,stories:28,plugins:21,films:251,series:154,watchlist:4,watchNew:1};
+const counts={incoming:3,ideas:5,ideasStale:false,files:4484,knowledgeFiles:1214,stories:28,plugins:21,films:251,series:154,watchlist:4,watchNew:1};
 async function mount(values=counts){let tree;const routes=[];await act(async()=>{tree=create(React.createElement(ModuleGrid,{counts:values,onNavigate:route=>routes.push(route)}));});return {tree,routes};}
 const text=node=>node.children.map(x=>typeof x==='string'?x:text(x)).join('');
 test('related routes form two full-width semantic groups with independent buttons',async()=>{
@@ -33,11 +33,11 @@ test('related routes form two full-width semantic groups with independent button
  for(const b of all)await act(async()=>b.props.onClick());
  assert.deepEqual(routes.slice(-13).sort(),['attgora','ideer','filmer','villse','bevakning','databas','filer','mottaget','berattelser','plugins','ekonomi','traning','kalender'].sort());
  assert.deepEqual(routes.slice(-13),['attgora','ideer','kalender','filmer','villse','bevakning','berattelser','plugins','ekonomi','traning','databas','filer','mottaget']);
- assert.match(text(all[5]),/Bevakning/);assert.match(text(all[12]),/Mottagning/);
+ assert.match(text(all[5]),/Bevakning/);assert.match(text(all[12]),/Mottagning/);assert.equal(tree.root.findByProps({className:'nh-incoming-badge'}).children.join(''),'3');
  await act(async()=>tree.unmount());
 });
 test('new indicators and unknown/stale counts remain honest',async()=>{
  const {tree}=await mount();assert.ok(tree.root.findAllByProps({'data-new':true}).length>=2);assert.match(text(tree.root),/5 nya idéer/);assert.match(text(tree.root),/1 nytt/);await act(async()=>tree.unmount());
- const next=await mount({...counts,ideas:null,watchNew:0});assert.match(text(next.tree.root),/Kunde inte verifiera antal/);assert.equal(next.tree.root.findAllByProps({'data-new':true}).length,0);await act(async()=>next.tree.unmount());
+ const next=await mount({...counts,incoming:0,ideas:null,watchNew:0});assert.equal(next.tree.root.findAllByProps({className:'nh-incoming-badge'}).length,0);assert.match(text(next.tree.root),/Kunde inte verifiera antal/);assert.equal(next.tree.root.findAllByProps({'data-new':true}).length,0);await act(async()=>next.tree.unmount());
  const stale=await mount({...counts,ideasStale:true});assert.match(text(stale.tree.root),/lokal vy/);await act(async()=>stale.tree.unmount());
 });

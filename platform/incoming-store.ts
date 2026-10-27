@@ -1,21 +1,24 @@
 import {durableGet,durableSet,durableEntries,durableDelete} from './local-store';
 import {base64} from '@/lib/github-inbox.mjs';
 export type IncomingFile={id:string;name:string;mime:string;blob?:Blob;error?:string};
-export type Incoming={id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string;commit?:string;processed?:boolean}>;error?:string};
+export type SharedReceipt={entries:{path:string;sha:string}[];manifestSha:string;commit:string};
+export type Incoming={id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string;commit?:string;processed?:boolean}>;error?:string;shared?:SharedReceipt;sharedError?:string;deleting?:boolean;localOnly?:boolean};
 const bridge=()=>window.Android as any;
 export async function incomingItems():Promise<Incoming[]>{
  const saved=new Map((await durableEntries<Incoming>('incoming:v1:')).map(([,item])=>[item.id,item]));
+ const removed=new Set((await durableEntries('incoming-removed:v1:')).map(([key])=>key.slice('incoming-removed:v1:'.length)));
  const native=JSON.parse(bridge()?.listIncoming?.()||'[]');
- for(const item of native)if(!saved.has(item.id))saved.set(item.id,{...item,native:true,sent:{}});
+ for(const item of native)if(!saved.has(item.id)&&!removed.has(item.id))saved.set(item.id,{...item,native:true,sent:{}});
  return [...saved.values()].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 }
 export async function saveIncoming(files:File[],text='',destinations?:string[]):Promise<Incoming>{
- const item:Incoming={id:crypto.randomUUID(),text,createdAt:new Date().toISOString(),files:files.map(file=>({id:crypto.randomUUID(),name:file.name,mime:file.type||'application/octet-stream',blob:file})),sent:{},...(destinations?{destinations:[...new Set(destinations)]}:{})};
+ const item:Incoming={id:crypto.randomUUID(),text,createdAt:new Date().toISOString(),files:files.map(file=>({id:crypto.randomUUID(),name:file.name,mime:file.type||'application/octet-stream',blob:file})),sent:{},localOnly:!!destinations?.length,...(destinations?{destinations:[...new Set(destinations)]}:{})};
  await durableSet('incoming:v1:'+item.id,item);window.dispatchEvent(new Event('nexus-incoming-changed'));return item;
 }
-export async function saveIncomingItem(item:Incoming){await durableSet('incoming:v1:'+item.id,item);window.dispatchEvent(new Event('nexus-incoming-changed'));}
+export async function saveIncomingItem(item:Incoming){const old=await durableGet<Incoming>('incoming:v1:'+item.id);await durableSet('incoming:v1:'+item.id,{...item,...(old?.shared&&!item.shared?{shared:old.shared}:{}),...(old?.deleting?{deleting:true}:{})});window.dispatchEvent(new Event('nexus-incoming-changed'));}
 const active=new Set<string>();
 export async function deliverIncoming(item:Incoming,targets:string[]){
+ if(item.deleting)throw Error('Posten väntar på radering.');
  if(active.has(item.id))throw Error('Överföringen pågår redan.');active.add(item.id);
  try{
   item.destinations=[...new Set([...(item.destinations||[]),...targets])];await saveIncomingItem(item);
@@ -26,7 +29,7 @@ export async function deliverIncoming(item:Incoming,targets:string[]){
    const key=target+':'+file.id;if(item.sent[key])continue;if(file.error)throw Error(file.error);
    let encoded:string;
    if(file.blob)encoded=base64(new Uint8Array(await file.blob.arrayBuffer()));
-   else{encoded=bridge()?.readIncomingFile?.(item.id,file.id);if(!encoded)throw Error('Den lokala filen kunde inte läsas.');}
+   else{encoded=await incomingFileBase64(item,file);}
    const response=await fetch('/api/incoming',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({receiptId:item.id,fileId:file.id,name:file.name,base64:encoded,target:target==='inbox'?'inbox':'idea',ideaId:target.startsWith('idea:')?target.slice(5):undefined})});
    const result=await response.json();if(!response.ok||!result.saved)throw Error(result.error||'GitHub bekräftade inte filen.');
    item.sent[key]={path:result.path,sha:result.sha,...(result.commit?{commit:result.commit}:{}),...(result.processed?{processed:true}:{})};await saveIncomingItem(item);
@@ -35,4 +38,66 @@ export async function deliverIncoming(item:Incoming,targets:string[]){
  }catch(error:any){item.error=error.message;await saveIncomingItem(item);throw error;}finally{active.delete(item.id);}
 }
 export function incomingComplete(item:Incoming){const ids=[...item.files.map(f=>f.id),...(item.text.trim()?[item.id]:[])];return !!item.destinations?.length&&ids.length>0&&item.destinations.every(t=>ids.every(id=>!!item.sent[t+':'+id]));}
-export async function removeIncoming(item:Incoming){if(!incomingComplete(item))throw Error('Alla valda destinationer måste vara verifierade innan originalet tas bort.');if(item.native&&bridge()?.removeIncoming?.(item.id)!==true)throw Error('Originalet kunde inte tas bort.');await durableDelete('incoming:v1:'+item.id);window.dispatchEvent(new Event('nexus-incoming-changed'));}
+// Sharing-intake sync is separate from explicit idea/register saves.
+export async function incomingFileBase64(item:Incoming,file:IncomingFile):Promise<string>{
+ if(file.error)throw Error(file.error);
+ if(file.blob)return base64(new Uint8Array(await file.blob.arrayBuffer()));
+ const native=bridge()?.readIncomingFile?.(item.id,file.id);if(native)return native;
+ throw Error('Den lokala filen kunde inte läsas. Originalet behålls.');
+}
+async function requestIncoming(method:string,body?:unknown,query=''){
+ const r=await fetch('/api/incoming'+query,{method,cache:'no-store',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})}),data=await r.json();
+ if(!r.ok)throw Error(data.error||'Mottagningssynken misslyckades.');return data;
+}
+async function forgetIncoming(item:Incoming){
+ // Mark first so an interrupted native cleanup cannot resurrect the original.
+ await durableSet('incoming-removed:v1:'+item.id,{removedAt:new Date().toISOString()});
+ if(item.native&&bridge()?.removeIncoming?.(item.id)!==true)throw Error('GitHub-kopian är borta men det lokala originalet kunde inte rensas. Försök igen.');
+ await durableDelete('incoming:v1:'+item.id);window.dispatchEvent(new Event('nexus-incoming-changed'));
+}
+let syncing:Promise<void>|null=null;
+export let incomingSyncError='';
+export const incomingSyncRunning=()=>syncing!==null;
+export function syncIncoming():Promise<void>{
+ if(syncing)return syncing;
+ syncing=(async()=>{
+  const remote=await requestIncoming('GET');if(!Array.isArray(remote.items))throw Error('Ofullständig mottagningslista.');
+  const local=await incomingItems(),remoteById=new Map<string,any>(remote.items.map((x:any)=>[x.metadata.id,x]));
+  for(const item of local){
+   if(active.has(item.id))continue;
+   const cloud=remoteById.get(item.id);
+   try{
+    if(item.deleting){
+     // Reconcile an upload with a lost reply before deleting an unacknowledged package.
+     if(!item.shared&&cloud){const verified=await mirrorIncoming(item);if('deleted' in verified){await forgetIncoming(item);continue;}item.shared=verified;}
+     const result=await requestIncoming('DELETE',{id:item.id,expected:item.shared?.entries||[]});if(!result.deleted)throw Error('GitHub bekräftade inte raderingen.');await forgetIncoming(item);continue;
+    }
+    if(item.shared&&!cloud){await forgetIncoming(item);continue;}
+    if(item.shared&&cloud?.manifestSha!==item.shared.manifestSha){throw Error('Mottagningsposten har ändrats i GitHub. Originalet behålls lokalt.');}
+    // Files selected in the idea editor remain local until its explicit Save.
+    if(item.localOnly??!!item.destinations?.length)continue;
+    if(!item.shared){const result=await mirrorIncoming(item);if('deleted' in result){await forgetIncoming(item);continue;}const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.shared=result;latest.sharedError='';await saveIncomingItem(latest);}
+    else if(item.sharedError){item.sharedError='';await saveIncomingItem(item);}
+   }catch(e:any){const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.sharedError=e.message;await saveIncomingItem(latest);}
+  }
+  const known=new Set(local.map(x=>x.id)),removed=new Set((await durableEntries('incoming-removed:v1:')).map(([key])=>key.slice('incoming-removed:v1:'.length)));
+  for(const cloud of remote.items){const m=cloud.metadata;if(known.has(m.id)||removed.has(m.id))continue;
+   const files:IncomingFile[]=[];for(const f of m.files){const data=await requestIncoming('GET',undefined,'?id='+encodeURIComponent(m.id)+'&fileId='+encodeURIComponent(f.id));if(data.sha!==f.sha)throw Error('Mottagningsfilen ändrades under hämtningen.');files.push({id:f.id,name:f.name,mime:f.mime,blob:new Blob([Uint8Array.from(atob(data.base64),c=>c.charCodeAt(0))],{type:f.mime})});}
+   await saveIncomingItem({id:m.id,text:m.text,createdAt:m.createdAt,files,sent:{},shared:receipt(cloud)});
+  }
+  incomingSyncError='';
+ })().catch((e:any)=>{incomingSyncError=e.message;}).finally(()=>{syncing=null;window.dispatchEvent(new Event('nexus-incoming-synced'));});return syncing;
+}
+const receipt=(cloud:any):SharedReceipt=>({entries:cloud.entries,manifestSha:cloud.manifestSha,commit:cloud.commit});
+async function mirrorIncoming(item:Incoming){
+ const files=[];for(const file of item.files)files.push({id:file.id,name:file.name,mime:file.mime,base64:await incomingFileBase64(item,file)});
+ const result=await requestIncoming('POST',{operation:'mirror',item:{id:item.id,text:item.text,createdAt:item.createdAt,files}});
+ if(result.deleted)return {deleted:true} as const;if(!result.saved)throw Error('GitHub-kopian kunde inte verifieras.');return receipt(result);
+}
+export async function removeIncoming(item:Incoming){
+ if(active.has(item.id))throw Error('Vänta tills överföringen är klar innan du raderar.');
+ if(syncing)await syncing;
+ if(active.has(item.id))throw Error('Vänta tills överföringen är klar innan du raderar.');
+ const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.deleting=true;latest.sharedError='';await saveIncomingItem(latest);
+ await syncIncoming();
+}

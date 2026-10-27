@@ -1,3 +1,5 @@
+import {incomingItems} from '@/platform/incoming-store';
+import {incomingDocumentCount} from '@/lib/shared-incoming.mjs';
 import {WatchHomeNotice} from '@/components/watch/ReleaseWatch';
 import {useWatchState} from '@/components/watch/use-watch-state';
 import './grouped-home.css';
@@ -5,7 +7,7 @@ import './grouped-home.css';
 import DailyActivity from './DailyActivity';
 import { mediaFetch } from '@/lib/media-client';
 import React, { useEffect, useState } from 'react';
-import DatabaseStats from './DatabaseStats';
+import HomeSyncStatus from './HomeSyncStatus';
 import ModuleGrid from './ModuleGrid';
 import RecentActivity from './RecentActivity';
 import { usePosterRevision } from '@/components/repository-poster';
@@ -27,6 +29,8 @@ type Props = {
     onOpenFile: (item: any) => void;
 };
 export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, catalog, pluginRepo, stories, recentFiles, commits, onNavigate, onOpenMedia, onOpenStory, onOpenFile }: Props) {
+    const [incomingCount,setIncomingCount]=useState<number|null>(null);
+    useEffect(()=>{let active=true;const update=()=>{void incomingItems().then(items=>{if(active)setIncomingCount(incomingDocumentCount(items));}).catch(()=>{});};update();window.addEventListener('nexus-incoming-changed',update);window.addEventListener('nexus-incoming-synced',update);return()=>{active=false;window.removeEventListener('nexus-incoming-changed',update);window.removeEventListener('nexus-incoming-synced',update);};},[]);
     const {state:watchState}=useWatchState();
     const [posterRevision, refreshPosters] = usePosterRevision();
     const [now, setNow] = useState<Date | null>(null);
@@ -78,6 +82,7 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
     // Same document scope as the Knowledge Bank overview.
     const knowledgeFiles = catalog ? catalog.documents.filter((d: any) => d.module === 'databas' && !d.technical && !d.asset).length : null;
     const counts = {
+        incoming:incomingCount,
         watchNew:watchState.events.filter(event=>!event.readAt&&event.availability==='confirmed_available').length,
         ideas: ideaCount,
         ideasStale,
@@ -90,10 +95,9 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
         watchlist: filmsLoaded && seriesLoaded ? films.filter(f => f.status === "Vill se").length + series.filter(s => seriesIsWatchlisted(s)).length : null
     };
     return <div className="nh-home">
-  <header className="nh-home-welcome"><div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div><p className="nh-home-signature"><strong>Two Thumbs</strong>{' '}<span>Incorporated<sup>™</sup></span></p></header>
+  <header className="nh-home-welcome"><HomeSyncStatus files={counts.files} onNavigate={onNavigate}/><div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div><p className="nh-home-signature"><strong>Two Thumbs</strong>{' '}<span>Incorporated<sup>™</sup></span></p></header>
   <DailyActivity now={now} revision={catalog?.commit} ideaEntries={ideaEntries} ideasStale={ideasStale} onNavigate={onNavigate}/>
   <WatchHomeNotice onNavigate={onNavigate} state={watchState}/>
-  <DatabaseStats now={now} counts={counts} checkedAt={catalog?.fetchedAt} onNavigate={onNavigate} loading={!catalog}/>
   <ModuleGrid counts={counts} onNavigate={onNavigate}/>
   <RecentActivity additions={additions} loading={mediaLoading} error={mediaError} onRetry={() => setRetry(n => n + 1)} posterRevision={posterRevision} films={films} series={series} stories={stories} files={recentFiles} plugins={plugins} commits={commits} onNavigate={onNavigate} onOpenMedia={onOpenMedia} onOpenStory={onOpenStory} onOpenFile={onOpenFile}/>
  </div>;

@@ -1,3 +1,4 @@
+import {startIncomingSync} from '@/platform/incoming-sync';
 import {startTelemetry} from '@/platform/telemetry';
 import {startWatchSync} from '@/platform/watch-sync';
 import '@/app/globals.css';
@@ -26,6 +27,7 @@ async function start() {
   createRoot(document.getElementById('root')!).render(<App/>);
   startReplicaSync();
   startWatchSync();
+  startIncomingSync();
 
 }
 void start().catch(error=>{

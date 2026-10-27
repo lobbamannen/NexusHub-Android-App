@@ -5,7 +5,7 @@ import {CalendarGlyph} from '@/components/calendar/CalendarGlyph';
 import MaterialIcon,{type MaterialTone} from '@/components/MaterialIcon';
 import {BookOpen,Clapperboard,Database,FolderOpen,Bookmark,Puzzle,Dumbbell,Coins,ChevronRight,Bell} from 'lucide-react';
 
-type Counts={ideas:number|null;ideasStale:boolean;files:number|null;knowledgeFiles:number|null;stories:number|null;plugins:number|null;films:number|null;series:number|null;watchlist:number|null;watchNew?:number};
+type Counts={incoming?:number|null;ideas:number|null;ideasStale:boolean;files:number|null;knowledgeFiles:number|null;stories:number|null;plugins:number|null;films:number|null;series:number|null;watchlist:number|null;watchNew?:number};
 type Props={counts:Counts;onNavigate:(view:string)=>void};
 type Card={id:string;title:string;icon:React.ElementType;tone:MaterialTone;art:string};
 const cards:Record<string,Card>={
@@ -44,7 +44,7 @@ export default function ModuleGrid({counts,onNavigate}:Props){
  const group=(id:string,children:string[])=>{const card=cards[id];return <article className={'nh-module-card nh-module-group nh-tone-'+card.tone+' nh-art-'+card.art} aria-label={card.title}>
   <button type="button" className="nh-module-main" onClick={()=>onNavigate(id)}>{content(card)}</button>
   <div className="nh-module-shortcuts">{children.map(child=>{const item=cards[child],Icon=item.icon,unread=child==='bevakning'?(counts.watchNew||0):0;return <button type="button" className="nh-module-shortcut" key={child} data-new={unread>0||undefined} onClick={()=>onNavigate(child)}>
-   <MaterialIcon size={24} tone={item.tone}><Icon size={17}/></MaterialIcon><span className="nh-shortcut-copy"><strong>{child==='mottaget'?'Mottagning':child==='bevakning'?'Bevakning':item.title}</strong>{unread>0?<small className="nh-shortcut-badge">{formatted(unread)} {unread===1?'nytt':'nya'}</small>:details[child]?<small>{details[child]}</small>:null}</span><ChevronRight size={14} aria-hidden="true"/>
+   <span className="nh-shortcut-symbol"><MaterialIcon size={24} tone={item.tone}><Icon size={17}/></MaterialIcon>{child==='mottaget'&&!!counts.incoming&&<span className="nh-incoming-badge" aria-label={counts.incoming+' dokument i mottagningsinkorgen'}>{formatted(counts.incoming)}</span>}</span><span className="nh-shortcut-copy"><strong>{child==='mottaget'?'Mottagning':child==='bevakning'?'Bevakning':item.title}</strong>{unread>0?<small className="nh-shortcut-badge">{formatted(unread)} {unread===1?'nytt':'nya'}</small>:details[child]?<small>{details[child]}</small>:null}</span><ChevronRight size={14} aria-hidden="true"/>
   </button>;})}</div>
  </article>;};
  return <section className="nh-modules" aria-label="Utforska Nexus Hub"><div className="nh-module-grid">
