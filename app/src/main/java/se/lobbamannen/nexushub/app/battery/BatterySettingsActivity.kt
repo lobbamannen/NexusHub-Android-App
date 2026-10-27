@@ -46,8 +46,10 @@ class BatterySettingsActivity:Activity() {
   button("Tillbaka"){finish()}
   val scroll=ScrollView(this).apply{addView(root)}
   scroll.setOnApplyWindowInsetsListener { view,insets ->
-   val bars=if(Build.VERSION.SDK_INT>=30)insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout()) else null
-   if(bars!=null)view.setPadding(bars.left,bars.top,bars.right,bars.bottom)
+   if(Build.VERSION.SDK_INT>=30){
+    val bars=insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
+    view.setPadding(bars.left,bars.top,bars.right,bars.bottom)
+   }
    insets
   }
   setContentView(scroll)

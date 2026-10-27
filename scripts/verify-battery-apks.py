@@ -12,4 +12,5 @@ def inspect(path):
  return digest.group(1)
 a,b=map(inspect,sys.argv[1:3])
 if a!=b:raise RuntimeError('Phone and watch certificates do not match')
+if len(sys.argv)>3 and a!=inspect(sys.argv[3]):raise RuntimeError('Release certificate differs from previously published phone APK')
 print('Verified phone/watch package and matching SHA-256 signing certificate:',a)
