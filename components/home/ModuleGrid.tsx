@@ -44,13 +44,14 @@ export default function ModuleGrid({counts,onNavigate}:Props){
  const group=(id:string,children:string[])=>{const card=cards[id];return <article className={'nh-module-card nh-module-group nh-tone-'+card.tone+' nh-art-'+card.art} aria-label={card.title}>
   <button type="button" className="nh-module-main" onClick={()=>onNavigate(id)}>{content(card)}</button>
   <div className="nh-module-shortcuts">{children.map(child=>{const item=cards[child],Icon=item.icon,unread=child==='bevakning'?(counts.watchNew||0):0;return <button type="button" className="nh-module-shortcut" key={child} data-new={unread>0||undefined} onClick={()=>onNavigate(child)}>
-   <MaterialIcon size={24} tone={item.tone}><Icon size={17}/></MaterialIcon><span className="nh-shortcut-copy"><strong>{child==='mottaget'?<>Mottagnings<wbr/>inkorg</>:child==='bevakning'?<>Serie<wbr/>bevakning</>:item.title}</strong>{unread>0?<small className="nh-shortcut-badge">{formatted(unread)} {unread===1?'nytt':'nya'}</small>:details[child]?<small>{details[child]}</small>:null}</span><ChevronRight size={14} aria-hidden="true"/>
+   <MaterialIcon size={24} tone={item.tone}><Icon size={17}/></MaterialIcon><span className="nh-shortcut-copy"><strong>{child==='mottaget'?'Mottagning':child==='bevakning'?'Bevakning':item.title}</strong>{unread>0?<small className="nh-shortcut-badge">{formatted(unread)} {unread===1?'nytt':'nya'}</small>:details[child]?<small>{details[child]}</small>:null}</span><ChevronRight size={14} aria-hidden="true"/>
   </button>;})}</div>
  </article>;};
  return <section className="nh-modules" aria-label="Utforska Nexus Hub"><div className="nh-module-grid">
   {standalone('attgora',true)}{standalone('ideer',true)}
-  {group('filmer',['villse','bevakning'])}{group('databas',['filer','mottaget'])}
-  {['berattelser','plugins','ekonomi','traning'].map(id=>standalone(id))}
   {standalone('kalender',true)}
+  {group('filmer',['villse','bevakning'])}
+  {['berattelser','plugins','ekonomi','traning'].map(id=>standalone(id))}
+  {group('databas',['filer','mottaget'])}
  </div></section>;
 }

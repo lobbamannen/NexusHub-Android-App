@@ -32,7 +32,8 @@ test('related routes form two full-width semantic groups with independent button
  const all=tree.root.findAllByType('button');assert.equal(all.length,13);
  for(const b of all)await act(async()=>b.props.onClick());
  assert.deepEqual(routes.slice(-13).sort(),['attgora','ideer','filmer','villse','bevakning','databas','filer','mottaget','berattelser','plugins','ekonomi','traning','kalender'].sort());
- assert.match(text(all[0]),/Att göra/);assert.match(text(all[1]),/Idéinkorg/);
+ assert.deepEqual(routes.slice(-13),['attgora','ideer','kalender','filmer','villse','bevakning','berattelser','plugins','ekonomi','traning','databas','filer','mottaget']);
+ assert.match(text(all[5]),/Bevakning/);assert.match(text(all[12]),/Mottagning/);
  await act(async()=>tree.unmount());
 });
 test('new indicators and unknown/stale counts remain honest',async()=>{
