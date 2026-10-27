@@ -34,3 +34,14 @@ test('a remote content hash is detected even before its package is downloaded to
  globalThis.fetch=async()=>Response.json({items:[{metadata:{files:[{sha}]}}]});
  const result=await m.intakeIncomingFiles([new File(['remote'],'new-name.pdf')]);assert.equal(result.added.length,0);assert.deepEqual(result.duplicates,['new-name.pdf']);
 });
+test('an already committed own package reconciles even when another identical document exists',async()=>{
+ const {m}=await setup();const item=await m.saveIncoming([new File(['same'],'report.md')]);let posts=0;
+ globalThis.fetch=async(_,init)=>{if(init.method==='GET')return Response.json({items:[{...shared,metadata:{id:item.id,files:[]}},{metadata:{id:'other',files:[{sha:item.files[0].sha}]}}]});posts++;return Response.json({saved:true,...shared});};
+ await m.syncIncoming();assert.equal(posts,1);assert.ok((await m.incomingItems())[0].shared);assert.equal((await m.incomingItems())[0].sharedError,'');
+});
+test('a folder rename rebases only an exactly proven old receipt, without re-upload or local removal',async()=>{
+ const {m}=await setup();const item=await m.saveIncoming([new File(['x'],'report.md')]);item.shared=shared;await m.saveIncomingItem(item);
+ const renamed={entries:[{path:'NexusHub inkorg/test/metadata.json',sha:'c'.repeat(40)}],manifestSha:'c'.repeat(40),commit:'d'.repeat(40)};let writes=0;
+ globalThis.fetch=async(_,init)=>{if(init.method==='GET')return Response.json({items:[{...renamed,legacyManifestSha:shared.manifestSha,legacyEntries:shared.entries,metadata:{id:item.id,files:[]}}]});writes++;throw Error('must not write');};
+ await m.syncIncoming();assert.equal(writes,0);assert.equal((await m.incomingItems())[0].shared.manifestSha,renamed.manifestSha);assert.equal((await m.incomingItems()).length,1);
+});

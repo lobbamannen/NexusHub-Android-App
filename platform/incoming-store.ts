@@ -83,7 +83,7 @@ export function syncIncoming():Promise<void>{
     if(item.localOnly??!!item.destinations?.length)continue;
     if(!item.shared){
      const duplicates=item.files.filter(f=>f.sha&&remote.items.some((r:any)=>r.metadata.id!==item.id&&r.metadata.files.some((x:any)=>x.sha===f.sha)));
-     if(duplicates.length)throw Error('Identiskt dokument finns redan i NexusHub inkorg: '+duplicates.map(f=>f.name).join(', ')+'. Originalet finns kvar lokalt; ingen extra GitHub-kopia skapades.');
+     if(!cloud&&duplicates.length)throw Error('Identiskt dokument finns redan i NexusHub inkorg: '+duplicates.map(f=>f.name).join(', ')+'. Originalet finns kvar lokalt; ingen extra GitHub-kopia skapades.');
      const result=await mirrorIncoming(item);if('deleted' in result){await forgetIncoming(item);continue;}const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.shared=result;latest.sharedError='';await saveIncomingItem(latest);}
     else if(item.sharedError){item.sharedError='';await saveIncomingItem(item);}
    }catch(e:any){const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.sharedError=e.message;await saveIncomingItem(latest);}
