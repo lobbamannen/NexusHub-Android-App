@@ -10,3 +10,5 @@ Robin authorized one automatic check per day at 15:00, with manual check retaine
 Android may delay a scheduled worker for connectivity/battery restrictions. No exact-alarm permission or extra backend.
 
 Review: fresh reviewer checked DST, unique work, duplicate guard and trigger paths. Removed the remaining old six-hour UI sentence. Ruling: one scheduled daily logical check may resume pagination or retry a transient failure; it is not a single HTTP-attempt limit. Manual check is explicit. Both share900/month budget.
+
+Delivery: APK1.0.42 / Actions40505864331 succeeded, including all native schedule tests, Android release build, lint and signing. Shared GitHub settings now store interval24 and dailyCheckTime15:00 with all provider and notification choices preserved. No physical15.00 execution is claimed before a phone has run it.

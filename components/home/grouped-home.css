@@ -1,0 +1,26 @@
+/* Grouping adapter only: preserve the original NexusHub materials and glyphs. */
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-group{grid-column:1/-1;gap:14px;min-height:0}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-main{position:relative;isolation:isolate;display:grid;grid-template-columns:48px minmax(0,1fr) 18px;align-items:center;gap:16px;width:100%;min-height:64px;padding:0;border:0;border-radius:10px;background:none;box-shadow:none;color:inherit;text-align:left}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-main .nh-module-copy strong{font-size:20px}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-main .nh-module-chevron{position:static;transform:none}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-main .nh-module-decoration{right:24px;bottom:-30px;opacity:.045;z-index:-1}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-shortcuts{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;min-width:0}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-shortcut{display:grid;grid-template-columns:24px minmax(0,1fr) 14px;align-items:center;gap:10px;min-width:0;min-height:62px;padding:12px;border-radius:13px;border:1px solid #ffffff13;background:linear-gradient(150deg,#111014,#0b0b0e 75%);box-shadow:inset 0 1px 0 #ffffff06;color:#f4f4f5;text-align:left;isolation:isolate}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-shortcut:hover{border-color:#a78bfa55}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-shortcut-copy{display:flex;flex-direction:column;gap:4px;min-width:0;white-space:normal}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-shortcut-copy strong{font-size:14px;font-weight:650;line-height:1.4;overflow-wrap:anywhere}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-shortcut-copy small{font-size:11px;line-height:1.4;color:#a78bfa;overflow-wrap:anywhere}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-shortcut-copy .nh-shortcut-badge{color:#8fcbff}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-shortcut>svg{color:#8f879d}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-calendar{grid-column:1/-1}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact[data-new=true] .nh-module-copy strong::after{content:"";display:inline-block;vertical-align:middle;width:5px;height:5px;margin-left:7px;border-radius:50%;background:#efb56f;box-shadow:0 0 7px #efb56f55}
+.portal-shell.nh-chroma-site.nh-locked-home :is(.nh-module-main,.nh-module-shortcut):focus-visible{outline:2px solid #c084fc;outline-offset:3px}
+@media(max-width:600px){
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-group{gap:12px;padding:14px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-main{grid-template-columns:36px minmax(0,1fr) 16px;gap:13px;min-height:52px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-main .nh-module-copy strong{font-size:18px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-shortcuts{gap:8px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-shortcut{gap:8px;padding:10px;grid-template-columns:24px minmax(0,1fr) 12px;min-height:64px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-shortcut-copy strong{font-size:12px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-shortcut-copy small{font-size:10px}
+}

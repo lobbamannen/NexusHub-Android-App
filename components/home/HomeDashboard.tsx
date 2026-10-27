@@ -1,4 +1,6 @@
 import {WatchHomeNotice} from '@/components/watch/ReleaseWatch';
+import {useWatchState} from '@/components/watch/use-watch-state';
+import './grouped-home.css';
 'use client';
 import DailyActivity from './DailyActivity';
 import { mediaFetch } from '@/lib/media-client';
@@ -25,6 +27,7 @@ type Props = {
     onOpenFile: (item: any) => void;
 };
 export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, catalog, pluginRepo, stories, recentFiles, commits, onNavigate, onOpenMedia, onOpenStory, onOpenFile }: Props) {
+    const {state:watchState}=useWatchState();
     const [posterRevision, refreshPosters] = usePosterRevision();
     const [now, setNow] = useState<Date | null>(null);
     useEffect(() => {
@@ -75,6 +78,7 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
     // Same document scope as the Knowledge Bank overview.
     const knowledgeFiles = catalog ? catalog.documents.filter((d: any) => d.module === 'databas' && !d.technical && !d.asset).length : null;
     const counts = {
+        watchNew:watchState.events.filter(event=>!event.readAt&&event.availability==='confirmed_available').length,
         ideas: ideaCount,
         ideasStale,
         files: typeof catalog?.fileCount === 'number' ? catalog.fileCount : null,
@@ -88,7 +92,7 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
     return <div className="nh-home">
   <header className="nh-home-welcome"><div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div><p className="nh-home-signature"><strong>Two Thumbs</strong>{' '}<span>Incorporated<sup>™</sup></span></p></header>
   <DailyActivity now={now} revision={catalog?.commit} ideaEntries={ideaEntries} ideasStale={ideasStale} onNavigate={onNavigate}/>
-  <WatchHomeNotice onNavigate={onNavigate}/>
+  <WatchHomeNotice onNavigate={onNavigate} state={watchState}/>
   <DatabaseStats now={now} counts={counts} checkedAt={catalog?.fetchedAt} onNavigate={onNavigate} loading={!catalog}/>
   <ModuleGrid counts={counts} onNavigate={onNavigate}/>
   <RecentActivity additions={additions} loading={mediaLoading} error={mediaError} onRetry={() => setRetry(n => n + 1)} posterRevision={posterRevision} films={films} series={series} stories={stories} files={recentFiles} plugins={plugins} commits={commits} onNavigate={onNavigate} onOpenMedia={onOpenMedia} onOpenStory={onOpenStory} onOpenFile={onOpenFile}/>
