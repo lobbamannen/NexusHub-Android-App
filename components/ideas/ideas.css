@@ -23,3 +23,17 @@
 @media(max-width:600px){.nh-idea-editor>.nh-idea-attachments{padding:10px 14px}}
 
 .nh-idea-attachments-content{max-height:min(25dvh,220px);overflow:auto;overscroll-behavior:contain}
+
+/* Primary views stay simple; history is a secondary action. */
+.nh-idea-sections{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.nh-idea-sections .nh-idea-filters{padding-bottom:3px}
+.nh-idea-archive-toggle{min-height:44px;display:inline-flex;align-items:center;gap:7px}
+.nh-idea-archive-toggle[aria-pressed=true]{color:#cda8ef}
+.nh-idea-history{display:grid;gap:14px;min-width:0}
+.nh-idea-history>.secondary{justify-self:start}
+.nh-archived-idea summary{cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:9px;min-height:44px;list-style:revert}
+.nh-archive-preview{flex-basis:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;color:#a1a1aa;line-height:1.6}
+.nh-archived-idea[open] .nh-archive-preview{display:none}
+.nh-archive-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;user-select:text;margin:14px 0}
+.nh-task-editor .modal-heading h2{gap:12px}
+.nh-task-editor .nh-idea-editor-body{padding-top:6px}

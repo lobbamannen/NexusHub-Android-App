@@ -1,0 +1,25 @@
+/* Approved compact layout adapter (ideas 19–22).
+   Material definitions, fonts, colors and original locked assets stay intact. */
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-card{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;min-height:144px;gap:12px;padding:18px;border-radius:20px}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-copy{display:flex;flex-direction:column;grid-template-rows:none;gap:6px;width:100%;min-width:0}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-copy strong{font-size:18px;line-height:1.3;overflow-wrap:anywhere;white-space:normal}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-copy .nh-module-count{font-size:12px;line-height:1.45;max-width:none;padding:0}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-chevron{position:absolute;top:16px;right:12px;width:17px}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-material-icon.nh-module-symbol{--material-size:48px;--material-scale:1.26316;--material-glow-size:103px;--material-blur:10px;width:48px;height:48px}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact{display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;min-height:86px;gap:12px;padding:16px 24px 16px 16px}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact .nh-module-copy strong{font-size:15px;letter-spacing:-.3px}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact .nh-material-icon.nh-module-symbol{--material-size:34px;--material-scale:.89474;--material-glow-size:73px;--material-blur:7px;width:34px;height:34px}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact .nh-module-decoration{opacity:.035}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact .nh-module-chevron{top:50%;transform:translateY(-50%);right:7px;width:14px}
+@media(max-width:600px){
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-card{min-height:120px;gap:9px;padding:13px;border-radius:15px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-copy strong{font-size:15px;line-height:1.3}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-copy .nh-module-count{font-size:11px;line-height:1.45}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-material-icon.nh-module-symbol{--material-size:36px;--material-scale:.94737;--material-glow-size:77px;--material-blur:7.5px;width:36px;height:36px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact{min-height:82px;grid-template-columns:30px minmax(0,1fr);gap:9px;padding:12px 19px 12px 11px}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact .nh-module-copy strong{font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+ .portal-shell.nh-chroma-site.nh-locked-home .nh-module-compact .nh-material-icon.nh-module-symbol{--material-size:30px;--material-scale:.78947;--material-glow-size:64px;--material-blur:6px;width:30px;height:30px}
+}
+.nh-todo-content{min-width:0}
+.portal-shell .nh-todo-idea-link{display:inline-flex;min-height:36px;font-size:12px;margin-top:4px}

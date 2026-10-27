@@ -40,11 +40,11 @@ export default function ModuleGrid({ counts, onNavigate }: Props) {
     const films = formatted(counts.films), series = formatted(counts.series), stories = formatted(counts.stories), plugins = formatted(counts.plugins), watchlist = formatted(counts.watchlist), knowledgeFiles = formatted(counts.knowledgeFiles), files = formatted(counts.files);
     const details: Record<string, string | null> = { ideer: counts.ideas === null ? 'Kunde inte verifiera antal' : counts.ideas.toLocaleString('sv-SE') + ' nya idéer' + (counts.ideasStale ? ' · lokal vy' : ''), filmer: films !== null && series !== null ? films + ' filmer · ' + series + ' serier' : null, berattelser: stories !== null ? stories + ' berättelser' : null, databas: knowledgeFiles !== null ? knowledgeFiles + ' dokument' : null, filer: files !== null ? files + ' filer' : null, plugins: plugins !== null ? plugins + ' pluginpaket' : null, villse: watchlist !== null ? watchlist + ' objekt' : null };
     return <section className="nh-modules" aria-label="Utforska Nexus Hub">
-  <div className="nh-module-grid">{modules.map(({ id, title, description, icon: Icon, tone, art }) => <button type="button" key={id} className={'nh-module-card nh-tone-' + tone + ' nh-art-' + art} onClick={() => onNavigate(id)}>
+  <div className="nh-module-grid">{modules.map(({ id, title, description, icon: Icon, tone, art }) => <button type="button" key={id} className={'nh-module-card nh-tone-' + tone + ' nh-art-' + art + (id === 'mottaget' || id === 'attgora' ? ' nh-module-compact' : '')} onClick={() => onNavigate(id)} title={id === 'mottaget' ? description : undefined}>
     <MaterialIcon size="module" tone={id === 'kalender' ? 'gold' : id === 'mottaget' ? 'pink' : id === 'attgora' ? 'violet' : id === 'filmer' ? 'ruby' : id === 'plugins' ? 'pink' : id === 'filer' || id === 'ekonomi' ? 'green' : id === 'villse' ? 'violet' : id === 'traning' || id === 'ideer' ? 'orange' : 'blue'} className="nh-module-symbol">
      <Icon size={35} aria-hidden="true"/>
     </MaterialIcon>
-    <span className="nh-module-copy"><strong>{title}</strong><span>{description}</span>{details[id] && <span className="nh-module-count">{details[id]}</span>}</span>
+    <span className="nh-module-copy"><strong>{id==='mottaget'?<>Mottagnings<wbr/>inkorg</>:title}</strong>{details[id] && <span className="nh-module-count">{details[id]}</span>}</span>
     <span className="nh-module-decoration" aria-hidden="true"><Icon size={125} strokeWidth={0.7}/></span>
     <ChevronRight className="nh-module-chevron" size={22} aria-hidden="true"/>
    </button>)}</div>

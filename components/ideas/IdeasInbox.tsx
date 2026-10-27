@@ -1,6 +1,6 @@
 import Lightbulb from '@/components/ideas/IdeaBulb';
 import React, { useEffect, useRef, useState } from 'react';
-import { Trash2,  Plus, RefreshCw, ChevronRight, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
+import { Archive, Trash2,  Plus, RefreshCw, ChevronRight, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
 import { IDEA_STATUSES } from '@/lib/ideas.mjs';
@@ -9,6 +9,8 @@ import './ideas.css';
 import IdeaAttachments, {type AttachmentActions,type AttachmentState} from '@/components/personal/IdeaAttachments';
 import {ideaDay} from '@/lib/idea-numbers.mjs';
 import IdeaPlans from './IdeaPlans';
+import IdeasArchive from './IdeasArchive';
+import {inboxIdeas} from '@/lib/personal-capture.mjs';
 import { useLibraryState } from '@/lib/library-state';
 const date = (value: string) => new Date(value).toLocaleString('sv-SE', { dateStyle: 'medium', timeStyle: 'short' });
 export function ideaSyncLabel(ideas: IdeasController, id: string) {
@@ -16,23 +18,21 @@ export function ideaSyncLabel(ideas: IdeasController, id: string) {
     return pending ? pending.status === 'conflict' ? 'Konflikt – din text finns kvar' : 'Väntar på synk till GitHub' : ideas.drafts[id] ? 'Utkast lokalt' : ideas.stale && !ideas.confirmedIds.includes(id) ? 'Tidigare GitHub-kopia' : 'Sparad i GitHub';
 }
 export default function IdeasInbox({ ideas, onOpenPlan }: { ideas: IdeasController; onOpenPlan: (path:string)=>void }) {
-    const [section,setSection]=useLibraryState<'inbox'|'plans'>('ideas:section','inbox');
-    const [filter, setFilter] = useState('all');
-    const shown = ideas.items.filter(row => filter === 'all' || row.idea.status === filter);
+    const [section,setSection]=useLibraryState<'inbox'|'plans'|'archive'>('ideas:section','inbox');
+    const shown = inboxIdeas(ideas.items,ideas.pending,ideas.drafts) as typeof ideas.items;
     return <section className="nh-ideas nh-module-dashboard" aria-labelledby="ideas-title">
         <header className="nh-module-dashboard-header"><div className="nh-module-dashboard-title"><span className="nh-module-heading-icon"><MaterialIcon tone="orange" size={48}><Lightbulb size={29}/></MaterialIcon></span><div><span className="nh-module-eyebrow">NEXUS HUB · DINA TANKAR</span><h1 id="ideas-title">Idéinkorg</h1><p>Fånga tanken nu. Utveckla den när du vill.</p></div></div></header>
-        <div className="nh-idea-filters" role="group" aria-label="Idéer och planer"><button type="button" aria-pressed={section==='inbox'} onClick={()=>setSection('inbox')}>Idéinkorg</button><button type="button" aria-pressed={section==='plans'} onClick={()=>setSection('plans')}>Färdiga planer</button></div>
-        {section==='plans' ? <IdeaPlans onOpen={onOpenPlan}/> : <>
+        <div className="nh-idea-sections"><div className="nh-idea-filters" role="group" aria-label="Idéer och planer"><button type="button" aria-pressed={section==='inbox'} onClick={()=>setSection('inbox')}>Idéinkorg</button><button type="button" aria-pressed={section==='plans'} onClick={()=>setSection('plans')}>Färdiga planer</button></div><button className="text-button nh-idea-archive-toggle" type="button" aria-pressed={section==='archive'} onClick={()=>setSection(section==='archive'?'inbox':'archive')}><Archive size={16}/>Arkiv</button></div>
+        {section==='archive' ? <IdeasArchive ideas={ideas}/> : section==='plans' ? <IdeaPlans onOpen={onOpenPlan}/> : <>
         <div className="nh-ideas-actions"><button className="primary" disabled={!ideas.ready || ideas.busy} onClick={ideas.create}><Plus size={18}/>Ny idé</button><button className="secondary" disabled={ideas.loading || ideas.busy} onClick={() => void ideas.reload()}><RefreshCw size={17} className={ideas.loading ? 'spin' : ''}/>Uppdatera</button></div>
         {ideas.error && <div className="error-banner" role="alert">{ideas.error}</div>}
         {ideas.stale && <p className="nh-ideas-note"><AlertTriangle size={16}/>GitHub kunde inte uppdateras. Visar tillgängliga kopior och dina lokala utkast.</p>}
-        <div className="nh-idea-filters" role="group" aria-label="Filtrera idéstatus">{[['all', 'Alla'], ...Object.entries(IDEA_STATUSES)].map(([status, label]) => <button key={status} aria-pressed={filter === status} onClick={() => setFilter(status)}>{label}<span>{ideas.items.filter(row => status === 'all' || row.idea.status === status).length}</span></button>)}</div>
         <div className="nh-ideas-list">{shown.map(({ idea }) => <button className="nh-idea-card" key={idea.id} onClick={() => ideas.open(idea.id)}>
             <span className="nh-idea-card-top"><span className={'nh-idea-status ' + idea.status}>{IDEA_STATUSES[idea.status]}</span><span className="nh-ideas-note">{ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number ? 'Idé '+ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number : 'Nummer tilldelas vid sparning'}</span><time dateTime={idea.updatedAt}>{date(idea.updatedAt)}</time></span>
             <span className="nh-idea-preview">{idea.text.trim() || 'Din nya tanke…'}</span>
             <span className={'nh-idea-sync' + (ideas.pending[idea.id] || ideas.drafts[idea.id] ? ' local' : '')}>{ideas.pending[idea.id] ? <CloudUpload size={15}/> : ideas.drafts[idea.id] ? <FilePenLine size={15}/> : <CloudCheck size={15}/>} {ideaSyncLabel(ideas, idea.id)}<ChevronRight size={17}/></span>
         </button>)}</div>
-        {!shown.length && <div className="hub-empty"><Lightbulb size={35}/><strong>{ideas.loading ? 'Hämtar idéer…' : filter === 'all' ? 'Här börjar nästa idé' : 'Inga idéer med den statusen'}</strong><p>{filter === 'all' ? 'En mening räcker. Du kan alltid fortsätta senare.' : 'Idéerna finns kvar när du byter filter.'}</p>{filter === 'all' && <button className="secondary" disabled={!ideas.ready} onClick={ideas.create}>Skriv en idé <Plus size={16}/></button>}</div>}
+        {!shown.length && <div className="hub-empty"><Lightbulb size={35}/><strong>{ideas.loading ? 'Hämtar idéer…' : 'Här börjar nästa idé'}</strong><p>{'En mening räcker. Du kan alltid fortsätta senare.'}</p>{<button className="secondary" disabled={!ideas.ready} onClick={ideas.create}>Skriv en idé <Plus size={16}/></button>}</div>}
     </>}
     <details className="panel settings-panel"><summary>Idéhistorik per dag</summary>{Object.entries(ideas.numbering.entries.reduce<Record<string,number>>((counts,entry)=>{const day=ideaDay(entry.createdAt);counts[day]=(counts[day]||0)+1;return counts;},{})).sort(([a],[b])=>b.localeCompare(a)).map(([day,count])=><p key={day}>{day} · {count} idéer</p>)}</details>
     </section>;

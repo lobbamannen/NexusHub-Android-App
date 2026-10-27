@@ -4,8 +4,8 @@ import { validateIdea } from '@/lib/ideas.mjs';
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { 'Cache-Control': 'no-store' } });
 export async function GET(request: Request) {
     try {
-        const id = new URL(request.url).searchParams.get('id');
-        const data = id ? await github().readIdea(id) : await github().listIdeas();
+        const params=new URL(request.url).searchParams, id=params.get('id');
+        const data = id ? await github().readIdea(id) : await github().listIdeas({archive:params.get('archive')==='true'});
         return data ? json(data) : json({ error: 'Idén finns inte i GitHub.' }, 404);
     } catch (error: any) { return json({ error: error.message }, error.status === 401 || error.status === 403 ? 403 : 503); }
 }
