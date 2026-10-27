@@ -2,7 +2,7 @@
  <uses-feature android:name="android.hardware.type.watch" android:required="true"/>
  <uses-permission android:name="android.permission.INTERNET"/>
  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
- <application android:label="NexusHub Battery" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:usesCleartextTraffic="false">
+ <application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:label="NexusHub Battery" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:usesCleartextTraffic="false">
   <meta-data android:name="com.google.android.wearable.standalone" android:value="false"/>
   <activity android:name=".BatteryActivity" android:exported="true">
    <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>

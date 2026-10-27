@@ -20,4 +20,4 @@ Review focus: process death/reboot; out-of-order/invalid/future snapshots; multi
 ## Task 4: Delivery and verification
 - [x] Run JS regression suite, TypeScript/design/build. Android unit tests/assemble/lint are required release gates in CI.
 - [x] Fresh reviewer checks whole diff. Fix material findings.
-- [ ] Publish both signed APKs after CI; matching certificates and unchanged phone certificate are required workflow gates. PostHog view and device-test boundary documented.
+- [x] Configure signed main releases for both APKs. Branch CI 51 passed matching-certificate and previous-phone-certificate guards. PostHog view and physical-test boundary documented; final main release runs all gates again.
