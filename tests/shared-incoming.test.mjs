@@ -47,3 +47,13 @@ test('temporary intake is available in files without being classified as permane
  const catalog=makeCatalog({tree:[{path:incomingPrefix(id)+fid+'-rapport.pdf',type:'blob',sha:'a'.repeat(40),size:10}],commit:'b'.repeat(40)});
  assert.equal(catalog.documents.length,1);assert.equal(catalog.documents[0].technical,true);assert.notEqual(catalog.documents[0].module,'databas');
 });
+test('renamed packages prove the exact legacy receipt without hiding changed content',async()=>{
+ const f=fake(),saved=await f.client.saveSharedIncoming(input),prefix=incomingPrefix(id),metaPath=prefix+'metadata.json';
+ const meta=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(f.blobs.get(f.tree().get(metaPath))),c=>c.charCodeAt(0))));const legacy={...meta,files:meta.files.map(x=>({...x,path:x.path.replace('NexusHub inkorg/','Mottagningsinkorg/')}))};
+ const legacyHash=await gitBlobSha(new TextEncoder().encode(JSON.stringify(legacy,null,2)+'\n'));
+ const list=await f.client.listSharedIncoming();assert.equal(list.items[0].legacyManifestSha,legacyHash);assert.ok(list.items[0].legacyEntries.every(x=>x.path.startsWith('Mottagningsinkorg/')));
+ const legacyEncoded=base64(new TextEncoder().encode(JSON.stringify(legacy,null,2)+'\n'));f.blobs.set(legacyHash,legacyEncoded);
+ for(const [p,h] of [...f.tree()])if(p.startsWith(prefix)){f.tree().delete(p);f.tree().set(p.replace('NexusHub inkorg/','Mottagningsinkorg/'),p.endsWith('/metadata.json')?legacyHash:h);}
+ const old=await f.client.listSharedIncoming();assert.equal(old.items.length,1);assert.equal((await f.client.saveSharedIncoming(input)).reconciled,true);
+ await f.client.deleteSharedIncoming(id,old.items[0].entries);assert.deepEqual([...f.tree().keys()],['bevara.txt']);
+});

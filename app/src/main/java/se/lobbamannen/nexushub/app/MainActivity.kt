@@ -376,7 +376,13 @@ class MainActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == PICK_FILE) {
-            fileCallback?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data)); fileCallback = null
+            val callback = fileCallback; fileCallback = null
+            val selected = linkedSetOf<Uri>()
+            if (resultCode == RESULT_OK) {
+                data?.clipData?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { selected.add(it) } }
+                data?.data?.let { selected.add(it) }
+            }
+            callback?.onReceiveValue(if (selected.isEmpty()) null else selected.toTypedArray())
         } else if (requestCode == SAVE_FILE) {
             val source = pendingSave; pendingSave = null
             val uri = data?.data

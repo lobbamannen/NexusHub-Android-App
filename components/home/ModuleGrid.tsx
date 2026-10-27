@@ -16,7 +16,7 @@ const cards:Record<string,Card>={
  bevakning:{id:'bevakning',title:'Seriebevakning',icon:Bell,tone:'blue',art:'stories'},
  databas:{id:'databas',title:'Kunskapsbanken',icon:Database,tone:'blue',art:'knowledge'},
  filer:{id:'filer',title:'Utforska filer',icon:FolderOpen,tone:'green',art:'files'},
- mottaget:{id:'mottaget',title:'Mottagningsinkorg',icon:FolderOpen,tone:'pink',art:'files'},
+ mottaget:{id:'mottaget',title:'NexusHub inkorg',icon:FolderOpen,tone:'pink',art:'files'},
  berattelser:{id:'berattelser',title:'Berättelser',icon:BookOpen,tone:'blue',art:'stories'},
  plugins:{id:'plugins',title:'Plugins',icon:Puzzle,tone:'pink',art:'plugins'},
  ekonomi:{id:'ekonomi',title:'Ekonomi',icon:Coins,tone:'green',art:'economy'},
@@ -44,7 +44,7 @@ export default function ModuleGrid({counts,onNavigate}:Props){
  const group=(id:string,children:string[])=>{const card=cards[id];return <article className={'nh-module-card nh-module-group nh-tone-'+card.tone+' nh-art-'+card.art} aria-label={card.title}>
   <button type="button" className="nh-module-main" onClick={()=>onNavigate(id)}>{content(card)}</button>
   <div className="nh-module-shortcuts">{children.map(child=>{const item=cards[child],Icon=item.icon,unread=child==='bevakning'?(counts.watchNew||0):0;return <button type="button" className="nh-module-shortcut" key={child} data-new={unread>0||undefined} onClick={()=>onNavigate(child)}>
-   <span className="nh-shortcut-symbol"><MaterialIcon size={24} tone={item.tone}><Icon size={17}/></MaterialIcon>{child==='mottaget'&&!!counts.incoming&&<span className="nh-incoming-badge" aria-label={counts.incoming+' dokument i mottagningsinkorgen'}>{formatted(counts.incoming)}</span>}</span><span className="nh-shortcut-copy"><strong>{child==='mottaget'?'Mottagning':child==='bevakning'?'Bevakning':item.title}</strong>{unread>0?<small className="nh-shortcut-badge">{formatted(unread)} {unread===1?'nytt':'nya'}</small>:details[child]?<small>{details[child]}</small>:null}</span><ChevronRight size={14} aria-hidden="true"/>
+   <span className="nh-shortcut-symbol"><MaterialIcon size={24} tone={item.tone}><Icon size={17}/></MaterialIcon>{child==='mottaget'&&!!counts.incoming&&<span className="nh-incoming-badge" aria-label={counts.incoming+' dokument i NexusHub inkorg'}>{formatted(counts.incoming)}</span>}</span><span className="nh-shortcut-copy"><strong>{child==='mottaget'?'NexusHub inkorg':child==='bevakning'?'Bevakning':item.title}</strong>{unread>0?<small className="nh-shortcut-badge">{formatted(unread)} {unread===1?'nytt':'nya'}</small>:details[child]?<small>{details[child]}</small>:null}</span><ChevronRight size={14} aria-hidden="true"/>
   </button>;})}</div>
  </article>;};
  return <section className="nh-modules" aria-label="Utforska Nexus Hub"><div className="nh-module-grid">

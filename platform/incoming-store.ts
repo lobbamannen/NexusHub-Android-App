@@ -1,6 +1,6 @@
 import {durableGet,durableSet,durableEntries,durableDelete} from './local-store';
-import {base64} from '@/lib/github-inbox.mjs';
-export type IncomingFile={id:string;name:string;mime:string;blob?:Blob;error?:string};
+import {base64,gitBlobSha} from '@/lib/github-inbox.mjs';
+export type IncomingFile={id:string;name:string;mime:string;blob?:Blob;error?:string;sha?:string};
 export type SharedReceipt={entries:{path:string;sha:string}[];manifestSha:string;commit:string};
 export type Incoming={id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string;commit?:string;processed?:boolean}>;error?:string;shared?:SharedReceipt;sharedError?:string;deleting?:boolean;localOnly?:boolean};
 const bridge=()=>window.Android as any;
@@ -12,7 +12,7 @@ export async function incomingItems():Promise<Incoming[]>{
  return [...saved.values()].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 }
 export async function saveIncoming(files:File[],text='',destinations?:string[]):Promise<Incoming>{
- const item:Incoming={id:crypto.randomUUID(),text,createdAt:new Date().toISOString(),files:files.map(file=>({id:crypto.randomUUID(),name:file.name,mime:file.type||'application/octet-stream',blob:file})),sent:{},localOnly:!!destinations?.length,...(destinations?{destinations:[...new Set(destinations)]}:{})};
+ const item:Incoming={id:crypto.randomUUID(),text,createdAt:new Date().toISOString(),files:await Promise.all(files.map(async file=>{const bytes=new Uint8Array(await file.arrayBuffer());return {id:crypto.randomUUID(),name:file.name,mime:file.type||'application/octet-stream',blob:new Blob([bytes],{type:file.type||'application/octet-stream'}),sha:await gitBlobSha(bytes)};})),sent:{},localOnly:!!destinations?.length,...(destinations?{destinations:[...new Set(destinations)]}:{})};
  await durableSet('incoming:v1:'+item.id,item);window.dispatchEvent(new Event('nexus-incoming-changed'));return item;
 }
 export async function saveIncomingItem(item:Incoming){const old=await durableGet<Incoming>('incoming:v1:'+item.id);await durableSet('incoming:v1:'+item.id,{...item,...(old?.shared&&!item.shared?{shared:old.shared}:{}),...(old?.deleting?{deleting:true}:{})});window.dispatchEvent(new Event('nexus-incoming-changed'));}
@@ -57,16 +57,21 @@ async function forgetIncoming(item:Incoming){
 }
 let syncing:Promise<void>|null=null;
 export let incomingSyncError='';
+export let incomingProgress:{running:boolean;currentId?:string;file?:number;total?:number}={running:false};
+function progress(value:typeof incomingProgress){incomingProgress=value;window.dispatchEvent(new Event('nexus-incoming-progress'));}
 export const incomingSyncRunning=()=>syncing!==null;
 export function syncIncoming():Promise<void>{
  if(syncing)return syncing;
  syncing=(async()=>{
+  progress({running:true});
   const remote=await requestIncoming('GET');if(!Array.isArray(remote.items))throw Error('Ofullständig mottagningslista.');
   const local=await incomingItems(),remoteById=new Map<string,any>(remote.items.map((x:any)=>[x.metadata.id,x]));
   for(const item of local){
    if(active.has(item.id))continue;
    const cloud=remoteById.get(item.id);
+   progress({running:true,currentId:item.id});
    try{
+    if(item.shared&&cloud?.legacyManifestSha===item.shared.manifestSha&&Array.isArray(cloud.legacyEntries)&&cloud.legacyEntries.length===item.shared.entries.length&&item.shared.entries.every(e=>cloud.legacyEntries.some((f:any)=>f.path===e.path&&f.sha===e.sha))){item.shared=receipt(cloud);await saveIncomingItem(item);}
     if(item.deleting){
      // Reconcile an upload with a lost reply before deleting an unacknowledged package.
      if(!item.shared&&cloud){const verified=await mirrorIncoming(item);if('deleted' in verified){await forgetIncoming(item);continue;}item.shared=verified;}
@@ -76,7 +81,10 @@ export function syncIncoming():Promise<void>{
     if(item.shared&&cloud?.manifestSha!==item.shared.manifestSha){throw Error('Mottagningsposten har ändrats i GitHub. Originalet behålls lokalt.');}
     // Files selected in the idea editor remain local until its explicit Save.
     if(item.localOnly??!!item.destinations?.length)continue;
-    if(!item.shared){const result=await mirrorIncoming(item);if('deleted' in result){await forgetIncoming(item);continue;}const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.shared=result;latest.sharedError='';await saveIncomingItem(latest);}
+    if(!item.shared){
+     const duplicates=item.files.filter(f=>f.sha&&remote.items.some((r:any)=>r.metadata.id!==item.id&&r.metadata.files.some((x:any)=>x.sha===f.sha)));
+     if(duplicates.length)throw Error('Identiskt dokument finns redan i NexusHub inkorg: '+duplicates.map(f=>f.name).join(', ')+'. Originalet finns kvar lokalt; ingen extra GitHub-kopia skapades.');
+     const result=await mirrorIncoming(item);if('deleted' in result){await forgetIncoming(item);continue;}const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.shared=result;latest.sharedError='';await saveIncomingItem(latest);}
     else if(item.sharedError){item.sharedError='';await saveIncomingItem(item);}
    }catch(e:any){const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.sharedError=e.message;await saveIncomingItem(latest);}
   }
@@ -86,11 +94,11 @@ export function syncIncoming():Promise<void>{
    await saveIncomingItem({id:m.id,text:m.text,createdAt:m.createdAt,files,sent:{},shared:receipt(cloud)});
   }
   incomingSyncError='';
- })().catch((e:any)=>{incomingSyncError=e.message;}).finally(()=>{syncing=null;window.dispatchEvent(new Event('nexus-incoming-synced'));});return syncing;
+ })().catch((e:any)=>{incomingSyncError=e.message;}).finally(()=>{syncing=null;progress({running:false});window.dispatchEvent(new Event('nexus-incoming-synced'));});return syncing;
 }
 const receipt=(cloud:any):SharedReceipt=>({entries:cloud.entries,manifestSha:cloud.manifestSha,commit:cloud.commit});
 async function mirrorIncoming(item:Incoming){
- const files=[];for(const file of item.files)files.push({id:file.id,name:file.name,mime:file.mime,base64:await incomingFileBase64(item,file)});
+ const files=[];for(const file of item.files){progress({running:true,currentId:item.id,file:files.length+1,total:item.files.length});files.push({id:file.id,name:file.name,mime:file.mime,base64:await incomingFileBase64(item,file)});}
  const result=await requestIncoming('POST',{operation:'mirror',item:{id:item.id,text:item.text,createdAt:item.createdAt,files}});
  if(result.deleted)return {deleted:true} as const;if(!result.saved)throw Error('GitHub-kopian kunde inte verifieras.');return receipt(result);
 }
@@ -100,4 +108,18 @@ export async function removeIncoming(item:Incoming){
  if(active.has(item.id))throw Error('Vänta tills överföringen är klar innan du raderar.');
  const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;latest.deleting=true;latest.sharedError='';await saveIncomingItem(latest);
  await syncIncoming();
+}
+
+let intakeQueue:Promise<unknown>=Promise.resolve();
+/** Content hashes, not filenames, decide whether a selected document already exists. */
+export function intakeIncomingFiles(files:File[]){
+ const task=intakeQueue.then(async()=>{
+  const hashes=new Set<string>(),duplicates:string[]=[],errors:string[]=[],added:Incoming[]=[];
+  const local=await incomingItems();
+  for(const item of local)for(const file of item.files){try{const known=file.sha||item.shared?.entries.find(e=>e.path.includes('/'+file.id+'-'))?.sha;if(known)hashes.add(known);else{const bytes=Uint8Array.from(atob(await incomingFileBase64(item,file)),c=>c.charCodeAt(0));hashes.add(await gitBlobSha(bytes));}}catch{/* Unreadable originals are retained and reported by their own sync. */}}
+  let remoteChecked=true;
+  try{const remote=await requestIncoming('GET');for(const item of remote.items)for(const file of item.metadata.files)hashes.add(file.sha);}catch{remoteChecked=false;}
+  for(const file of files){try{const bytes=new Uint8Array(await file.arrayBuffer()),hash=await gitBlobSha(bytes);if(hashes.has(hash)){duplicates.push(file.name);continue;}const stable=new File([bytes],file.name,{type:file.type});const item=await saveIncoming([stable]);added.push(item);hashes.add(hash);}catch(e:any){errors.push(file.name+': '+e.message);}}
+  return {added,duplicates,errors,remoteChecked};
+ });intakeQueue=task.catch(()=>{});return task;
 }

@@ -11,6 +11,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.time.Instant
 import java.util.UUID
+import java.security.MessageDigest
 
 /** Original streams are copied into private persistent storage while their grants are valid. */
 class IncomingShareStore(private val context: Context) {
@@ -40,6 +41,11 @@ class IncomingShareStore(private val context: Context) {
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     FileOutputStream(File(directory, fileId)).use { output -> input.copyTo(output); output.fd.sync() }
                 } ?: error("Den delade filen kunde inte öppnas.")
+                val saved = File(directory, fileId)
+                val digest = MessageDigest.getInstance("SHA-1")
+                digest.update("blob ${saved.length()}\u0000".toByteArray(Charsets.UTF_8))
+                saved.inputStream().use { input -> val buffer = ByteArray(65536); var count = input.read(buffer); while (count >= 0) { if (count > 0) digest.update(buffer, 0, count); count = input.read(buffer) } }
+                entry.put("sha", digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) })
             } catch (error: Exception) {
                 File(directory, fileId).delete()
                 entry.put("name", entry.optString("name", "dokument")).put("mime", "application/octet-stream").put("error", error.message ?: "Filen kunde inte sparas lokalt.")

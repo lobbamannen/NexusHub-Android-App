@@ -22,3 +22,15 @@ test('pending deletion survives a total read outage and resumes after restart',a
  const {m,kv}=await setup();const item=await m.saveIncoming([new File(['x'],'fil.txt')]);globalThis.fetch=async()=>{throw Error('Nätet borta');};await m.removeIncoming(item);assert.equal((await m.incomingItems())[0].deleting,true);assert.match(m.incomingSyncError,/Nätet/);
  globalThis.fetch=async(_,init)=>Response.json(init.method==='GET'?{items:[]}:{deleted:true});await m.syncIncoming();assert.equal((await m.incomingItems()).length,0);assert.ok(kv.has('incoming-removed:v1:'+item.id));
 });
+test('multi-file intake reports all results and skips content-identical duplicates independent of names',async()=>{
+ const {m}=await setup();globalThis.fetch=async()=>Response.json({items:[]});
+ const first=await m.intakeIncomingFiles([new File(['same'],'one.md'),new File(['same'],'renamed.md'),new File(['different'],'one.md')]);
+ assert.equal(first.added.length,2);assert.deepEqual(first.duplicates,['renamed.md']);assert.equal((await m.incomingItems()).length,2);
+ const second=await m.intakeIncomingFiles([new File(['same'],'again.md')]);assert.equal(second.added.length,0);assert.deepEqual(second.duplicates,['again.md']);
+ const bad=new File(['bad'],'broken.md');bad.arrayBuffer=async()=>{throw Error('Kan inte läsa');};const mixed=await m.intakeIncomingFiles([bad,new File(['valid'],'valid.md')]);assert.equal(mixed.errors.length,1);assert.equal(mixed.added.length,1);assert.equal(mixed.added[0].files[0].name,'valid.md');
+});
+test('a remote content hash is detected even before its package is downloaded to the phone',async()=>{
+ const {m}=await setup();const {gitBlobSha}=await import('../lib/github-inbox.mjs');const sha=await gitBlobSha(new TextEncoder().encode('remote'));
+ globalThis.fetch=async()=>Response.json({items:[{metadata:{files:[{sha}]}}]});
+ const result=await m.intakeIncomingFiles([new File(['remote'],'new-name.pdf')]);assert.equal(result.added.length,0);assert.deepEqual(result.duplicates,['new-name.pdf']);
+});
