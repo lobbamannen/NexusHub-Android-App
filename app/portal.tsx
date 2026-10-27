@@ -1,3 +1,4 @@
+import {trackSection,telemetry} from '@/platform/telemetry';
 import Lightbulb from '@/components/ideas/IdeaBulb';
 import {CalendarGlyph as CalendarDays} from '@/components/calendar/CalendarGlyph';
 import CalendarPage from '@/components/calendar/CalendarPage';
@@ -97,7 +98,8 @@ export default function Portal() {
         return; detailOrigin.current = null; go(origin.view, false); routeHistory.current.length = origin.historyDepth; setQuery(origin.query); setTopic(origin.topic); setPage(origin.page); setDbBrowsing(origin.dbBrowsing); setRegisterKind(origin.registerKind); restoreListScroll(origin.scroll); };
     const closeReader = () => { readRequest.current++; setReading(false); const previous = readerStack.current.pop(); setReader(previous?.reader || null); restoreListScroll(previous?.scroll ?? readerScroll.current); };
     const [view, setView] = useState('hem'), [menu, setMenu] = useState(false), [overview, setOverview] = useState<any>(null), [loading, setLoading] = useState(true), [error, setError] = useState(''), [query, setQuery] = useState(''), [topic, setTopic] = useState(''), [page, setPage] = useState(0), [reader, setReader] = useState<any>(null), [reading, setReading] = useState(false), [font, setFont] = useState(17), [recent, setRecent] = useState<any[]>([]), [legacy, setLegacy] = useState(false), [fulltext, setFulltext] = useState(false), [copyResults, setCopyResults] = useState<any[]>([]), [copyTotal, setCopyTotal] = useState(0), [copyLoading, setCopyLoading] = useState(false), [inbox, setInbox] = useState<any[]>([]), [inboxOffset, setInboxOffset] = useState(0), [inboxTotal, setInboxTotal] = useState(0), [upload, setUpload] = useState(false), [files, setFiles] = useState<File[]>([]), [sending, setSending] = useState(false), [uploadResults, setUploadResults] = useState<any[]>([]), [uploadProgress, setUploadProgress] = useState(''), [shuffle, setShuffle] = useState(0), [showArchived, setShowArchived] = useState(false), [notice, setNotice] = useState('');
-    useEffect(() => { activeViewRef.current = view; }, [view]);
+    useEffect(() => { activeViewRef.current = view; trackSection(view); }, [view]);
+    useEffect(()=>{const enabled=()=>trackSection(activeViewRef.current);window.addEventListener('nexus-telemetry-enabled',enabled);return()=>window.removeEventListener('nexus-telemetry-enabled',enabled);},[]);
     const [replica,setReplica]=useState(replicaStatus());
     const [mirror, setMirror] = useState<any>(null), [mirrorChecks, setMirrorChecks] = useState<Record<string, any>>({}), [differencePage, setDifferencePage] = useState(0), [differences, setDifferences] = useState<any>(null), [mirrorSearch, setMirrorSearch] = useState(false);
     const [inspect, setInspect] = useState<{
@@ -166,7 +168,7 @@ export default function Portal() {
     const openMedia = async (next: 'filmer' | 'serier', item: string) => { if (navigationBusyRef.current)
         return; if (registerDirtyRef.current && !window.confirm('Du har osparade ändringar. Lämna sidan och kasta dem?'))
         return; if(registerDirtyRef.current && !await discardRegisterDrafts()) return; rememberOrigin(); readRequest.current++; setReading(false); readerStack.current = []; if (next !== view)
-        routeHistory.current.push(view); setMediaItem(item); setView(next); setReader(null); setMenu(false); const hash = next + '?item=' + encodeURIComponent(item); if (location.hash.slice(1) !== hash) {
+        routeHistory.current.push(view); telemetry('media_detail_opened',{media_type:next==='filmer'?'film':'series'}); setMediaItem(item); setView(next); setReader(null); setMenu(false); const hash = next + '?item=' + encodeURIComponent(item); if (location.hash.slice(1) !== hash) {
         internalHash.current = hash;
         location.hash = hash;
     } window.scrollTo(0, 0); };
@@ -271,7 +273,8 @@ export default function Portal() {
             const value = { ...data, catalogEntry: doc };
             if (previousReader)
                 readerStack.current.push(previousReader);
-            setReader(value);
+            if(/^Fardiga-ideer\/[^/]+\/implementation-plan\.md$/.test(doc.path||''))telemetry('idea_plan_opened',{category:'ideas'});
+            if(/^Berattelser\//.test(doc.path||''))telemetry('story_opened',{module:'berattelser'}); setReader(value);
             remember(value);
             window.scrollTo(0, 0);
         }

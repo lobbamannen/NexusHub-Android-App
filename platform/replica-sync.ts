@@ -1,3 +1,4 @@
+import {telemetry,bucketDuration,bucketFiles,bucketBytes,errorCategory} from './telemetry';
 import { github, invalidatePortalCache } from '@/lib/github';
 import { saveMirrorBatch } from '@/lib/mirror';
 import { bucket, db } from '@/lib/store';
@@ -16,7 +17,7 @@ export const replicaStatus=()=>state;
 const report=(patch:Partial<ReplicaStatus>)=>{state={...state,...patch};window.dispatchEvent(new Event('nexus-replica-status'));};
 export const replicatePath=(_path:string)=>true;
 const stop=()=>paused||document.visibilityState!=='visible';
-export function pauseReplicaSync(){paused=true;report({paused:true});}
+export function pauseReplicaSync(){paused=true;telemetry('replica_sync_paused',{trigger:'manual'});report({paused:true});}
 async function refreshViews(){
  invalidateMedia();invalidatePortalCache();
  // The completed mirror already holds these files; consumers rebuild their
@@ -26,7 +27,9 @@ async function refreshViews(){
 async function cycle(force=false){
  if(!hasGithubToken()||stop()||(!force&&Date.now()<cooldown))return;
  report({running:true,paused:false,error:'',phase:'checking',currentPath:''});
- let changed=false;
+ let changed=false,started=false,copied=0,bytes=0;const began=performance.now(),trigger=force?'manual':'auto';
+ const begin=()=>{if(!started){started=true;telemetry('replica_sync_started',{trigger});}};
+ if(force)begin();
  try{
   for(const repo of ['databas','plugins']){
    if(stop())return;
@@ -39,6 +42,7 @@ async function cycle(force=false){
    const files:File[]=snapshot.tree.filter((f:File)=>f.type==='blob');
    const [versions,keys]=await Promise.all([db().prepare('SELECT path,blob_sha,object_key FROM mirror_versions WHERE repo=?').bind(repo).all(),bucket().keys('mirror/')]);
    const plan=planReplica(files,versions.results,keys,repo);
+   if(plan.missing.length || previous?.commit!==snapshot.commit)begin();
    let progress:RepoReplica={commit:snapshot.commit,total:plan.total,done:plan.done,totalBytes:plan.totalBytes,doneBytes:plan.doneBytes,failed:0};
    const update=()=>report({done:progress.done,total:progress.total,repositories:{...state.repositories,[repo]:{...progress}}});
    update();
@@ -65,6 +69,7 @@ async function cycle(force=false){
      else{if([401,403,429].includes(result.reason?.status))fatal=result.reason;errors[batch[i].path]={sha:batch[i].sha,error:result.reason?.message||String(result.reason)};progress.failed++;}
     }
     await saveMirrorBatch(repo,good,snapshot.commit);
+    copied+=good.length;bytes+=good.reduce((sum,item)=>sum+item.file.size,0);
     progress.done+=good.length;progress.doneBytes+=good.reduce((sum,item)=>sum+item.file.size,0);update();
     if(progress.failed)await durableSet('replica-errors:v1:'+repo,errors);
     if(fatal)throw fatal;
@@ -84,7 +89,8 @@ async function cycle(force=false){
   if(changed||viewsDirty){report({phase:'refreshing',currentPath:''});await refreshViews();if(!stop())viewsDirty=false;}
   if(stop())return;
   report({checkedAt:new Date().toISOString(),error:'',currentPath:''});
- }catch(error:any){cooldown=Date.now()+60000;report({error:error.message||'Lokal kopiering kunde inte slutföras.'});}
+  if(started)telemetry('replica_sync_completed',{trigger,duration_bucket:bucketDuration(performance.now()-began),files_bucket:bucketFiles(copied),bytes_bucket:bucketBytes(bytes),changes:changed});
+ }catch(error:any){telemetry('replica_sync_failed',{trigger,duration_bucket:bucketDuration(performance.now()-began),error_category:errorCategory(error)});cooldown=Date.now()+60000;report({error:error.message||'Lokal kopiering kunde inte slutföras.'});}
  finally{report({running:false,paused,phase:undefined});}
 }
 function run(force=false):Promise<void>{

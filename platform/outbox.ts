@@ -1,3 +1,5 @@
+import {telemetry,bucketDuration,categoryForPath,errorCategory} from './telemetry';
+import {confirmedActions} from '@/lib/telemetry.mjs';
 import { queuedEditMatches } from '@/lib/draft-scope.mjs';
 import { sameIdea } from '@/lib/ideas.mjs';
 import { durableGet, durableSet, durableDelete, durableEntries } from './local-store';
@@ -155,6 +157,8 @@ async function finish(item: PendingWrite, response: Response) {
   await durableSet('outbox-receipt:v1:' + item.id, receipt);
   await durableDelete(PREFIX + item.id);
   changed(); completed(item);
+  telemetry('github_write_confirmed',{category:categoryForPath(item.path),latency_bucket:bucketDuration(Date.now()-Date.parse(item.createdAt))});
+  for(const event of confirmedActions(item.path,item.body))telemetry(event.name as Parameters<typeof telemetry>[0],event.properties);
   return response;
 }
 async function execute(item: PendingWrite): Promise<Response> {
@@ -183,6 +187,7 @@ async function execute(item: PendingWrite): Promise<Response> {
   item.error += item.status === 'conflict' ? ' Konflikten väntar på ditt beslut i Inställningar; ingen automatisk omskrivning görs.' : ' Inte bekräftat i GitHub. Dina utkast finns kvar; hantera väntande ändringar i Inställningar.';
   await durableSet(PREFIX + item.id, item);
   changed();
+  telemetry(item.status==='conflict'?'github_write_conflict':item.status==='failed'?'github_write_failed':'github_write_pending',{category:categoryForPath(item.path),...(item.status==='failed'?{error_category:errorCategory({status:response!?.status})}:{})});
   return queued(item, item.status === 'failed' ? response!?.status || 400 : undefined);
 }
 export async function enqueueMutation(request: Request): Promise<Response> {

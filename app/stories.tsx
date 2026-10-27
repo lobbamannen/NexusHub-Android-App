@@ -1,4 +1,5 @@
 'use client';
+import {telemetry} from '@/platform/telemetry';
 import {cancelDraftWrites} from '@/platform/draft-writes';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
@@ -238,8 +239,7 @@ export default function Stories({ documents, onNavigate, mirrorChecks, onInspect
         fetch('/api/portal/document?repo=databas&path=' + encodeURIComponent(selected), { cache: 'no-store' })
             .then(async (r) => { const d: any = await r.json(); if (!r.ok)
             throw Error(d.error || 'GitHub-dokumentet kunde inte läsas.'); return d; })
-            .then(d => { if (active)
-            setArticle(d); })
+            .then(d => { if (active){telemetry('story_opened',{module:'berattelser'});setArticle(d);} })
             .catch(e => { if (active)
             setError(message(e)); })
             .finally(() => { if (active)

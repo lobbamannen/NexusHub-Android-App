@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "ideaId": "1d4a4c5c-4803-46b1-aca8-298cd4f6621f",
+  "title": "PostHog för NexusHub Android – integritetssäker produktanalys",
+  "summary": "Fristående native PostHog-integration med EU-projekt, strikt React–Kotlin-brygga, tekniska händelser, synk-/bild-/skrivdiagnostik, explicit opt-in, tester och säker APK-leverans.",
+  "preparedAt": "2026-10-26T20:48:07.602Z",
+  "sourceIdeaSha": "8a20b348cfbc07de5cac9f21b301f100c1ad11aa"
+}

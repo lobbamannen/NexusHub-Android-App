@@ -1,3 +1,4 @@
+import {telemetry} from './telemetry';
 import React, { useEffect, useRef, useState } from 'react';
 import { createImageCache } from '@/lib/image-cache.mjs';
 
@@ -13,8 +14,8 @@ export function useLocalImage(url: string, lazy = false) {
   const [state, setState] = useState({ url: '', source: '', error: false });
   useEffect(() => {
     let active = true,handle:ReturnType<typeof sharedImages.acquire>|null=null;
-    const load = () => {handle=sharedImages.acquire(url);void handle.source.then((source:string)=>{
-      if(active)setState({url,source,error:false});
+    const load = () => {const began=performance.now();handle=sharedImages.acquire(url);void handle.source.then((source:string)=>{
+      if(active){const elapsed=performance.now()-began;if(elapsed>=500)telemetry('image_load_slow',{screen_group:'library',duration_bucket:elapsed<1000?'0_5to1s':elapsed<=3000?'1to3s':'over3s'});setState({url,source,error:false});}
     }).catch(()=>{if(active)setState({url,source:'',error:true});});};
     let observer: IntersectionObserver | undefined;
     if (lazy && element.current && typeof IntersectionObserver !== 'undefined') {

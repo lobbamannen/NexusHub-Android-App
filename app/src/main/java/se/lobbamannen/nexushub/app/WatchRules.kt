@@ -70,6 +70,22 @@ object WatchRules {
         }
         return out
     }
+    fun matchesProvider(row:JSONObject,settings:JSONObject,provider:String):Boolean {
+        val w=row.getJSONObject("releaseWatch")
+        val selected=if(w.optString("providerMode")=="custom")w.getJSONArray("providerIds") else settings.getJSONArray("providers")
+        return provider in providers && (0 until selected.length()).any {selected.getString(it)==provider}
+    }
+    fun failureDiagnostics(state:JSONObject,current:JSONObject,category:String):JSONObject {
+        require(category in setOf("auth","rate_limit","network","other"))
+        state.put("diagnostics",JSONObject(current.toString()).put("errorCategory",category))
+        return JSONObject().put("result","failure").put("error_category",category).put("changes_bucket",TelemetryPolicy.files(current.optInt("sourceChanges"))).put("matched_bucket",TelemetryPolicy.files(current.optInt("watchedChanges")))
+    }
+    /** Initial check covers enrollment; overlap catches late source indexing, stable IDs deduplicate. */
+    fun pastFrom(state:JSONObject,enrollment:Long,now:Long):Long {
+        if(state.has("from"))return state.getLong("from")
+        val lower=(now-30L*86400).coerceAtLeast(0)
+        return maxOf(lower,enrollment,minOf(now,state.optLong("watermark",enrollment)-86400L)).coerceAtMost(now)
+    }
     fun evidenceNumbers(change:JSONObject,provider:String,type:String,item:String,now:Long):Pair<Int,Int?>? {
         if(change.optString("changeType")!=type || change.optString("itemType")!=item || change.optString("showType")!="series" || change.optString("streamingOptionType")!="subscription" || change.optJSONObject("service")?.optString("id")!=provider)return null
         fun number(name:String):Int? {val value=change.opt(name);return (value as? Number)?.let { if(it.toDouble()%1.0==0.0 && it.toLong() in 1..Int.MAX_VALUE.toLong())it.toInt() else null }}

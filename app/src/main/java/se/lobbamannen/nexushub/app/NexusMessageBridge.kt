@@ -38,7 +38,11 @@ class NexusMessageBridge(private val activity:Activity,private val web:WebView) 
                 fun perform(calendarAccess:Boolean=false,job:()->JSONObject) {
                     io.execute { try { if(calendarAccess && !granted())throw SecurityException("Kalenderbehörighet saknas");val before=calendar.revision;val result=job(); main.post { if(calendarAccess && !granted()){calendar.invalidate();fail("PERMISSION_DENIED","Kalenderbehörighet återkallad")} else if(calendarAccess && (!active || before!=calendar.revision))fail("STALE_CALENDAR","Kalendern ändrades. Uppdatera vyn.") else done(result) } } catch(e:Exception){main.post {fail(if(e is SecurityException)"PERMISSION_DENIED" else "REQUEST_FAILED",e.message?.take(200) ?: "Åtgärden misslyckades")}} }
                 }
+                if(method.startsWith("telemetry."))require(raw.toByteArray(Charsets.UTF_8).size<=4096)
                 when(method) {
+                    "telemetry.getStatus" -> perform {NexusTelemetry.status()}
+                    "telemetry.setEnabled" -> {require(p.opt("enabled") is Boolean);perform {NexusTelemetry.setEnabled(p.getBoolean("enabled"))}}
+                    "telemetry.capture" -> perform {JSONObject().put("accepted",NexusTelemetry.capture(p.getString("name"),p.getJSONObject("properties"),"react"))}
                     "calendar.getPermission" -> done(permission())
                     "calendar.requestPermission" -> { if(granted())done(permission()) else if(!permission().getBoolean("canRequest")) {activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+activity.packageName)));done(permission().put("settingsOpened",true))} else if(permissionReply!=null)fail("BUSY","En behörighetsfråga är redan öppen") else {permissionReply=::done;activity.getPreferences(0).edit().putBoolean("calendarAsked",true).apply();activity.requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR),4101)} }
                     "calendar.getSources" -> perform(true){JSONObject().put("sources",calendar.sources())}
@@ -66,6 +70,6 @@ class NexusMessageBridge(private val activity:Activity,private val web:WebView) 
     private fun emit(event:String,revision:Long){if(!closed && active)try{reply?.postMessage(JSONObject().put("v",1).put("event",event).put("revision",revision).toString())}catch(_:Exception){} }
     fun resume(){active=true;calendar.invalidate();if(granted() && !observing){activity.contentResolver.registerContentObserver(CalendarContract.CONTENT_URI,true,observer);observing=true};emit("calendar.changed",calendar.revision);emit("watch.changed",System.currentTimeMillis())}
     fun stop(){active=false;main.removeCallbacks(change);if(observing){activity.contentResolver.unregisterContentObserver(observer);observing=false};calendar.invalidate()}
-    fun permissions(code:Int){if(code==4101){permissionReply?.invoke(permission());permissionReply=null;if(active)resume()};if(code==4102)emit("watch.changed",System.currentTimeMillis())}
+    fun permissions(code:Int){if(code==4101){NexusTelemetry.capture("calendar_permission_result",JSONObject().put("granted",granted()));permissionReply?.invoke(permission());permissionReply=null;if(active)resume()};if(code==4102)emit("watch.changed",System.currentTimeMillis())}
     fun destroy(){closed=true;stop();permissionReply=null;reply=null;ReleaseWatch.listener=null;io.shutdownNow()}
 }

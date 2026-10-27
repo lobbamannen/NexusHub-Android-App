@@ -4,9 +4,12 @@ plugins {
 }
 android {
     namespace = "se.lobbamannen.nexushub.app"
+    buildFeatures { buildConfig = true }
     compileSdk = 35
     defaultConfig {
         applicationId = "se.lobbamannen.nexushub.app"
+        buildConfigField("String", "POSTHOG_PROJECT_TOKEN", "\"" + (providers.environmentVariable("POSTHOG_PROJECT_TOKEN").orNull ?: "") + "\"")
+        buildConfigField("String", "POSTHOG_HOST", "\"" + (providers.environmentVariable("POSTHOG_HOST").orNull ?: "") + "\"")
         minSdk = 26
         targetSdk = 35
         versionCode = providers.environmentVariable("ANDROID_VERSION_CODE").orNull?.toInt() ?: 1
@@ -36,6 +39,8 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
+    implementation("com.posthog:posthog-android:3.72.10")
+    implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.1"))
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
@@ -63,4 +68,8 @@ val bundleWeb by tasks.registering(Sync::class) {
         }
     }
 }
-tasks.named("preBuild") { dependsOn(bundleWeb) }
+val bundleTelemetrySchema by tasks.registering(Copy::class) {
+    from(rootProject.file("lib/telemetry-schema.json"))
+    into(layout.projectDirectory.dir("src/main/assets"))
+}
+tasks.named("preBuild") { dependsOn(bundleWeb,bundleTelemetrySchema) }

@@ -1,0 +1,934 @@
+{
+  "app_opened": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "startup_mode": [
+      "cold",
+      "warm"
+    ]
+  },
+  "app_backgrounded": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "session_duration_bucket": [
+      "short",
+      "medium",
+      "long"
+    ]
+  },
+  "section_viewed": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ]
+  },
+  "replica_sync_started": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "trigger": [
+      "auto",
+      "manual",
+      "resume"
+    ]
+  },
+  "replica_sync_completed": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "trigger": [
+      "auto",
+      "manual",
+      "resume"
+    ],
+    "duration_bucket": [
+      "under100ms",
+      "100to499ms",
+      "500to999ms",
+      "1to3s",
+      "3to10s",
+      "over10s"
+    ],
+    "files_bucket": [
+      "0",
+      "1to10",
+      "11to100",
+      "101to1000",
+      "over1000"
+    ],
+    "bytes_bucket": [
+      "0",
+      "under1mb",
+      "1to100mb",
+      "over100mb"
+    ],
+    "changes": "boolean"
+  },
+  "replica_sync_failed": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "trigger": [
+      "auto",
+      "manual",
+      "resume"
+    ],
+    "duration_bucket": [
+      "under100ms",
+      "100to499ms",
+      "500to999ms",
+      "1to3s",
+      "3to10s",
+      "over10s"
+    ],
+    "error_category": [
+      "network",
+      "rate_limit",
+      "auth",
+      "conflict",
+      "storage",
+      "integrity",
+      "other"
+    ]
+  },
+  "replica_sync_paused": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "trigger": [
+      "manual"
+    ]
+  },
+  "local_read_fallback": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "resource": [
+      "media",
+      "stories",
+      "ideas",
+      "economy",
+      "other"
+    ],
+    "outcome": [
+      "cache",
+      "network",
+      "stale"
+    ]
+  },
+  "image_load_slow": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "screen_group": [
+      "home",
+      "library",
+      "detail",
+      "stories",
+      "other"
+    ],
+    "duration_bucket": [
+      "0_5to1s",
+      "1to3s",
+      "over3s"
+    ]
+  },
+  "github_write_confirmed": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "category": [
+      "media",
+      "ideas",
+      "stories",
+      "economy",
+      "todos",
+      "incoming",
+      "other"
+    ],
+    "latency_bucket": [
+      "under100ms",
+      "100to499ms",
+      "500to999ms",
+      "1to3s",
+      "3to10s",
+      "over10s"
+    ]
+  },
+  "github_write_pending": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "category": [
+      "media",
+      "ideas",
+      "stories",
+      "economy",
+      "todos",
+      "incoming",
+      "other"
+    ]
+  },
+  "github_write_conflict": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "category": [
+      "media",
+      "ideas",
+      "stories",
+      "economy",
+      "todos",
+      "incoming",
+      "other"
+    ]
+  },
+  "github_write_failed": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "category": [
+      "media",
+      "ideas",
+      "stories",
+      "economy",
+      "todos",
+      "incoming",
+      "other"
+    ],
+    "error_category": [
+      "network",
+      "rate_limit",
+      "auth",
+      "conflict",
+      "storage",
+      "integrity",
+      "other"
+    ]
+  },
+  "media_detail_opened": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "media_type": [
+      "film",
+      "series"
+    ]
+  },
+  "media_status_saved": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "media_type": [
+      "film",
+      "series"
+    ],
+    "action": [
+      "marked_seen",
+      "marked_unseen",
+      "wishlist_changed",
+      "other"
+    ]
+  },
+  "series_watch_toggled": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "state": [
+      "on",
+      "off"
+    ]
+  },
+  "story_opened": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ]
+  },
+  "story_read_saved": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "state": [
+      "read",
+      "unread"
+    ]
+  },
+  "idea_created": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "category": [
+      "ideas"
+    ]
+  },
+  "idea_updated": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "category": [
+      "ideas"
+    ]
+  },
+  "idea_plan_opened": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "category": [
+      "ideas"
+    ]
+  },
+  "idea_status_changed": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "status": [
+      "new",
+      "investigating",
+      "ready",
+      "completed",
+      "dismissed"
+    ]
+  },
+  "economy_action_saved": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "action": [
+      "create_purchase",
+      "update_purchase",
+      "category_change",
+      "product_change",
+      "other"
+    ]
+  },
+  "incoming_transfer_completed": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "destination": [
+      "inbox",
+      "idea",
+      "both"
+    ],
+    "files_bucket": [
+      "0",
+      "1to10",
+      "11to100",
+      "101to1000",
+      "over1000"
+    ]
+  },
+  "watch_check_completed": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "result": [
+      "success",
+      "partial",
+      "failure"
+    ],
+    "changes_bucket": [
+      "0",
+      "1to10",
+      "11to100",
+      "101to1000",
+      "over1000"
+    ],
+    "matched_bucket": [
+      "0",
+      "1to10",
+      "11to100",
+      "101to1000",
+      "over1000"
+    ],
+    "events_bucket": [
+      "0",
+      "1to10",
+      "11to100",
+      "101to1000",
+      "over1000"
+    ],
+    "notifications_bucket": [
+      "0",
+      "1to10",
+      "11to100",
+      "101to1000",
+      "over1000"
+    ],
+    "filter_reason": [
+      "none",
+      "no_changes",
+      "no_match",
+      "evidence",
+      "baseline",
+      "disabled",
+      "quiet",
+      "permission",
+      "already_handled",
+      "mixed",
+      "other"
+    ],
+    "error_category": [
+      "network",
+      "rate_limit",
+      "auth",
+      "conflict",
+      "storage",
+      "integrity",
+      "other"
+    ]
+  },
+  "calendar_permission_result": {
+    "module": [
+      "hem",
+      "kalender",
+      "bevakning",
+      "ideer",
+      "mottaget",
+      "attgora",
+      "databas",
+      "berattelser",
+      "filmer",
+      "serier",
+      "register",
+      "ekonomi",
+      "plugins",
+      "upptack",
+      "filer",
+      "verktyg",
+      "nyheter",
+      "favoriter",
+      "arkiv",
+      "sok",
+      "installningar",
+      "other"
+    ],
+    "granted": "boolean"
+  }
+}

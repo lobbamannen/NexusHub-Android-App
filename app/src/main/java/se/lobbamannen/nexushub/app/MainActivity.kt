@@ -208,8 +208,8 @@ class MainActivity : Activity() {
         pendingSeries = null
         webView.evaluateJavascript("location.hash=" + JSONObject.quote("serier?item=" + Uri.encode(target)) + ";", null)
     }
-    override fun onResume() { super.onResume(); if (::nexusMessages.isInitialized) nexusMessages.resume() }
-    override fun onStop() { if (::nexusMessages.isInitialized) nexusMessages.stop(); super.onStop() }
+    override fun onResume() { super.onResume(); NexusTelemetry.foreground(); if (::nexusMessages.isInitialized) nexusMessages.resume() }
+    override fun onStop() { NexusTelemetry.background(); if (::nexusMessages.isInitialized) nexusMessages.stop(); super.onStop() }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (::nexusMessages.isInitialized) nexusMessages.permissions(requestCode)

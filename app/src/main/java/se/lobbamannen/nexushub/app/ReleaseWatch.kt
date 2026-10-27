@@ -105,12 +105,15 @@ class ReleaseWatch(private val context:Context) {
             }
             val key=WatchCredentialStore(context).get();if(key.isBlank()){s.put("error","API-nyckel saknas");checkpoint();return@synchronized true}
             if(s.optBoolean("unauthorized"))return@synchronized true
+            val diagnostics=JSONObject().put("sourceChanges",0).put("watchedChanges",0).put("rejectedEvidence",0).put("baselineEvents",0).put("newEvents",0).put("noticesPosted",0).put("notificationReason","none")
             val now=Instant.now();if(s.optLong("retryAt")>now.epochSecond)return@synchronized false
             if(now.toEpochMilli()-s.optLong("attemptMillis")<15*60*1000)return@synchronized !s.has("error")
             s.put("attemptMillis",now.toEpochMilli()).put("lastAttemptAt",now);s.remove("error");checkpoint()
             val month=YearMonth.now(ZoneOffset.UTC).toString();if(s.optString("month")!=month)s.put("month",month).put("used",0)
             val settings=snapshot.getJSONObject("settings");val rows=snapshot.getJSONArray("series")
             val watched=(0 until rows.length()).map { rows.getJSONObject(it) }.filter { it.getJSONObject("releaseWatch").optBoolean("enabled") && it.optString("imdbId").matches(Regex("tt[0-9]{5,12}")) }
+            val bases=s.optJSONObject("baselines") ?: JSONObject()
+            val enrolledAt=watched.flatMap {row->providers(row,snapshot.getJSONObject("settings")).map {provider->bases.optLong(row.getString("key")+"|"+provider,now.epochSecond)}}.minOrNull() ?: now.epochSecond
             val byImdb=watched.groupBy { it.getString("imdbId") }
             val enabledProviders=watched.flatMap { providers(it,settings) }.toSet().sorted()
             val streams=listOf("new","removed","upcoming").flatMap { change ->
@@ -139,7 +142,7 @@ class ReleaseWatch(private val context:Context) {
                     checkpoint()
                 }
                 val lower=(current-30L*86400).coerceAtLeast(0)
-                val from=if(state.has("from"))state.getLong("from") else if(future)current else maxOf(lower,state.optLong("watermark",current))
+                val from=if(state.has("from"))state.getLong("from") else if(future)current else WatchRules.pastFrom(state,enrolledAt,current)
                 // API accepts past timestamps only within 31 days and future timestamps only within 31 days.
                 val boundedFrom=if(state.has("from"))from else if(future)from.coerceIn(current,current+30L*86400) else from.coerceIn(lower,current)
                 val to=if(state.has("to"))state.getLong("to") else if(future)current+30L*86400 else current
@@ -152,15 +155,16 @@ class ReleaseWatch(private val context:Context) {
                 conn.instanceFollowRedirects=false;conn.connectTimeout=15000;conn.readTimeout=20000;conn.setRequestProperty("X-API-Key",key)
                 try {
                     val code=conn.responseCode
-                    if(code==401){s.put("unauthorized",true).put("error","API-nyckeln nekades (401)");checkpoint();return@synchronized true}
-                    if(code==429){val delay=conn.getHeaderField("Retry-After")?.toLongOrNull() ?: 3600;s.put("retryAt",current+delay.coerceIn(900,86400)).put("error","API-gräns (429), kontroll senare");checkpoint();return@synchronized false}
+                    if(code==401){NexusTelemetry.capture("watch_check_completed",WatchRules.failureDiagnostics(s,diagnostics,"auth"));s.put("unauthorized",true).put("error","API-nyckeln nekades (401)");checkpoint();return@synchronized true}
+                    if(code==429){NexusTelemetry.capture("watch_check_completed",WatchRules.failureDiagnostics(s,diagnostics,"rate_limit"));val delay=conn.getHeaderField("Retry-After")?.toLongOrNull() ?: 3600;s.put("retryAt",current+delay.coerceIn(900,86400)).put("error","API-gräns (429), kontroll senare");checkpoint();return@synchronized false}
                     if(code!=200)error("Källan svarade HTTP $code")
                     val raw=conn.inputStream.use { input -> val out=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192);var n=input.read(buffer);while(n!=-1){require(out.size()+n<=4*1024*1024);out.write(buffer,0,n);n=input.read(buffer)};JSONObject(out.toString("UTF-8")) }
                     val changes=raw.getJSONArray("changes");val shows=raw.getJSONObject("shows")
                     require(changes.length()<=25)
+                    diagnostics.put("sourceChanges",diagnostics.getInt("sourceChanges")+changes.length())
                     for(i in 0 until changes.length()) {
                         val change=changes.getJSONObject(i);val provider=change.optJSONObject("service")?.optString("id") ?: continue
-                        if(provider in providerGroup)observeChange(s,change,shows,byImdb,settings,provider,changeType,itemType,current)
+                        if(provider in providerGroup)observeChange(s,change,shows,byImdb,settings,provider,changeType,itemType,current,diagnostics)
                     }
                     pages++
                     if(raw.getBoolean("hasMore")) {
@@ -187,18 +191,21 @@ class ReleaseWatch(private val context:Context) {
                 s.remove("error")
             } else s.put("error","Delvis kontrollerat: $completed av ${streams.size} flöden slutförda i denna körning; $pages sidor")
             history(s,"Kontrollerat $pages sidor; $completed slutförda flöden av ${streams.size}")
-            synchronized(lock) {checkpoint();notifyPending(s,snapshot);save(s)};true
+            synchronized(lock) {checkpoint();notifyPending(s,snapshot,diagnostics);s.put("diagnostics",diagnostics);history(s,"Källändringar: ${diagnostics.getInt("sourceChanges")}; bevakade: ${diagnostics.getInt("watchedChanges")}; avvisade belägg: ${diagnostics.getInt("rejectedEvidence")}; nya fynd: ${diagnostics.getInt("newEvents")}; tyst baslinje: ${diagnostics.getInt("baselineEvents")}; notisförsök: ${diagnostics.getInt("noticesPosted")} (${diagnostics.getString("notificationReason")})");save(s)}
+            NexusTelemetry.capture("watch_check_completed",JSONObject().put("result",if(s.optString("error").startsWith("Delvis"))"partial" else if(s.has("error"))"failure" else "success").put("changes_bucket",TelemetryPolicy.files(diagnostics.getInt("sourceChanges"))).put("matched_bucket",TelemetryPolicy.files(diagnostics.getInt("watchedChanges"))).put("events_bucket",TelemetryPolicy.files(diagnostics.getInt("newEvents"))).put("notifications_bucket",TelemetryPolicy.files(diagnostics.getInt("noticesPosted"))).put("filter_reason",if(diagnostics.getInt("sourceChanges")==0)"no_changes" else if(diagnostics.getInt("watchedChanges")==0 && diagnostics.getInt("rejectedEvidence")==0)"no_match" else if(diagnostics.getInt("rejectedEvidence")>0)"evidence" else diagnostics.getString("notificationReason")))
+            true
         } catch(_:ConfigurationChanged) { true }
-        catch(e:Exception) { synchronized(lock){val latest=load();latest.put("error",e.message?.take(200) ?: "Kontrollen misslyckades");history(latest,"Kontrollen misslyckades; försöker senare");save(latest)};false }
+        catch(e:Exception) { NexusTelemetry.capture("watch_check_completed",JSONObject().put("result","failure").put("error_category","other")); synchronized(lock){val latest=load();latest.put("error",e.message?.take(200) ?: "Kontrollen misslyckades");history(latest,"Kontrollen misslyckades; försöker senare");save(latest)};false }
         finally {running=false;listener?.invoke()}
     }
     private class ConfigurationChanged:Exception()
     private fun rawBudgetExhausted(s:JSONObject)=!WatchRules.quota(s.optInt("used"))
-    private fun observeChange(s:JSONObject,change:JSONObject,shows:JSONObject,byImdb:Map<String,List<JSONObject>>,settings:JSONObject,provider:String,changeType:String,itemType:String,now:Long) {
-        val numbers=WatchRules.evidenceNumbers(change,provider,changeType,itemType,now) ?: return
-        val season=numbers.first;val episode=numbers.second
+    private fun observeChange(s:JSONObject,change:JSONObject,shows:JSONObject,byImdb:Map<String,List<JSONObject>>,settings:JSONObject,provider:String,changeType:String,itemType:String,now:Long,diagnostics:JSONObject) {
         val show=shows.optJSONObject(change.optString("showId")) ?: return
-        val imdb=show.optString("imdbId");val rows=byImdb[imdb] ?: return
+        val imdb=show.optString("imdbId");val rows=byImdb[imdb]?.filter {WatchRules.matchesProvider(it,settings,provider)}?.takeIf {it.isNotEmpty()} ?: return
+        diagnostics.put("watchedChanges",diagnostics.getInt("watchedChanges")+1)
+        val numbers=WatchRules.evidenceNumbers(change,provider,changeType,itemType,now) ?: run {diagnostics.put("rejectedEvidence",diagnostics.getInt("rejectedEvidence")+1);return}
+        val season=numbers.first;val episode=numbers.second
         val timestamp=change.optLong("timestamp",0)
         val events=s.optJSONArray("events") ?: JSONArray();val ids=(0 until events.length()).map { events.getJSONObject(it).getString("id") }.toSet()
         val bases=s.optJSONObject("baselines") ?: JSONObject()
@@ -230,14 +237,15 @@ class ReleaseWatch(private val context:Context) {
             if(changeType=="upcoming" && timestamp>0)event.put("releaseDate",Instant.ofEpochSecond(timestamp).atZone(ZoneId.of("Europe/Stockholm")).toLocalDate().toString())
             val link=change.optString("link");if(link.startsWith("https://"))event.put("sourceUrl",link)
             if(old)event.put("readAt",Instant.ofEpochSecond(now).toString()).put("baseline",true)
+            val counter=if(old)"baselineEvents" else "newEvents";diagnostics.put(counter,diagnostics.getInt(counter)+1)
             events.put(event)
         }
         s.put("events",events)
     }
-    private fun notifyPending(s:JSONObject,snapshot:JSONObject) {
-        if(!notificationGranted())return
+    private fun notifyPending(s:JSONObject,snapshot:JSONObject,diagnostics:JSONObject) {
+        if(!notificationGranted()){diagnostics.put("notificationReason","permission");return}
         val settings=snapshot.getJSONObject("settings");val q=settings.getJSONObject("quietHours")
-        if(WatchRules.quiet(q.optBoolean("enabled"),q.getString("from"),q.getString("to"),LocalTime.now(ZoneId.of("Europe/Stockholm"))))return
+        if(WatchRules.quiet(q.optBoolean("enabled"),q.getString("from"),q.getString("to"),LocalTime.now(ZoneId.of("Europe/Stockholm")))){diagnostics.put("notificationReason","quiet");return}
         val manager=context.getSystemService(NotificationManager::class.java);manager.createNotificationChannel(NotificationChannel("series-releases","Seriebevakning",NotificationManager.IMPORTANCE_DEFAULT))
         val rows=snapshot.getJSONArray("series");val active=(0 until rows.length()).map { rows.getJSONObject(it) }.associateBy { it.getString("key") }
         val events=s.optJSONArray("events") ?: return
@@ -247,12 +255,14 @@ class ReleaseWatch(private val context:Context) {
             val enrolled=s.optJSONObject("baselines")?.optLong(e.getString("seriesKey")+"|"+e.getString("provider"),Long.MAX_VALUE) ?: Long.MAX_VALUE
             WatchRules.notifyCandidate(e.optBoolean("baseline"),e.has("notifiedAt") && !pendingAvailable,w.optBoolean("enabled") && e.getString("provider") in providers(row,settings) && WatchRules.notificationEnabled(e.optString("availability"),w.optBoolean(if(episode)"episodes" else "seasons"),settings.optBoolean(if(episode)"notifyNewEpisodes" else "notifyNewSeasons"),settings.optBoolean("notifyUpcoming"))) && (!e.has("readAt") || pendingAvailable) && Instant.parse(e.getString("observedAt")).epochSecond>=enrolled && Duration.between(Instant.parse(e.getString("observedAt")),Instant.now()).toDays()<7
         }.groupBy { "${it.getString("seriesKey")}|${it.getString("provider")}|${it.getInt("season")}|${it.getString("availability")}" }
+        if(groups.isEmpty())diagnostics.put("notificationReason",if(diagnostics.getInt("baselineEvents")>0)"baseline" else "already_handled")
         for((tag,list) in groups) {
             val e=list.first();val target=e.optString("imdbId").ifBlank { e.getString("seriesKey") }
             val intent=Intent(context,MainActivity::class.java).putExtra("nexus.series",target).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             val pending=PendingIntent.getActivity(context,tag.hashCode(),intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             // Persist before dispatch: interrupted workers cannot duplicate the same release push.
             list.forEach { it.put("notifiedAt",Instant.now());it.remove("pendingAvailableNotification") };save(s)
+            diagnostics.put("noticesPosted",diagnostics.getInt("noticesPosted")+1)
             manager.notify(tag,1,NotificationCompat.Builder(context,"series-releases").setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle(e.getString("title")).setContentText("${if(e.optString("availability")=="confirmed_upcoming") "Kommande i Sverige" else "Nytt i Sverige"} på ${e.getString("provider")}: säsong ${e.getInt("season")} ${if(list.size==1 && e.has("episode"))"· avsnitt ${e.getInt("episode")}" else "(${list.size} uppgifter)"}").setContentIntent(pending).setAutoCancel(true).build())
         }
     }

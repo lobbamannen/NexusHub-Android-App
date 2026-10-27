@@ -1,3 +1,4 @@
+import {telemetry,bucketFiles} from '@/platform/telemetry';
 import './incoming-inbox.css';
 import React,{useEffect,useRef,useState} from 'react';
 import {Inbox,Plus,Send,RefreshCw,Trash2,CheckCircle2,ExternalLink,FileText} from 'lucide-react';
@@ -23,7 +24,7 @@ export default function IncomingInbox({ideas}:{ideas:IdeasController}){
  const name=(target:string)=>{if(target==='inbox')return 'Databas/00-Inkorg';const id=target.slice(5),number=ideas.numbering.entries.find(e=>e.id===id)?.number,text=ideas.items.find(i=>i.idea.id===id)?.idea.text.split('\n')[0];return (number?'Idé '+number:'Idé')+(text?' · '+text.slice(0,70):' · '+id);};
  const perform=async(chosen:Incoming[],destinations:(item:Incoming)=>string[])=>{
   if(busy)return;setBusy(true);setError('');setNotice('');let completed=0;
-  try{for(const item of chosen){await deliverIncoming(item,destinations(item));if(incomingComplete(item))completed++;}setSelected([]);setNotice(completed===chosen.length?'Överföringen lyckades! '+plural(completed,'objekt är verifierat','objekt är verifierade')+' i GitHub. Se destinationer och filer nedan.':'Valda överföringar är kvitterade. Andra destinationer återstår – originalen finns kvar.');}
+  try{for(const item of chosen){await deliverIncoming(item,destinations(item));if(incomingComplete(item)){completed++;const dest=destinations(item);telemetry('incoming_transfer_completed',{destination:dest.includes('inbox')?(dest.length>1?'both':'inbox'):'idea',files_bucket:bucketFiles(item.files.length)});}}setSelected([]);setNotice(completed===chosen.length?'Överföringen lyckades! '+plural(completed,'objekt är verifierat','objekt är verifierade')+' i GitHub. Se destinationer och filer nedan.':'Valda överföringar är kvitterade. Andra destinationer återstår – originalen finns kvar.');}
   catch(e:any){setError(e.message+(completed?' '+plural(completed,'objekt blev klart','objekt blev klara')+'.':''));}
   finally{setBusy(false);reload();requestAnimationFrame(()=>noticeRef.current?.focus());}
  };

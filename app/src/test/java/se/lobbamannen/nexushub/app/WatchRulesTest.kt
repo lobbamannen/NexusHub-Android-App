@@ -5,6 +5,30 @@ import org.junit.Test
 import java.time.LocalTime
 
 class WatchRulesTest {
+    @Test fun diagnosticsExcludeUnselectedProviders() {
+        val row=org.json.JSONObject().put("releaseWatch",org.json.JSONObject().put("providerMode","custom").put("providerIds",org.json.JSONArray().put("disney")))
+        val settings=org.json.JSONObject().put("providers",org.json.JSONArray().put("netflix").put("disney"))
+        assertFalse(WatchRules.matchesProvider(row,settings,"netflix"))
+        assertTrue(WatchRules.matchesProvider(row,settings,"disney"))
+    }
+    @Test fun actualHttpFailuresReplaceOldLocalDiagnostics() {
+        for(category in listOf("auth","rate_limit")) {
+            val state=org.json.JSONObject().put("diagnostics",org.json.JSONObject().put("sourceChanges",99))
+            val current=org.json.JSONObject().put("sourceChanges",0).put("watchedChanges",0).put("newEvents",0).put("noticesPosted",0)
+            val event=WatchRules.failureDiagnostics(state,current,category)
+            assertEquals(0,state.getJSONObject("diagnostics").getInt("sourceChanges"))
+            assertEquals(category,event.getString("error_category"));assertEquals("failure",event.getString("result"))
+        }
+    }
+
+    @Test fun firstCheckCoversEnrollmentAndRechecksDelayedSourceChanges() {
+        val now=200000L
+        assertEquals(190000L,WatchRules.pastFrom(org.json.JSONObject(),190000L,now))
+        assertEquals(190000L,WatchRules.pastFrom(org.json.JSONObject().put("watermark",195000L),190000L,now))
+        assertEquals(113600L,WatchRules.pastFrom(org.json.JSONObject().put("watermark",200000L),100000L,now))
+        assertEquals(199000L,WatchRules.pastFrom(org.json.JSONObject().put("from",199000L).put("to",199500L),190000L,now))
+    }
+
     @Test fun quotaStopsBeforePaidPlan() {
         assertTrue(WatchRules.quota(899))
         assertFalse(WatchRules.quota(900))

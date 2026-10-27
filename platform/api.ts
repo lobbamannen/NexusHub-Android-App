@@ -1,3 +1,4 @@
+import {telemetry,resourceForPath,categoryForPath} from './telemetry';
 import * as additions from '@/app/api/media-additions/route';
 import {localFirstReader,cacheCommitter,compatibleMutationModel} from '@/lib/local-first.mjs';
 import {localReadSeed} from './local-read-seed';
@@ -110,6 +111,7 @@ async function dispatchWithCache(request: Request) {
         const headers = new Headers(cached.headers);
         const savedAt = cached.repositorySavedAt ? Object.values(cached.repositorySavedAt).sort()[0] || cached.savedAt : cached.savedAt;
         headers.set('X-Nexus-Offline', 'true'); headers.set('X-Nexus-Cached-At', savedAt);
+        telemetry('local_read_fallback',{resource:resourceForPath(path),outcome:'stale'});
         signalStale(path, savedAt);
         return new Response(cached.body, { status: cached.status, headers });
       }
@@ -120,7 +122,7 @@ async function dispatchWithCache(request: Request) {
 
 const readUiLocal=localFirstReader({
  get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(writeBarrier.blocked(url.pathname,current?.commit||null))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data)return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
- refresh:(request:Request)=>dispatchWithCache(request),
+ refresh:(request:Request)=>{telemetry('local_read_fallback',{resource:resourceForPath(new URL(request.url).pathname),outcome:'network'});return dispatchWithCache(request);},
  changed:()=>window.dispatchEvent(new Event('nexus-github-changed')),
  failure:(key:string,at:string)=>signalStale(key,at),
 });
@@ -154,7 +156,7 @@ export function installLocalApi(): void {
       }
       if(request.method==='POST'&&url.pathname==='/api/todos'){
         const response=await dispatch(request);
-        if(response.ok){try{const data=await response.clone().json();if(data.saved){writeBarrier.record(url.pathname,data.commit);await durableDelete(readCacheKey(new Request(url.href)));}}catch{/* The remote write remains confirmed. */}}
+        if(response.ok){try{const data=await response.clone().json();if(data.saved){telemetry('github_write_confirmed',{category:categoryForPath(url.pathname)});writeBarrier.record(url.pathname,data.commit);await durableDelete(readCacheKey(new Request(url.href)));}}catch{/* The remote write remains confirmed. */}}
         return response;
       }
       const eligible=cacheable(request)&&!url.pathname.startsWith('/api/portal/document')&&!url.pathname.startsWith('/api/github/');
