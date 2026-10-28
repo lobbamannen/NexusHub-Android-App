@@ -76,3 +76,8 @@
 .nh-calendar-v2 .nh-calendar-week-number {position:absolute;inset-inline-start:3px;top:3px;z-index:2;pointer-events:none;line-height:18px}
 .nh-calendar-v2 .nh-calendar-cell {border:1px solid #d7ba7a1b}
 .nh-calendar-v2 .nh-calendar-weekday {border-bottom:1px solid #d7ba7a1b}
+/* FC7 measures an empty width ruler beside its flex header. Bound the engine and
+   viewport to the host so an intrinsic scrollbar filler cannot feed back into it. */
+.nh-calendar-v2 .nh-calendar-grid {width:100%;min-width:0;max-width:100%}
+.nh-calendar-v2 .nh-calendar-grid>div {width:100%;min-width:0;max-width:100%;contain:inline-size}
+.nh-calendar-v2 .nh-calendar-grid>div>div {width:100%;min-width:0;max-width:100%}

@@ -26,7 +26,9 @@ import './calendar-v2.css';
 // FullCalendar 7 handles a truthy non-string as a custom action; its type omits this runtime branch.
 const KEEP_MONTH_VIEW=true as unknown as 'popover';
 const zone='Europe/Stockholm',DRAFT='calendar:editor:v1';
-const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(new Date());
+const calendarDate=(date:Date)=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+const isSunday=(date:Date)=>Temporal.PlainDate.from(calendarDate(date)).dayOfWeek===7;
+const today=()=>calendarDate(new Date());
 const format=(value:string)=>new Date(value).toLocaleString('sv-SE',{timeZone:zone,dateStyle:'medium',timeStyle:'short'});
 const localInput=(value:string)=>Temporal.Instant.from(value).toZonedDateTimeISO(zone).toPlainDateTime().toString().slice(0,16);
 const toInstant=(value:string)=>Temporal.PlainDateTime.from(value).toZonedDateTime(zone).toInstant().toString();
@@ -78,15 +80,15 @@ export default function CalendarPage({onNavigate}:{onNavigate:(view:string)=>voi
  {draft&&!editor&&<button className="secondary" onClick={()=>setEditor(true)}>Fortsätt med ditt lokala kalenderutkast</button>}
  <div className="nh-calendar-grid" data-color-scheme="dark"><FullCalendar ref={ref} plugins={[themePlugin,dayGridPlugin,timeGridPlugin,listPlugin,interactionPlugin]} locale={svLocale} firstDay={1} timeZone={zone} initialView="dayGridMonth" initialDate={selected} headerToolbar={false} height="auto" dayMaxEvents={dayOpen?1:small?2:3} weekNumbers weekNumberCalculation="ISO" fixedWeekCount nowIndicator slotMinTime="00:00:00" slotMaxTime="24:00:00" scrollTime="08:00:00" editable={false} views={{timeGridThreeDay:{type:'timeGrid',duration:{days:3}}}} events={fcEvents}
  dayRowClass="nh-calendar-week-row"
- dayHeaderClass={info=>['nh-calendar-weekday',info.date.getUTCDay()===0?'nh-calendar-sunday':''].join(' ')}
+ dayHeaderClass={info=>['nh-calendar-weekday',isSunday(info.date)?'nh-calendar-sunday':''].join(' ')}
  dayHeaderContent={info=><span>{view==='month'?info.weekdayText:info.text}</span>}
- dayCellClass={info=>['nh-calendar-cell',info.isOther?'nh-calendar-outside':'',info.isToday?'nh-calendar-today-cell':'',info.date.getUTCDay()===0?'nh-calendar-sunday':'',dayOpen&&info.date.toISOString().slice(0,10)===selected?'nh-calendar-selected':''].join(' ')}
+ dayCellClass={info=>['nh-calendar-cell',info.isOther?'nh-calendar-outside':'',info.isToday?'nh-calendar-today-cell':'',isSunday(info.date)?'nh-calendar-sunday':'',dayOpen&&calendarDate(info.date)===selected?'nh-calendar-selected':''].join(' ')}
  dayCellTopClass="nh-calendar-cell-top" dayCellTopInnerClass="nh-calendar-date-control" dayCellInnerClass="nh-calendar-cell-events" inlineWeekNumberClass="nh-calendar-week-number"
- dayCellTopContent={info=>{const date=info.date.toISOString().slice(0,10);return <button type="button" className="nh-calendar-day-button" aria-label={'Visa händelser för '+date} aria-expanded={dayOpen&&selected===date} aria-controls="nh-calendar-day-panel" onClick={event=>{event.stopPropagation();selectDay(date);}}>{info.dayNumberText}</button>;}}
+ dayCellTopContent={info=>{const date=calendarDate(info.date);return <button type="button" className="nh-calendar-day-button" aria-label={'Visa händelser för '+date} aria-expanded={dayOpen&&selected===date} aria-controls="nh-calendar-day-panel" onClick={event=>{event.stopPropagation();selectDay(date);}}>{info.dayNumberText}</button>;}}
  dayCellDidMount={info=>{info.el.querySelector('.nh-calendar-date-control')?.removeAttribute('aria-hidden');}}
  eventClass="nh-calendar-cell-event" eventInnerClass="nh-calendar-cell-event-inner"
  eventContent={info=><span className="nh-calendar-event-preview" title={info.event.title}>{info.timeText&&<span className="nh-calendar-event-time">{info.timeText} </span>}<span>{info.event.title}</span></span>}
- moreLinkClass="nh-calendar-more" moreLinkText={count=>'+'+count+' till'} moreLinkClick={info=>{setSelected(info.date.toISOString().slice(0,10));setDayOpen(true);return KEEP_MONTH_VIEW;}}
+ moreLinkClass="nh-calendar-more" moreLinkText={count=>'+'+count+' till'} moreLinkClick={info=>{setSelected(calendarDate(info.date));setDayOpen(true);return KEEP_MONTH_VIEW;}}
  dateClick={info=>{if(!(info.jsEvent.target instanceof Element)||!info.jsEvent.target.closest('.nh-calendar-day-button'))selectDay(info.dateStr.slice(0,10));}} eventClick={info=>{info.jsEvent.stopPropagation();void openDetails(info.event.extendedProps.item);}} datesSet={info=>{setPeriod(info.view.title);const next={from:info.startStr.slice(0,10),toExclusive:info.endStr.slice(0,10)};const key=next.from+':'+next.toExclusive;if(periodKey.current!==key){periodKey.current=key;setDayOpen(false);}setSelected(old=>selectionInRange(old,new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(info.view.currentStart),new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(info.view.currentEnd)));setRange(old=>old.from===next.from&&old.toExclusive===next.toExclusive?old:next);}}/></div>
  {view==='month'&&<section id="nh-calendar-day-panel" className="nh-calendar-day-panel" aria-labelledby="nh-calendar-day-heading" aria-hidden={!dayOpen} inert={!dayOpen}><div className="nh-calendar-day-panel-inner"><div className="nh-calendar-day-surface">
  <div className="nh-calendar-panel-handle" role="presentation" onPointerDown={event=>{if(!event.isPrimary||event.button!==0)return;swipe.current={pointerId:event.pointerId,x:event.clientX,y:event.clientY};event.currentTarget.setPointerCapture(event.pointerId);}} onPointerUp={event=>{const start=swipe.current;if(start?.pointerId!==event.pointerId)return;swipe.current=null;if(closeDayFromSwipe(start,{x:event.clientX,y:event.clientY}))setDayOpen(false);if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onPointerCancel={()=>{swipe.current=null;}} onLostPointerCapture={()=>{swipe.current=null;}}><span/></div>
