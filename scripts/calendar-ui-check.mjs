@@ -9,9 +9,10 @@ try{
   // Native range request is asynchronous; wait for an actual named preview before testing day expansion.
   await page.getByText('Projektavstämning',{exact:true}).first().waitFor();
   assert.equal(await page.locator('.nh-calendar-v2').getAttribute('data-day-open'),'false');
+  assert.equal(await page.locator('.nh-calendar-event-preview').first().evaluate(el=>getComputedStyle(el).color),'rgb(232, 225, 241)','readable text on dark event cards');
   const visibleDay=page.locator('.nh-calendar-cell[data-date="2026-11-11"]');assert.equal(await visibleDay.getByRole('button',{name:'Visa händelser för 2026-11-11',exact:true}).count(),1,'button civil day matches its cell');
   const outside=page.locator('.nh-calendar-cell').filter({has:page.getByRole('button',{name:'Visa händelser för 2026-10-28',exact:true})});
-  await outside.locator('.nh-calendar-more').click();await page.waitForTimeout(350);
+  const moreBox=await outside.locator('.nh-calendar-more').boundingBox(),cellBox=await outside.boundingBox();assert.ok(moreBox.y+moreBox.height<=cellBox.y+cellBox.height+1,'more link fits inside its date cell');await outside.locator('.nh-calendar-more').click();await page.waitForTimeout(350);
   assert.equal(await page.locator('.nh-calendar-v2').getAttribute('data-day-open'),'true');
   await page.getByRole('button',{name:'Visa händelser för 2026-11-11',exact:true}).waitFor();
   await page.getByRole('button',{name:'Stäng dagens händelser'}).click();await page.waitForTimeout(350);

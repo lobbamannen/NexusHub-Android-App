@@ -1,10 +1,10 @@
 /* Calendar V2 owns only this surface; calendar.css is also used by Watch. */
 .nh-calendar-v2 {
- --calendar-row-height:clamp(90px,calc((100dvh - 330px)/6),138px);
+ --calendar-row-height:clamp(124px,calc((100dvh - 330px)/6),148px);
  --calendar-edge:rgba(208,166,83,.2);
  color:#f1edf7;
 }
-.nh-calendar-v2[data-day-open=true] {--calendar-row-height:60px}
+.nh-calendar-v2[data-day-open=true] {--calendar-row-height:84px}
 .nh-calendar-v2 .nh-module-dashboard-header {margin-bottom:12px}
 .nh-calendar-v2 .nh-module-dashboard-title {gap:12px;align-items:center}
 .nh-calendar-v2 .nh-module-eyebrow {color:#d0ae6b;font-size:10px;letter-spacing:.2em}
@@ -91,3 +91,9 @@
 .nh-calendar-v2 .nh-calendar-cell-event {background:#151019!important;color:#e8e1f1!important;border-color:transparent!important;border-inline-start:3px solid var(--fc-event-color,#b48bef)!important}
 
 .nh-calendar-v2 .nh-calendar-cell-event-inner {padding:1px 2px!important}
+
+/* The event theme otherwise derives dark text from the source colour. */
+.nh-calendar-v2 .nh-calendar-cell-event {--fc-event-contrast-color:#e8e1f1!important}
+.nh-calendar-v2 .nh-calendar-cell-event-inner,.nh-calendar-v2 .nh-calendar-event-preview {color:#e8e1f1!important}
+.nh-calendar-v2 .nh-calendar-more,.nh-calendar-v2 .nh-calendar-more * {color:#bf9fe9!important}
+.nh-calendar-v2 .nh-calendar-day-button {font-size:13px}
