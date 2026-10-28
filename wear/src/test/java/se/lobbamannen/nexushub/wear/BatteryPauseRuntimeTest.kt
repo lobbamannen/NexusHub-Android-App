@@ -28,4 +28,12 @@ class BatteryPauseRuntimeTest {
   assertTrue(WorkManager.getInstance(c).getWorkInfosForUniqueWork("nexus-battery-quiet-transition").get().any{!it.state.isFinished})
  }
  @Test fun manualDoesNotEnqueueMeasurementDuringPause(){BatteryWork.now(c);assertTrue(WorkManager.getInstance(c).getWorkInfosForUniqueWork("nexus-battery-now").get().isEmpty())}
+ @Test fun enteringPauseCancelsPreviouslyQueuedManualRetry(){
+  val work=WorkManager.getInstance(c)
+  val retry=OneTimeWorkRequestBuilder<BatteryPublishWorker>().setInitialDelay(1,java.util.concurrent.TimeUnit.HOURS).build()
+  work.enqueueUniqueWork("nexus-battery-now",ExistingWorkPolicy.APPEND_OR_REPLACE,retry).result.get()
+  BatteryWork.schedule(c)
+  assertTrue(work.getWorkInfosForUniqueWork("nexus-battery-now").get().all{it.state.isFinished})
+ }
+
 }

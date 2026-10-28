@@ -34,4 +34,12 @@ class BatteryPauseRuntimeTest {
   assertTrue(store.configurationConfirmed());store.updateConfiguration(store.configuration().copy(quietEnd=(store.configuration().quietEnd+1)%1440));assertFalse(store.configurationConfirmed())
   store.select("watch-b");assertFalse(store.configurationConfirmed())
  }
+ @Test fun enteringPauseCancelsPreviouslyQueuedManualRetry(){
+  val work=WorkManager.getInstance(c)
+  val retry=OneTimeWorkRequestBuilder<BatterySyncWorker>().setInitialDelay(1,java.util.concurrent.TimeUnit.HOURS).build()
+  work.enqueueUniqueWork("nexus-battery-now",ExistingWorkPolicy.APPEND_OR_REPLACE,retry).result.get()
+  BatterySync.schedule(c)
+  assertTrue(work.getWorkInfosForUniqueWork("nexus-battery-now").get().all{it.state.isFinished})
+ }
+
 }
