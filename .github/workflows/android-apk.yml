@@ -65,6 +65,12 @@ jobs:
           set +a
           gradle --no-daemon -PskipWebBuild=true :app:dependencyInsight --dependency okhttp --configuration releaseRuntimeClasspath
           gradle --no-daemon -PskipWebBuild=true :app:testDebugUnitTest :wear:testDebugUnitTest :app:assembleRelease :wear:assembleRelease :app:lintRelease :wear:lintRelease
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: weather-widget-render
+          path: app/build/reports/weather-widget.png
+          retention-days: 14
       - name: Verify APK signature and prepare download
         env:
           GH_TOKEN: ${{ github.token }}

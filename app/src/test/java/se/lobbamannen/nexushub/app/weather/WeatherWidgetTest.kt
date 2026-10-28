@@ -11,11 +11,13 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import se.lobbamannen.nexushub.app.R
 import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application=Application::class,sdk=[34])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class WeatherWidgetTest {
  @Test fun calendarAndWeatherOnlyAllowExistingNexusRoutes(){assertEquals("kalender",WeatherWidgetProvider.destination("kalender"));assertEquals("vader",WeatherWidgetProvider.destination("vader"));for(s in listOf("https://bad.example/","javascript:alert(1)","vader?url=bad","","Kalender"))assertNull(WeatherWidgetProvider.destination(s))}
  @Test fun widgetRendersActualDateBlackSurfaceAndMissingWeatherWithoutZero(){
@@ -28,5 +30,16 @@ class WeatherWidgetTest {
  }
  @Test fun onlyMissingTemperatureUsesDash(){assertEquals("3°",WeatherWidgetProvider.degrees(2.5));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.5));assertEquals("0°",WeatherWidgetProvider.degrees(0.0));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.2));assertEquals("—",WeatherWidgetProvider.degrees(null))}
  @Test fun partlyCloudyIconDistinguishesDayAndNight(){assertFalse(WeatherWidgetGlyph.draw("partly_cloudy",true).sameAs(WeatherWidgetGlyph.draw("partly_cloudy",false)))}
+
+ @Test fun renderNativeWidgetPreview(){
+  val c=RuntimeEnvironment.getApplication();val density=c.resources.displayMetrics.density
+  val state=JSONObject().put("location",WeatherLocation.DEFAULT.json()).put("status","fresh").put("fetchedAt",1793203200000L).put("current",JSONObject().put("temperature",6.5).put("condition","rain").put("isDay",false))
+  val view=WeatherWidgetProvider.views(c,state,Bundle(),LocalDate.of(2026,10,28)).apply(c,FrameLayout(c))
+  val width=(320*density).toInt();val height=(180*density).toInt()
+  view.measure(android.view.View.MeasureSpec.makeMeasureSpec(width,android.view.View.MeasureSpec.EXACTLY),android.view.View.MeasureSpec.makeMeasureSpec(height,android.view.View.MeasureSpec.EXACTLY));view.layout(0,0,width,height)
+  val bitmap=android.graphics.Bitmap.createBitmap(width,height,android.graphics.Bitmap.Config.ARGB_8888);view.draw(android.graphics.Canvas(bitmap))
+  val file=java.io.File("build/reports/weather-widget.png");file.parentFile.mkdirs();file.outputStream().use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
+  assertEquals("7°",view.findViewById<TextView>(R.id.weather_widget_temperature).text.toString())
+ }
 
 }
