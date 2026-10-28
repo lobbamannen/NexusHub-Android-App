@@ -1,7 +1,7 @@
 name: Build Nexus Hub App APK
 on:
   push:
-    branches: [main]
+    branches: [main, feat/nexushub-weather]
   workflow_dispatch:
 permissions:
   contents: write
@@ -37,8 +37,17 @@ jobs:
           java com.sun.tools.javac.Main -d /tmp/battery-policy-test tests/java/BatteryQuietHoursTest.java shared/src/main/java/se/lobbamannen/nexushub/battery/BatteryQuietHours.java
           java -cp /tmp/battery-policy-test BatteryQuietHoursTest
           npm run check:design
-          node --test tests/shared-incoming.test.mjs tests/incoming-sync.test.mjs tests/home-sync-status.test.mjs tests/home-groups.test.mjs tests/personal-capture.test.mjs tests/todos-controller.test.mjs tests/telemetry.test.mjs tests/local-first-recent.test.mjs tests/calendar-*.test.mjs tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs
+          node --test tests/shared-incoming.test.mjs tests/incoming-sync.test.mjs tests/home-sync-status.test.mjs tests/home-groups.test.mjs tests/personal-capture.test.mjs tests/todos-controller.test.mjs tests/telemetry.test.mjs tests/local-first-recent.test.mjs tests/calendar-*.test.mjs tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs tests/weather-*.test.mjs
           npm run build
+      - name: Verify weather UI at phone and desktop sizes
+        run: |
+          npm install --no-save --package-lock=false playwright@1.58.2
+          CHROME_PATH="$(command -v google-chrome)" node scripts/weather-ui-check.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weather-ui
+          path: weather-ui/
+          retention-days: 14
       - name: Restore stable private signing identity
         env:
           GH_TOKEN: ${{ github.token }}

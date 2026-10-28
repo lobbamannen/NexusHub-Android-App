@@ -1,5 +1,7 @@
 package se.lobbamannen.nexushub.app
 
+import se.lobbamannen.nexushub.app.weather.WeatherRuntime
+import se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider
 import android.Manifest
 import android.app.*
 import android.content.pm.PackageManager
@@ -43,6 +45,15 @@ class NexusMessageBridge(private val activity:Activity,private val web:WebView) 
                     "telemetry.getStatus" -> perform {NexusTelemetry.status()}
                     "telemetry.setEnabled" -> {require(p.opt("enabled") is Boolean);perform {NexusTelemetry.setEnabled(p.getBoolean("enabled"))}}
                     "telemetry.capture" -> perform {require(p.optString("name")!="battery_flow");JSONObject().put("accepted",NexusTelemetry.capture(p.getString("name"),p.getJSONObject("properties"),"react"))}
+                    "weather.getState" -> perform {WeatherRuntime.state(activity)}
+                    "weather.refresh" -> perform {WeatherRuntime.initialize(activity);WeatherRuntime.refresh(activity,p.optBoolean("manual",true));WeatherRuntime.state(activity)}
+                    "weather.setLocation" -> perform {WeatherRuntime.initialize(activity);WeatherRuntime.setLocation(activity,p)}
+                    "weather.search" -> perform {JSONObject().put("places",WeatherRuntime.search(activity,p.getString("query")))}
+                    "weather.pinWidget" -> {
+                        val widgets=android.appwidget.AppWidgetManager.getInstance(activity)
+                        val requested=widgets.isRequestPinAppWidgetSupported && widgets.requestPinAppWidget(android.content.ComponentName(activity,WeatherWidgetProvider::class.java),null,null)
+                        done(JSONObject().put("requested",requested))
+                    }
                     "battery.openSettings" -> {activity.startActivity(Intent(activity,se.lobbamannen.nexushub.app.battery.BatterySettingsActivity::class.java));done(JSONObject().put("opened",true))}
                     "calendar.getPermission" -> done(permission())
                     "calendar.requestPermission" -> { if(granted())done(permission()) else if(!permission().getBoolean("canRequest")) {activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+activity.packageName)));done(permission().put("settingsOpened",true))} else if(permissionReply!=null)fail("BUSY","En behörighetsfråga är redan öppen") else {permissionReply=::done;activity.getPreferences(0).edit().putBoolean("calendarAsked",true).apply();activity.requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR),4101)} }
@@ -63,14 +74,15 @@ class NexusMessageBridge(private val activity:Activity,private val web:WebView) 
                 }
             } catch(_:Exception) { try {val id=JSONObject(message.data ?: "{}").optString("requestId");proxy.postMessage(JSONObject().put("v",1).put("requestId",id).put("ok",false).put("error",JSONObject().put("code","INVALID_REQUEST").put("message","Ogiltig begäran")).toString())}catch(_:Exception){} }
         }
+        WeatherRuntime.listener={main.post {emit("weather.changed",System.currentTimeMillis())}}
         ReleaseWatch.listener={main.post {emit("watch.changed",System.currentTimeMillis())}}
         ReleaseWatch.schedule(activity)
     }
     private fun granted()=activity.checkSelfPermission(Manifest.permission.READ_CALENDAR)==PackageManager.PERMISSION_GRANTED
     private fun permission()=JSONObject().put("granted",granted()).put("supported",true).put("canRequest",granted() || !activity.getPreferences(0).getBoolean("calendarAsked",false) || activity.shouldShowRequestPermissionRationale(Manifest.permission.READ_CALENDAR))
     private fun emit(event:String,revision:Long){if(!closed && active)try{reply?.postMessage(JSONObject().put("v",1).put("event",event).put("revision",revision).toString())}catch(_:Exception){} }
-    fun resume(){active=true;calendar.invalidate();if(granted() && !observing){activity.contentResolver.registerContentObserver(CalendarContract.CONTENT_URI,true,observer);observing=true};emit("calendar.changed",calendar.revision);emit("watch.changed",System.currentTimeMillis())}
-    fun stop(){active=false;main.removeCallbacks(change);if(observing){activity.contentResolver.unregisterContentObserver(observer);observing=false};calendar.invalidate()}
+    fun resume(){active=true;WeatherRuntime.foreground(activity,true);calendar.invalidate();if(granted() && !observing){activity.contentResolver.registerContentObserver(CalendarContract.CONTENT_URI,true,observer);observing=true};emit("calendar.changed",calendar.revision);emit("watch.changed",System.currentTimeMillis())}
+    fun stop(){active=false;WeatherRuntime.foreground(activity,false);main.removeCallbacks(change);if(observing){activity.contentResolver.unregisterContentObserver(observer);observing=false};calendar.invalidate()}
     fun permissions(code:Int){if(code==4101){NexusTelemetry.capture("calendar_permission_result",JSONObject().put("granted",granted()));permissionReply?.invoke(permission());permissionReply=null;if(active)resume()};if(code==4102)emit("watch.changed",System.currentTimeMillis())}
-    fun destroy(){closed=true;stop();permissionReply=null;reply=null;ReleaseWatch.listener=null;io.shutdownNow()}
+    fun destroy(){closed=true;stop();permissionReply=null;reply=null;ReleaseWatch.listener=null;WeatherRuntime.listener=null;io.shutdownNow()}
 }

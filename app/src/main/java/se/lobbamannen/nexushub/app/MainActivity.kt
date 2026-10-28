@@ -40,6 +40,7 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var nexusMessages: NexusMessageBridge
     private var pendingSeries: String? = null
+    private var pendingDestination: String? = null
     private lateinit var incomingShares: IncomingShareStore
     private lateinit var credentials: GithubCredentialStore
     private var fileCallback: ValueCallback<Array<Uri>>? = null
@@ -110,6 +111,7 @@ class MainActivity : Activity() {
         webView.addJavascriptInterface(NativeBridge(), "Android")
         nexusMessages = NexusMessageBridge(this, webView)
         nexusMessages.install()
+        pendingDestination = se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider.destination(intent.getStringExtra("nexus.destination").orEmpty())
         pendingSeries = intent.getStringExtra("nexus.series")?.take(200)
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
@@ -131,6 +133,7 @@ class MainActivity : Activity() {
                 }
                 if (trustedDocument) {
                     openPendingSeries()
+                    openPendingDestination()
                     // Match the original Android wrapper: native insets already reserve
                     // the system navigation area, so the portal must not add it twice.
                     view.evaluateJavascript("""
@@ -194,14 +197,21 @@ class MainActivity : Activity() {
         if (savedInstanceState == null || webView.restoreState(savedInstanceState) == null) webView.loadUrl(HOME)
         if (savedInstanceState == null) captureShare(intent)
         pendingSeries = intent.getStringExtra("nexus.series")?.take(200)
-        if (trustedDocument) openPendingSeries()
+        if (trustedDocument) {openPendingSeries();openPendingDestination()}
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         captureShare(intent)
+        pendingDestination=se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider.destination(intent.getStringExtra("nexus.destination").orEmpty())
+        if(trustedDocument)openPendingDestination()
         intent.getStringExtra("nexus.series")?.take(200)?.let { pendingSeries = it; if (trustedDocument) openPendingSeries() }
+    }
+    private fun openPendingDestination(){
+        val target=pendingDestination ?: return
+        pendingDestination=null;intent.removeExtra("nexus.destination")
+        webView.evaluateJavascript("location.hash="+JSONObject.quote(target)+";",null)
     }
     private fun openPendingSeries() {
         val target = pendingSeries ?: return

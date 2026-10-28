@@ -1,0 +1,68 @@
+.portal-shell.nh-chroma-site.nh-locked-home .nh-home-weather{position:absolute;top:-5px;left:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;max-width:48%;padding:5px 9px;border:1px solid #a78bfa30;border-radius:16px;background:linear-gradient(135deg,#181320,#0f0e14);color:#efe9fa;font-family:inherit;font-size:13px;font-weight:600;line-height:1.3;cursor:pointer;white-space:nowrap}
+.portal-shell.nh-chroma-site .nh-weather-glyph{color:#9ac7ed;flex:none}
+.portal-shell .nh-weather-old-dot{width:5px;height:5px;border-radius:50%;background:#e7c176}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-home-weather:focus-visible{outline:2px solid #b5d7f6;outline-offset:3px}
+.portal-shell .nh-weather{--weather-blue:#9ac7ed;max-width:800px;margin:0 auto;display:grid;gap:14px;padding-bottom:20px}
+.portal-shell .nh-weather-heading{display:flex;align-items:center;gap:12px;margin-bottom:2px}
+.portal-shell .nh-weather-heading h1{flex:1;font-size:27px;margin:0;font-weight:700}
+.portal-shell .nh-weather-icon-button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;border:1px solid #ffffff16;border-radius:14px;background:#ffffff05;color:#adc9e7;cursor:pointer}
+.portal-shell .nh-weather button:disabled{opacity:.5;cursor:default}
+.portal-shell .nh-weather-card{min-width:0;padding:20px;border:1px solid #aecff021;border-radius:23px;background:radial-gradient(ellipse at 15% 0%,#8bbae607,transparent 70%),linear-gradient(145deg,#11141a,#0b0d12 80%);box-shadow:inset 0 1px 0 #ffffff08,0 8px 24px #0000001a}
+.portal-shell .nh-weather-current{padding:22px 22px 15px}
+.portal-shell .nh-weather-card h2{font-size:16px;line-height:1.4;margin:0;font-weight:650;color:#f2f0f7}
+.portal-shell .nh-weather-card-top,.portal-shell .nh-weather-section-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.portal-shell .nh-weather-section-heading>span,.portal-shell .nh-weather-source{font-size:11px;color:#a3adbd}
+.portal-shell .nh-weather-place{display:inline-flex;gap:7px;align-items:center;min-height:36px;background:transparent;border:0;padding:0;color:#e0e5ef;font-size:16px;text-align:left;cursor:pointer;min-width:0}
+.portal-shell .nh-weather-place>span{overflow-wrap:anywhere}
+.portal-shell .nh-weather-source{border:1px solid #9ac7ed22;padding:4px 7px;border-radius:8px;white-space:nowrap}
+.portal-shell .nh-weather-current-body{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px 0 23px}
+.portal-shell .nh-weather-eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#8fa2b8;margin:0 0 4px}
+.portal-shell .nh-weather-temperature{display:block;font-size:66px;font-weight:550;line-height:1.12;letter-spacing:-3px;color:#f6f5fa;font-variant-numeric:tabular-nums}
+.portal-shell .nh-weather-condition{font-size:18px;margin:7px 0;color:#e1e5ed}
+.portal-shell .nh-weather-muted{font-size:12px;color:#a6afbd;line-height:1.6;margin:6px 0 0}
+.portal-shell .nh-weather-current-body>.nh-weather-glyph{filter:drop-shadow(0 5px 12px #5b9cd52b);margin-right:5px}
+.portal-shell .nh-weather-metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px;border-top:1px solid #ffffff0e;padding-top:16px}
+.portal-shell .nh-weather-metrics>span{display:flex;gap:9px;align-items:center;color:#9ac7ed}
+.portal-shell .nh-weather-metrics>span>span{display:grid;gap:3px;color:#a6afbd;font-size:11px}
+.portal-shell .nh-weather-metrics strong{font-size:14px;font-weight:550;color:#e5e8ee}
+.portal-shell .nh-weather-current-meta{display:flex;gap:6px 12px;flex-wrap:wrap;margin-top:17px;color:#8e99a9;font-size:10px;line-height:1.6}
+.portal-shell .nh-weather-stale{color:#e5c084}
+.portal-shell .nh-weather-status{display:flex;align-items:flex-start;gap:9px;margin:0;padding:12px 15px;border:1px solid #accbed26;border-radius:14px;background:#8aaddb09;color:#bbcde2;font-size:12px;line-height:1.6}
+.portal-shell .nh-weather-status.is-error{border-color:#e6b66c36;color:#e8c79d}
+.portal-shell .nh-weather-status>svg{flex:none;margin-top:2px}
+.portal-shell .nh-weather-hours{display:flex;overflow-x:auto;gap:6px;margin:17px -6px 0;padding:0 6px 8px;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#536780 transparent}
+.portal-shell .nh-weather-hour{flex:0 0 78px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 2px;border-radius:13px;scroll-snap-align:start}
+.portal-shell .nh-weather-hour:first-child{background:#87a6d008}
+.portal-shell .nh-weather-hour time{font-size:12px;color:#a6afbd}
+.portal-shell .nh-weather-hour strong{font-size:17px;font-weight:600}
+.portal-shell .nh-weather-hour small{font-size:9px;color:#899cb2;text-align:center;white-space:nowrap}
+.portal-shell .nh-weather-scroll-hint{font-size:10px;color:#8994a5;margin:10px 0 0;line-height:1.5}
+.portal-shell .nh-weather-day{display:grid;grid-template-columns:minmax(78px,1.1fr) 23px 30px minmax(35px,1fr) 32px;gap:9px;align-items:center;padding:12px 0;font-size:13px}
+.portal-shell .nh-weather-day>span:first-child{text-transform:capitalize;color:#dce2ed;line-height:1.5}
+.portal-shell .nh-weather-day>span:first-child small{display:block;text-transform:none;font-size:9px;color:#8b99ad}
+.portal-shell .nh-weather-day .nh-weather-low{color:#99a5b5;text-align:right}
+.portal-shell .nh-weather-day>strong{text-align:right;font-weight:550}
+.portal-shell .nh-weather-range{position:relative;height:4px;background:#ffffff09;border-radius:4px;overflow:hidden}
+.portal-shell .nh-weather-range>span{position:absolute;top:0;height:100%;border-radius:4px;background:linear-gradient(90deg,#4e6689,#9ab8d9)}
+.portal-shell .nh-weather-show-all{display:flex;align-items:center;gap:7px;padding:10px 0 0;min-height:36px;border:0;background:transparent;color:#9fbddb;font-size:12px;cursor:pointer}
+.portal-shell .nh-weather-sun-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.portal-shell .nh-weather-sun-grid article{display:grid;gap:10px;padding:18px}
+.portal-shell .nh-weather-sun-grid svg{color:#d9b976}
+.portal-shell .nh-weather-sun-grid h2{font-size:12px;color:#a6afbd;font-weight:450}
+.portal-shell .nh-weather-sun-grid strong{font-size:22px;font-weight:550;letter-spacing:.5px}
+.portal-shell .nh-weather-widget-help p{font-size:12px;color:#a6afbd;line-height:1.7;margin:8px 0 13px}
+.portal-shell .nh-weather-attribution{color:#8994a4;font-size:10px;line-height:1.8;padding:0 5px}
+.portal-shell .nh-weather-attribution a{color:#a6bad1;text-decoration:underline;text-underline-offset:3px}
+.portal-shell .nh-weather-attribution summary{cursor:pointer;min-height:32px;padding:6px 0;color:#a6bad1}
+.portal-shell .nh-weather-locations form{display:grid;gap:7px;margin-top:14px}
+.portal-shell .nh-weather-locations label{font-size:12px;color:#a6afbd}
+.portal-shell .nh-weather-locations input{min-height:44px;border:1px solid #ffffff24;background:#080a0f;border-radius:11px;color:#f2f4f7;padding:10px;width:100%;min-width:0;font-size:14px}
+.portal-shell .nh-weather-search{display:flex;gap:8px}
+.portal-shell .nh-weather-search .secondary{flex:none}
+.portal-shell .nh-weather-place-results{display:grid;gap:7px;margin:12px 0}
+.portal-shell .nh-weather-place-results>button{display:flex;align-items:center;gap:10px;padding:10px;background:#ffffff05;border:1px solid #ffffff10;border-radius:12px;color:#e5e7ed;text-align:left;min-height:46px;cursor:pointer}
+.portal-shell .nh-weather-place-results>button span{flex:1}
+.portal-shell .nh-weather-place-results small{display:block;font-size:10px;color:#9ba7b8;margin-top:3px}
+.portal-shell .nh-weather-manual label{display:grid;gap:5px}
+@media(min-width:650px){.portal-shell .nh-weather-temperature{font-size:82px}.portal-shell .nh-weather-current-body>.nh-weather-glyph{width:94px;height:94px}.portal-shell .nh-weather-hour{flex-basis:90px}}
+@media(max-width:350px){.portal-shell .nh-weather-card{padding:15px}.portal-shell .nh-weather-current-body>.nh-weather-glyph{width:58px}.portal-shell .nh-weather-day{gap:5px;grid-template-columns:minmax(65px,1fr) 20px 26px minmax(24px,1fr) 28px}.portal-shell .nh-weather-place{font-size:14px}}

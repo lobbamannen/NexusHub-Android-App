@@ -1,0 +1,4 @@
+export type WeatherLocation={name:string;latitude:number;longitude:number;timeZone:string};
+export type WeatherPoint={time:number;temperature:number|null;wind:number|null;gust:number|null;windDirection:number|null;humidity:number|null;precipitation:number|null;precipitationHours:number|null;probability:number|null;condition:string;isDay:boolean};
+export type WeatherDay={date:string;min:number|null;max:number|null;condition:string;partial:boolean};
+export type WeatherState={location:WeatherLocation;provider:'smhi'|'metno'|null;fetchedAt:number|null;referenceTime:number|null;expiresAt:number|null;updating:boolean;status:'empty'|'fresh'|'stale'|'error';error:string|null;current:WeatherPoint|null;hourly:WeatherPoint[];daily:WeatherDay[];sun:{sunrise:number|null;sunset:number|null;polar:string|null};feelsLike:number|null;feelsLikeMethod:string};
