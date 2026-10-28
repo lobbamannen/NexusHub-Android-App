@@ -17,7 +17,7 @@ try{
   const home=await page.locator('.nh-home-weather').boundingBox(),sync=await page.locator('.nh-home-sync').boundingBox();assert.ok(home.x+home.width<=sync.x,'home weather and GitHub status do not overlap');
   await page.screenshot({path:`weather-ui/weather-${width}.png`,fullPage:true});
   await page.getByRole('button',{name:'Visa alla prognosdagar'}).click();assert.ok(await page.locator('.nh-weather-day').count()>5);
-  await page.locator('.nh-weather-place').click();await page.getByLabel('Sök efter en ort').fill('Hässleholm');await page.getByRole('button',{name:'Sök',exact:true}).click();await page.locator('.nh-weather-place-results').getByText('Hässleholm',{exact:true}).waitFor();
+  await page.locator('.nh-weather-place').click();await page.getByLabel('Sök efter en ort').fill('Hässleholm');await page.getByRole('button',{name:'Sök',exact:true}).click();await page.locator('.nh-weather-place-results').getByRole('button',{name:/Hässleholm/}).waitFor();
   await page.getByRole('button',{name:'Ange plats och koordinater'}).click();await page.getByLabel('Platsnamn',{exact:true}).fill('Test');await page.getByLabel('Latitud',{exact:true}).fill('91');await page.getByLabel('Longitud',{exact:true}).fill('13');await page.getByRole('button',{name:'Använd plats',exact:true}).click();await page.getByRole('alert').filter({hasText:'giltiga koordinater'}).waitFor();
   assert.deepEqual(errors,[]);await page.close();
  }

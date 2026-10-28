@@ -284,3 +284,6 @@ PostHog använder befintligt diagnostikval och EU-projekt 280222, `app=nexushub_
 
 ### Nattpaus för Two Thumbs Battery
 Batterifunktionen pausar både telefonens förfrågningar och klockans mätningar/överföringar 20:00–06:00 som standard. Tiderna ändras i batteriinställningarna och kvitteras av den valda klockappen. Båda APK:erna behöver uppdateras för denna funktion; därefter räcker inställningar från telefonen. Widgetvärdens vanliga uppdateringar begär inte längre extra klockmätningar. Se [installationsguiden](docs/battery-widget-install.md) för telefonbaserad installation via GeminiMan och gränser för nattpausen. Den faktiska nattliga batteribesparingen är ännu inte verifierad.
+
+### NexusHub Weather och Datum & väder
+Väderindikator i hälsningskortet, komplett svensk vädersida och en kombinerad svart datum-/väderwidget använder samma native cache. SMHI SNOW1gv1 primärt, MET Norway som kontrollerad reserv; inga nycklar, backend eller GPS-behörigheter. Widgetdatum öppnar befintliga NexusHub Kalender och väderdelen öppnar Väder. Uppdatera endast telefonens APK för denna funktion; klockappens batteripolicy är oförändrad. [Installation och användning](docs/weather-install.md) · [Källor, verifiering och fysiska tester](docs/weather-verification.md).

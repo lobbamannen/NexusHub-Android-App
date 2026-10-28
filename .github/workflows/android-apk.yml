@@ -72,7 +72,7 @@ jobs:
           mkdir -p apk
           cp app/build/outputs/apk/release/app-release.apk apk/nexus-hub-app.apk
           cp wear/build/outputs/apk/release/wear-release.apk apk/nexus-hub-watch.apk
-          cp docs/battery-widget-install.md apk/INSTALLATION.md
+          cp docs/android-install.md apk/INSTALLATION.md
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs apk/nexus-hub-app.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs apk/nexus-hub-watch.apk
           gh release download --repo "$GITHUB_REPOSITORY" --pattern nexus-hub-app.apk --dir previous-apk
@@ -91,7 +91,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "app-v1.0.${GITHUB_RUN_NUMBER}" apk/nexus-hub-app.apk apk/nexus-hub-watch.apk apk/INSTALLATION.md apk/SHA256SUMS.txt --title "Nexus Hub App 1.0.${GITHUB_RUN_NUMBER}" --notes-file docs/battery-widget-install.md
+          gh release create "app-v1.0.${GITHUB_RUN_NUMBER}" apk/nexus-hub-app.apk apk/nexus-hub-watch.apk apk/INSTALLATION.md apk/SHA256SUMS.txt --title "Nexus Hub App 1.0.${GITHUB_RUN_NUMBER}" --notes-file docs/android-install.md
       - name: Remove runner signing material
         if: always()
         run: rm -rf "$RUNNER_TEMP/nexushub-signing"
