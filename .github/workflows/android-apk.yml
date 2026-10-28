@@ -1,7 +1,7 @@
 name: Build Nexus Hub App APK
 on:
   push:
-    branches: [main]
+    branches: [main, feat/calendar-v2]
   workflow_dispatch:
 permissions:
   contents: write
@@ -51,6 +51,16 @@ jobs:
           name: weather-ui
           path: weather-ui/
           retention-days: 14
+      - name: Verify Calendar V2 layout and interactions
+        id: calendar_ui
+        continue-on-error: true
+        run: CHROME_PATH="$(command -v google-chrome)" node scripts/calendar-ui-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calendar-ui
+          path: calendar-ui/
+          retention-days: 14
       - name: Restore stable private signing identity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -89,8 +99,8 @@ jobs:
           name: nexus-hub-app-apk
           path: apk/
           retention-days: 30
-      - name: Require successful weather UI verification
-        if: steps.weather_ui.outcome != 'success'
+      - name: Require successful weather and calendar UI verification
+        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success'
         run: exit 1
       - name: Publish installable APK
         if: github.ref == 'refs/heads/main'

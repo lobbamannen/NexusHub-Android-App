@@ -35,7 +35,7 @@ class PhoneCalendar(private val activity: Activity) {
         val result=JSONArray(); var more=false; var index=0
         if(selected.isNotEmpty()) {
             val uri=C.Instances.CONTENT_URI.buildUpon().also { ContentUris.appendId(it,start); ContentUris.appendId(it,end) }.build()
-            val projection=arrayOf("event_id","begin","end","allDay","title","calendar_id","calendar_displayName","calendar_color","eventTimezone","originalInstanceTime")
+            val projection=arrayOf("event_id","begin","end","allDay","title","calendar_id","calendar_displayName","calendar_color","eventTimezone","originalInstanceTime","eventLocation")
             val selection="calendar_id IN (${selected.joinToString(","){"?"}}) AND (eventStatus IS NULL OR eventStatus != 2) AND (selfAttendeeStatus IS NULL OR selfAttendeeStatus != 2) AND begin < ? AND end > ?"
             activity.contentResolver.query(uri,projection,selection,(selected+listOf(end.toString(),start.toString())).toTypedArray(),"begin ASC, event_id ASC, end ASC")?.use { c ->
                 while(c.moveToNext()) {
@@ -45,7 +45,7 @@ class PhoneCalendar(private val activity: Activity) {
                     val original=if(c.isNull(9)) begin else c.getLong(9)
                     val id="$event:$original:$begin"; issued[id]=Occurrence(event,begin,finish)
                     val temporal=if(c.getInt(3)!=0) JSONObject().put("kind","allDay").put("startDate",Instant.ofEpochMilli(begin).atZone(ZoneOffset.UTC).toLocalDate()).put("endDateExclusive",Instant.ofEpochMilli(finish).atZone(ZoneOffset.UTC).toLocalDate()) else JSONObject().put("kind","timed").put("startsAt",Instant.ofEpochMilli(begin)).put("endsAt",Instant.ofEpochMilli(finish)).put("originalZone",c.getString(8))
-                    result.put(JSONObject().put("version",1).put("id",id).put("source","phone").put("sourceId",c.getLong(5).toString()).put("sourceLabel",c.getString(6)).put("sourceColor",color(c.getInt(7))).put("title",c.getString(4) ?: "").put("temporal",temporal).put("editableInNexus",false))
+                    result.put(JSONObject().put("version",1).put("id",id).put("source","phone").put("sourceId",c.getLong(5).toString()).put("sourceLabel",c.getString(6)).put("sourceColor",color(c.getInt(7))).put("title",c.getString(4) ?: "").put("location",if(c.isNull(10))JSONObject.NULL else c.getString(10)).put("temporal",temporal).put("editableInNexus",false))
                 }
             }
         }
