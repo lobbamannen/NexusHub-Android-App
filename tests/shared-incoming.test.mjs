@@ -57,3 +57,8 @@ test('renamed packages prove the exact legacy receipt without hiding changed con
  const old=await f.client.listSharedIncoming();assert.equal(old.items.length,1);assert.equal((await f.client.saveSharedIncoming(input)).reconciled,true);
  await f.client.deleteSharedIncoming(id,old.items[0].entries);assert.deepEqual([...f.tree().keys()],['bevara.txt']);
 });
+test('optional research source round-trips in metadata without altering Markdown bytes',async()=>{
+ const f=fake(),api=f.client;const body='```mermaid\r\nA-->B\r\n```\nhttps://example.com\n';
+ const result=await api.saveSharedIncoming({...input,text:'',sourceLabel:'DeepSeek',files:[{...input.files[0],name:'research.md',mime:'text/markdown',base64:base64(new TextEncoder().encode(body))}]});
+ assert.equal(result.metadata.sourceLabel,'DeepSeek');const list=await api.listSharedIncoming();assert.equal(list.items[0].metadata.sourceLabel,'DeepSeek');const read=await api.readSharedIncomingFile(id,fid);assert.equal(new TextDecoder().decode(Uint8Array.from(atob(read.base64),c=>c.charCodeAt(0))),body);
+});

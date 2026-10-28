@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import ts from 'typescript';
 const shared={entries:[{path:'Mottagningsinkorg/test/metadata.json',sha:'a'.repeat(40)}],manifestSha:'a'.repeat(40),commit:'b'.repeat(40)};
-async function setup(){const kv=new Map();globalThis.window=new EventTarget();globalThis.__attachmentStore={durableGet:async k=>structuredClone(kv.get(k)),durableSet:async(k,v)=>kv.set(k,structuredClone(v)),durableEntries:async prefix=>[...kv].filter(([k])=>k.startsWith(prefix)).map(([k,v])=>[k,structuredClone(v)]),durableDelete:async k=>kv.delete(k)};
- let source=readFileSync(new URL('../platform/incoming-store.ts',import.meta.url),'utf8').replace("import {durableGet,durableSet,durableEntries,durableDelete} from './local-store';","const {durableGet,durableSet,durableEntries,durableDelete}=globalThis.__attachmentStore;").replace("'@/lib/github-inbox.mjs'",JSON.stringify(new URL('../lib/github-inbox.mjs',import.meta.url).href));
+async function setup(){const kv=new Map();globalThis.window=new EventTarget();globalThis.__attachmentStore={durableGet:async k=>{if(globalThis.__attachmentStore.failRead)throw Error('Read failed');return structuredClone(kv.get(k));},durableSet:async(k,v)=>{if(globalThis.__attachmentStore.failWrite)throw Error('Disk full');kv.set(k,structuredClone(v));},durableEntries:async prefix=>[...kv].filter(([k])=>k.startsWith(prefix)).map(([k,v])=>[k,structuredClone(v)]),durableDelete:async k=>kv.delete(k)};
+ let source=readFileSync(new URL('../platform/incoming-store.ts',import.meta.url),'utf8').replace("import {durableGet,durableSet,durableEntries,durableDelete} from './local-store';","const {durableGet,durableSet,durableEntries,durableDelete}=globalThis.__attachmentStore;").replace("'@/lib/pasted-text.mjs'",JSON.stringify(new URL('../lib/pasted-text.mjs',import.meta.url).href)).replace("'@/lib/github-inbox.mjs'",JSON.stringify(new URL('../lib/github-inbox.mjs',import.meta.url).href));
  const m=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64')+'#'+crypto.randomUUID());return {m,kv};}
 test('automatic intake retries lost acknowledgments and persists offline deletion before cleanup',async()=>{
  const {m}=await setup();let cloud=null,lost=true,offlineDelete=false,uploads=0,deletes=0;
@@ -44,4 +44,25 @@ test('a folder rename rebases only an exactly proven old receipt, without re-upl
  const renamed={entries:[{path:'NexusHub inkorg/test/metadata.json',sha:'c'.repeat(40)}],manifestSha:'c'.repeat(40),commit:'d'.repeat(40)};let writes=0;
  globalThis.fetch=async(_,init)=>{if(init.method==='GET')return Response.json({items:[{...renamed,legacyManifestSha:shared.manifestSha,legacyEntries:shared.entries,metadata:{id:item.id,files:[]}}]});writes++;throw Error('must not write');};
  await m.syncIncoming();assert.equal(writes,0);assert.equal((await m.incomingItems())[0].shared.manifestSha,renamed.manifestSha);assert.equal((await m.incomingItems()).length,1);
+});
+test('pasted research is durable before immediate mirror, source separate, retry keeps exact bytes and identity',async()=>{
+ const {m,kv}=await setup();const raw=' # Forskning 😎\r\n```mermaid\nA-->B\n```\nhttps://example.com\n\n';let offline=true,firstId,firstFileId,posts=0;
+ globalThis.fetch=async(_,init)=>{assert.equal([...kv.keys()].filter(k=>k.startsWith('incoming:v1:')).length,1,'local commit precedes any request');if(offline)throw Error('Offline');if(init.method==='GET')return Response.json({items:[]});const b=JSON.parse(init.body);posts++;firstId??=b.item.id;firstFileId??=b.item.files[0].id;assert.equal(b.item.id,firstId);assert.equal(b.item.files[0].id,firstFileId);assert.equal(b.item.sourceLabel,'DeepSeek');assert.equal(b.item.text,'');assert.equal(new TextDecoder().decode(Uint8Array.from(atob(b.item.files[0].base64),c=>c.charCodeAt(0))),raw);return Response.json({...shared,saved:true});};
+ const item=await m.savePastedText(raw,'DeepSeek');assert.equal(item.sourceLabel,'DeepSeek');assert.equal(await item.files[0].blob.text(),raw);assert.equal(item.shared,undefined);assert.match(m.incomingSyncError,/Offline/);
+ offline=false;await m.syncIncoming();assert.equal(posts,1);const saved=(await m.incomingItems())[0];assert.ok(saved.shared);assert.equal(saved.id,item.id);assert.equal((await m.incomingItems()).length,1);
+});
+test('local storage failure and empty pasted text never attempt remote upload',async()=>{
+ const {m}=await setup();let requests=0;globalThis.fetch=async()=>{requests++;throw Error('must not request');};
+ await assert.rejects(m.savePastedText('  \n',''));assert.equal(requests,0);
+ globalThis.__attachmentStore.failWrite=true;await assert.rejects(m.savePastedText('Body',''),/Disk full/);assert.equal(requests,0);
+});
+test('paste during an older sync snapshot is sent immediately after that sync finishes',async()=>{
+ const {m}=await setup();const old=await m.saveIncoming([new File(['old'],'old.md')]);const cloud=new Map();let release,entered;const paused=new Promise(r=>entered=r),gate=new Promise(r=>release=r);let count=0;
+ globalThis.fetch=async(_,init)=>{if(init.method==='GET')return Response.json({items:[...cloud.values()]});const b=JSON.parse(init.body);if(b.item.id===old.id){entered();await gate;}count++;const c={...shared,metadata:{...b.item,files:b.item.files.map(f=>({...f,sha:'c'.repeat(40)}))}};cloud.set(b.item.id,c);return Response.json({...shared,saved:true});};
+ const running=m.syncIncoming();await paused;const pasted=m.savePastedText('new research','');await new Promise(r=>setTimeout(r,10));release();await running;const item=await pasted;assert.ok(item.shared);assert.equal(count,2);assert.equal((await m.incomingItems()).length,2);
+});
+
+test('a read failure after commit cannot turn a durable save into a second intake',async()=>{
+ const {m}=await setup();globalThis.__attachmentStore.failRead=true;globalThis.fetch=async()=>{throw Error('Offline');};
+ const result=await m.savePastedText('Committed body','DeepSeek');assert.ok(result.id);assert.equal((await m.incomingItems()).length,1);assert.equal(await result.files[0].blob.text(),'Committed body');
 });

@@ -1,8 +1,9 @@
+import {pastedTextDocument} from '@/lib/pasted-text.mjs';
 import {durableGet,durableSet,durableEntries,durableDelete} from './local-store';
 import {base64,gitBlobSha} from '@/lib/github-inbox.mjs';
 export type IncomingFile={id:string;name:string;mime:string;blob?:Blob;error?:string;sha?:string};
 export type SharedReceipt={entries:{path:string;sha:string}[];manifestSha:string;commit:string};
-export type Incoming={id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string;commit?:string;processed?:boolean}>;error?:string;shared?:SharedReceipt;sharedError?:string;deleting?:boolean;localOnly?:boolean};
+export type Incoming={sourceLabel?:string;id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string;commit?:string;processed?:boolean}>;error?:string;shared?:SharedReceipt;sharedError?:string;deleting?:boolean;localOnly?:boolean};
 const bridge=()=>window.Android as any;
 export async function incomingItems():Promise<Incoming[]>{
  const saved=new Map((await durableEntries<Incoming>('incoming:v1:')).map(([,item])=>[item.id,item]));
@@ -11,9 +12,17 @@ export async function incomingItems():Promise<Incoming[]>{
  for(const item of native)if(!saved.has(item.id)&&!removed.has(item.id))saved.set(item.id,{...item,native:true,sent:{}});
  return [...saved.values()].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 }
-export async function saveIncoming(files:File[],text='',destinations?:string[]):Promise<Incoming>{
- const item:Incoming={id:crypto.randomUUID(),text,createdAt:new Date().toISOString(),files:await Promise.all(files.map(async file=>{const bytes=new Uint8Array(await file.arrayBuffer());return {id:crypto.randomUUID(),name:file.name,mime:file.type||'application/octet-stream',blob:new Blob([bytes],{type:file.type||'application/octet-stream'}),sha:await gitBlobSha(bytes)};})),sent:{},localOnly:!!destinations?.length,...(destinations?{destinations:[...new Set(destinations)]}:{})};
+export async function saveIncoming(files:File[],text='',destinations?:string[],sourceLabel?:string):Promise<Incoming>{
+ const item:Incoming={...(sourceLabel?{sourceLabel}:{}),id:crypto.randomUUID(),text,createdAt:new Date().toISOString(),files:await Promise.all(files.map(async file=>{const bytes=new Uint8Array(await file.arrayBuffer());return {id:crypto.randomUUID(),name:file.name,mime:file.type||'application/octet-stream',blob:new Blob([bytes],{type:file.type||'application/octet-stream'}),sha:await gitBlobSha(bytes)};})),sent:{},localOnly:!!destinations?.length,...(destinations?{destinations:[...new Set(destinations)]}:{})};
  await durableSet('incoming:v1:'+item.id,item);window.dispatchEvent(new Event('nexus-incoming-changed'));return item;
+}
+/** Persist first. A pre-existing sync may have taken its local snapshot before this save. */
+export async function savePastedText(text:string,source=''):Promise<Incoming>{
+ const doc=pastedTextDocument(text,source,new Date().toISOString());
+ const item=await saveIncoming([new File([doc.content],doc.name,{type:doc.mime})],'',undefined,doc.sourceLabel);
+ const previous=syncing;await syncIncoming();if(previous)await syncIncoming();
+ // The commit already succeeded; a failed receipt read must not invite another save/UUID.
+ return await durableGet<Incoming>('incoming:v1:'+item.id).catch(()=>undefined)||item;
 }
 export async function saveIncomingItem(item:Incoming){const old=await durableGet<Incoming>('incoming:v1:'+item.id);await durableSet('incoming:v1:'+item.id,{...item,...(old?.shared&&!item.shared?{shared:old.shared}:{}),...(old?.deleting?{deleting:true}:{})});window.dispatchEvent(new Event('nexus-incoming-changed'));}
 const active=new Set<string>();
@@ -91,7 +100,7 @@ export function syncIncoming():Promise<void>{
   const known=new Set(local.map(x=>x.id)),removed=new Set((await durableEntries('incoming-removed:v1:')).map(([key])=>key.slice('incoming-removed:v1:'.length)));
   for(const cloud of remote.items){const m=cloud.metadata;if(known.has(m.id)||removed.has(m.id))continue;
    const files:IncomingFile[]=[];for(const f of m.files){const data=await requestIncoming('GET',undefined,'?id='+encodeURIComponent(m.id)+'&fileId='+encodeURIComponent(f.id));if(data.sha!==f.sha)throw Error('Mottagningsfilen ändrades under hämtningen.');files.push({id:f.id,name:f.name,mime:f.mime,blob:new Blob([Uint8Array.from(atob(data.base64),c=>c.charCodeAt(0))],{type:f.mime})});}
-   await saveIncomingItem({id:m.id,text:m.text,createdAt:m.createdAt,files,sent:{},shared:receipt(cloud)});
+   await saveIncomingItem({...(m.sourceLabel?{sourceLabel:m.sourceLabel}:{}),id:m.id,text:m.text,createdAt:m.createdAt,files,sent:{},shared:receipt(cloud)});
   }
   incomingSyncError='';
  })().catch((e:any)=>{incomingSyncError=e.message;}).finally(()=>{syncing=null;progress({running:false});window.dispatchEvent(new Event('nexus-incoming-synced'));});return syncing;
@@ -99,7 +108,7 @@ export function syncIncoming():Promise<void>{
 const receipt=(cloud:any):SharedReceipt=>({entries:cloud.entries,manifestSha:cloud.manifestSha,commit:cloud.commit});
 async function mirrorIncoming(item:Incoming){
  const files=[];for(const file of item.files){progress({running:true,currentId:item.id,file:files.length+1,total:item.files.length});files.push({id:file.id,name:file.name,mime:file.mime,base64:await incomingFileBase64(item,file)});}
- const result=await requestIncoming('POST',{operation:'mirror',item:{id:item.id,text:item.text,createdAt:item.createdAt,files}});
+ const result=await requestIncoming('POST',{operation:'mirror',item:{...(item.sourceLabel?{sourceLabel:item.sourceLabel}:{}),id:item.id,text:item.text,createdAt:item.createdAt,files}});
  if(result.deleted)return {deleted:true} as const;if(!result.saved)throw Error('GitHub-kopian kunde inte verifieras.');return receipt(result);
 }
 export async function removeIncoming(item:Incoming){
