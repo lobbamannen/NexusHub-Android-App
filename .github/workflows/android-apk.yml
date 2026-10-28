@@ -61,6 +61,9 @@ jobs:
           name: calendar-ui
           path: calendar-ui/
           retention-days: 14
+      - name: Stop before signing when UI verification fails
+        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success'
+        run: exit 1
       - name: Restore stable private signing identity
         env:
           GH_TOKEN: ${{ github.token }}

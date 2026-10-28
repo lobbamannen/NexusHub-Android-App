@@ -72,3 +72,7 @@
  .nh-calendar-v2 .nh-calendar-week-row,.nh-calendar-v2 .nh-calendar-cell,.nh-calendar-v2 .nh-calendar-day-panel {transition:none}
 }
 .nh-calendar-v2 .nh-calendar-week-number {font-size:9px;color:#8d7956;font-variant-numeric:tabular-nums}
+/* FC7's inline week number is a direct row child; keep it out of the seven-column flex layout. */
+.nh-calendar-v2 .nh-calendar-week-number {position:absolute;inset-inline-start:3px;top:3px;z-index:2;pointer-events:none;line-height:18px}
+.nh-calendar-v2 .nh-calendar-cell {border:1px solid #d7ba7a1b}
+.nh-calendar-v2 .nh-calendar-weekday {border-bottom:1px solid #d7ba7a1b}
