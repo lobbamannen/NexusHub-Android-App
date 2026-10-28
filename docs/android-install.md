@@ -1,3 +1,11 @@
+# Klistra in research i NexusHub inkorg
+
+Uppdatera **bara telefonappen** med `nexus-hub-app.apk` ovanpå befintlig NexusHub. Behåll appdata. Klockappen behöver inte uppdateras.
+
+Öppna **NexusHub inkorg → Klistra in text**. En helskärmsruta öppnas. Klistra in hela AI-svaret, granska/redigera och ange valfritt **Källa / AI**, exempelvis DeepSeek. Lämna fältet tomt om du inte vill ange källa. Tryck **Spara** för att först skapa Markdown-filen lokalt och omedelbart försöka spara/verifiera paketet i GitHub. Källan finns separat i paketets metadata och i filnamnet; den läggs inte in i originaltexten. Mermaid, kod, länkar, Unicode och radslut bevaras vid inklistring.
+
+Krysset eller telefonens Tillbaka avbryter utan att skapa en fil. Under pågående Spara väntar rutan på resultatet. Om den lokala sparningen misslyckas behålls texten i rutan. Om GitHub är offline behålls den lokala filen och inkorgen visar väntande status. Använd **Försök igen / Synka nu**; samma fil och identitet återanvänds. Appens befintliga automatiska inkorgssynk försöker också igen i förgrunden. Ingen ny urklippsbehörighet behövs.
+
 # NexusHub Weather V1 + Kalender V2
 
 ## Installera

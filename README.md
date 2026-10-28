@@ -290,3 +290,6 @@ Väderindikator i hälsningskortet, komplett svensk vädersida och en kombinerad
 
 ### Kalender V2
 Stor månadsvy med händelsenamn i rutorna, ISO-veckor och lila datumval. Datumtryck öppnar en animerad dagpanel med alla dagens händelser, fullständiga namn, tider och platser. Stäng genom samma datum, stängknapp, Tillbaka eller nedåtdrag i panelhandtaget. Vecka, Agenda, egna utkast och versionsskyddad sparning återanvänds. Telefonens bokningar och platser stannar i lokal läsning. [Installation](docs/android-install.md).
+
+### Klistra in research i NexusHub inkorg
+Helskärmseditor med valfri Källa / AI. Spara skapar rå Markdown lokalt och försöker omedelbart spegla/verifiera i den privata GitHub-inkorgen. Originaltexten ändras inte; källan ligger separat i metadata/filnamn. Befintlig beständig lagring och dubblettsäkra återförsök återanvänds. Kryss/Tillbaka före Spara skapar ingen fil. [Användning](docs/android-install.md).

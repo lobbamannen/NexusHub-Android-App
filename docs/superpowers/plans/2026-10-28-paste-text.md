@@ -11,10 +11,10 @@ Preserve original bytes after UTF-8 encoding. Source optional, single-line max12
 Whitespace/newlines/Mermaid/Unicode; empty/unsafe source; local write failure; offline/lost acknowledgment/concurrent sync; dialog cancellation/double taps/phone keyboard.
 
 ### Task 1: durable text intake
-- [ ] Test failing pure helper and immediate local+remote save/metadata/retry; add shared-mirror round-trip test.
-- [ ] Implement lib/pasted-text.mjs, platform/incoming-store.ts savePastedText, optional sourceLabel mirror/rehydration in lib/shared-incoming.mjs.
-- [ ] Run tests/pasted-text.test.mjs, incoming-sync/shared-incoming/idea-attachments; commit.
+- [x] Test failing pure helper and immediate local+remote save/metadata/retry; add shared-mirror round-trip test.
+- [x] Implement lib/pasted-text.mjs, platform/incoming-store.ts savePastedText, optional sourceLabel mirror/rehydration in lib/shared-incoming.mjs.
+- [x] Run tests/pasted-text.test.mjs, incoming-sync/shared-incoming/idea-attachments; commit.
 ### Task 2: editor and release
-- [ ] Add components/personal/PasteTextDialog.tsx and scoped CSS, integrate button/status/source in IncomingInbox.tsx, native Back/Escape/focus.
-- [ ] UI harness at320/412/900: cancel creates no files, required text/optional source, exact Unicode/CRLF content, one save/double tap, offline retained/retry, local failure preserves editor, no overflow; existing weather/calendar gates.
-- [ ] TypeScript/design/tests/build, fresh review, address material findings, signed APK CI and verified release.
+- [x] Add components/personal/PasteTextDialog.tsx and scoped CSS, integrate button/status/source in IncomingInbox.tsx, native Back/Escape/focus.
+- [x] UI harness at320/412/900: cancel creates no files, required text/optional source, exact Unicode/CRLF content, one save/double tap, offline retained/retry, local failure preserves editor, no overflow; existing weather/calendar gates.
+- [x] TypeScript/design/tests/build, fresh review, address material findings, signed APK CI and verified release.
