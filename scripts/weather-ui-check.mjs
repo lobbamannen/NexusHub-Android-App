@@ -12,7 +12,7 @@ try{
  for(const width of [320,412,900]){
   const page=activePage=await browser.newPage({viewport:{width,height:950},deviceScaleFactor:1});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url);await page.getByText('Prognos nära nu',{exact:true}).waitFor();await page.getByText('Lägg till widget',{exact:true}).waitFor();
-  assert.equal(await page.locator('.nh-weather-temperature').innerText(),'7°');
+  await page.waitForFunction(()=>document.querySelector('.nh-weather-temperature')?.textContent==='7°');assert.equal(await page.locator('.nh-weather-temperature').innerText(),'7°');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,'no horizontal page overflow at '+width);
   const home=await page.locator('.nh-home-weather').boundingBox(),sync=await page.locator('.nh-home-sync').boundingBox();assert.ok(home.x+home.width<=sync.x,'home weather and GitHub status do not overlap');
   await page.screenshot({path:`weather-ui/weather-${width}.png`,fullPage:true});

@@ -4,7 +4,7 @@
  --calendar-edge:rgba(208,166,83,.2);
  color:#f1edf7;
 }
-.nh-calendar-v2[data-day-open=true] {--calendar-row-height:84px}
+.nh-calendar-v2[data-day-open=true] {--calendar-row-height:92px}
 .nh-calendar-v2 .nh-module-dashboard-header {margin-bottom:12px}
 .nh-calendar-v2 .nh-module-dashboard-title {gap:12px;align-items:center}
 .nh-calendar-v2 .nh-module-eyebrow {color:#d0ae6b;font-size:10px;letter-spacing:.2em}
@@ -97,3 +97,6 @@
 .nh-calendar-v2 .nh-calendar-cell-event-inner,.nh-calendar-v2 .nh-calendar-event-preview {color:#e8e1f1!important}
 .nh-calendar-v2 .nh-calendar-more,.nh-calendar-v2 .nh-calendar-more * {color:#bf9fe9!important}
 .nh-calendar-v2 .nh-calendar-day-button {font-size:13px}
+
+.nh-calendar-v2 .nh-calendar-more {padding:0!important;line-height:16px!important}
+.nh-calendar-v2 .nh-calendar-more>div {padding:0 2px!important;line-height:16px!important;font-size:10px!important}
