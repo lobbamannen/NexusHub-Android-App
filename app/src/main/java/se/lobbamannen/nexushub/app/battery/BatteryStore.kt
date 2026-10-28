@@ -10,13 +10,18 @@ class BatteryStore(c:Context) {
  companion object {private val lock=Any()}
  val prefs=c.getSharedPreferences("nexus_battery_phone_v1",Context.MODE_PRIVATE)
  fun snapshot()=BatterySnapshot.decode(prefs.getString("snapshot","") ?: "",System.currentTimeMillis())
- fun interval()=BatteryProtocol.interval(prefs.getInt("interval",30))
+ fun configuration()=batteryConfiguration(prefs)
+ fun interval()=configuration().interval
+ fun paused()=configuration().quietHours().isPaused(System.currentTimeMillis(),java.time.ZoneId.systemDefault())
+ fun configurationConfirmed()=node().isNotBlank() && prefs.getString("configurationAckNode","")==node() && prefs.getString("configurationAck","")==configuration().encode()
+ fun updateConfiguration(config:BatteryConfiguration)=synchronized(lock){saveBatteryConfiguration(prefs,config.copy(revision=maxOf(System.currentTimeMillis(),configuration().revision+1)))}
+ fun clearRequest()=synchronized(lock){check(prefs.edit().putLong("requestAt",0).putString("requestId","").putString("error","").commit())}
  fun node()=prefs.getString("node","").orEmpty()
  fun accept(node:String,s:BatterySnapshot):Boolean = synchronized(lock) {
   if(node!=node() || !s.valid(System.currentTimeMillis()) || !supersedes(s,snapshot()))return@synchronized false
   check(prefs.edit().putString("snapshot",s.encode()).putLong("receivedAt",System.currentTimeMillis()).putString("error","").apply{if(s.requestId.isNotBlank() && s.requestId==prefs.getString("requestId","")){putLong("requestAt",0);putString("requestId","")}}.commit());true
  }
- fun select(node:String)=synchronized(lock){if(node!=node())check(prefs.edit().putString("node",node).remove("snapshot").putLong("requestAt",0).putString("requestId","").putString("error","").commit())}
+ fun select(node:String)=synchronized(lock){if(node!=node())check(prefs.edit().putString("node",node).remove("configurationAck").remove("configurationAckNode").remove("snapshot").putLong("requestAt",0).putString("requestId","").putString("error","").commit())}
  fun log(stage:String,message:String)=synchronized(lock){val old=journal();val next=JSONArray();for(i in maxOf(0,old.length()-19) until old.length())next.put(old.getJSONObject(i));next.put(JSONObject().put("at",System.currentTimeMillis()).put("stage",stage).put("message",message.take(120)));check(prefs.edit().putString("journal",next.toString()).commit())}
  fun beginRequest(node:String):String=synchronized(lock){
   if(node!=node())return@synchronized ""

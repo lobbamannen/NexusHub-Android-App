@@ -6,6 +6,7 @@ android {
     sourceSets["main"].java.srcDir("../shared/src/main/java")
     namespace = "se.lobbamannen.nexushub.app"
     buildFeatures { buildConfig = true }
+    testOptions {unitTests.isIncludeAndroidResources = true}
     compileSdk = 35
     defaultConfig {
         applicationId = "se.lobbamannen.nexushub.app"
@@ -40,6 +41,8 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
+ testImplementation("org.robolectric:robolectric:4.14.1")
+ testImplementation("androidx.work:work-testing:2.10.1")
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
     implementation("com.posthog:posthog-android:3.72.10")
     implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.1"))

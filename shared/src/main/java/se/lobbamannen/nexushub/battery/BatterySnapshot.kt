@@ -6,6 +6,7 @@ object BatteryProtocol {
  const val SNAPSHOT="/nexushub/battery/v1/snapshot"
  const val REQUEST="/nexushub/battery/v1/request"
  const val CONFIG="/nexushub/battery/v1/config"
+ const val CONFIG_ACK="/nexushub/battery/v1/config-ack"
  const val JOURNAL="/nexushub/battery/v1/journal"
  const val CAPABILITY="nexushub_battery_watch_v1"
  const val WORK="nexushub-battery-periodic-v1"

@@ -21,14 +21,20 @@ object BatterySync {
  }
  fun schedule(c:Context) {
   BatteryStore(c).prefs.edit().putBoolean("started",true).apply()
+  BatteryPause.schedule(c)
+  if(BatteryStore(c).paused())return
   WorkManager.getInstance(c).enqueueUniquePeriodicWork(BatteryProtocol.WORK,ExistingPeriodicWorkPolicy.KEEP,PeriodicWorkRequestBuilder<BatterySyncWorker>(15,TimeUnit.MINUTES).setInputData(workDataOf("trigger" to "periodic")).build())
  }
- fun refresh(c:Context,request:Boolean=true){schedule(c);WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-now",ExistingWorkPolicy.KEEP,OneTimeWorkRequestBuilder<BatterySyncWorker>().setInputData(workDataOf("trigger" to if(request)"manual" else "reconcile")).build())}
+ fun refresh(c:Context,request:Boolean=true){schedule(c);if(BatteryStore(c).paused()){BatteryWidgetProvider.render(c);return};WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-now",ExistingWorkPolicy.KEEP,OneTimeWorkRequestBuilder<BatterySyncWorker>().setInputData(workDataOf("trigger" to if(request)"manual" else "reconcile")).build())}
  fun nodes(c:Context):List<Node> = Tasks.await(Wearable.getCapabilityClient(c).getCapability(BatteryProtocol.CAPABILITY,CapabilityClient.FILTER_REACHABLE),12,TimeUnit.SECONDS).nodes.sortedBy{it.id}
  fun configure(c:Context) {
-  val bytes=JSONObject().put("v",1).put("interval",BatteryStore(c).interval()).put("updatedAt",System.currentTimeMillis()).toString().toByteArray(Charsets.UTF_8)
+  val store=BatteryStore(c)
+  if(store.configurationConfirmed())return
+  val bytes=store.configuration().encode().toByteArray(Charsets.UTF_8)
   Tasks.await(Wearable.getDataClient(c).putDataItem(PutDataRequest.create(BatteryProtocol.CONFIG).setData(bytes).setUrgent()),12,TimeUnit.SECONDS)
  }
+ fun sendConfiguration(c:Context){WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-configuration",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<BatteryConfigWorker>().build())}
+
  fun reconcile(c:Context) {
   val buffer=Tasks.await(Wearable.getDataClient(c).dataItems,12,TimeUnit.SECONDS)
   try{for(item in buffer)accept(c,item)}finally{buffer.release()}
@@ -36,8 +42,13 @@ object BatterySync {
  fun accept(c:Context,item:DataItem) {
   val node=item.uri.host ?: return;val path=item.uri.path
   if(node!=BatteryStore(c).node())return
+  if(path==BatteryProtocol.CONFIG_ACK){
+   val config=BatteryConfiguration.decode(item.data) ?: return;val store=BatteryStore(c)
+   if(config==store.configuration())store.prefs.edit().putString("configurationAck",config.encode()).putString("configurationAckNode",node).apply()
+   return
+  }
   if(path==BatteryProtocol.SNAPSHOT){val raw=item.data ?: return;if(raw.size>2048)return;val snapshot=BatterySnapshot.decode(String(raw,Charsets.UTF_8),System.currentTimeMillis()) ?: return
-   if(BatteryStore(c).accept(node,snapshot)){BatteryStore(c).log("receive","Klockans mätning mottagen: ${snapshot.percent} %");BatteryTelemetry.event("phone_received",snapshot,phonePercent=LocalBattery.read(c)?.percent);BatteryWidgetProvider.render(c)}
+   if(BatteryStore(c).accept(node,snapshot)){BatteryStore(c).log("receive","Klockans mätning mottagen: ${snapshot.percent} %");BatteryTelemetry.event(c,"phone_received",snapshot,phonePercent=LocalBattery.read(c)?.percent);BatteryWidgetProvider.render(c)}
   }else if(path==BatteryProtocol.JOURNAL)BatteryTelemetry.journal(c,node,item.data)
  }
  fun state(c:Context):JSONObject {
@@ -49,33 +60,34 @@ class BatterySyncWorker(c:Context,p:WorkerParameters):Worker(c,p) {
  override fun doWork():Result {
   val c=applicationContext;val store=BatteryStore(c);val manual=inputData.getString("trigger")=="manual"
   try {
+   if(store.paused()){BatterySync.schedule(c);BatteryWidgetProvider.render(c);return Result.success()}
    // Render phone battery even when Play services or the watch is unavailable.
    BatteryWidgetProvider.render(c)
    val nodes=BatterySync.nodes(c);val list=JSONArray();nodes.forEach{list.put(JSONObject().put("id",it.id).put("label",it.displayName.take(60)).put("nearby",it.isNearby))};store.prefs.edit().putString("nodes",list.toString()).putLong("checkedAt",System.currentTimeMillis()).apply()
-   if(store.node().isBlank() && nodes.size==1)store.select(nodes.single().id)
+   if(store.node().isBlank() && nodes.size==1){store.select(nodes.single().id);BatterySync.sendConfiguration(c)}
    BatterySync.reconcile(c)
    if(manual) {
-    BatterySync.configure(c)
+    if(store.paused())return Result.success()
     val chosen=nodes.firstOrNull{it.id==store.node()}
-    if(chosen==null){store.unavailable(if(nodes.size>1)"Välj klocka i Batteriwidget." else "Ingen NexusHub-klockapp nåbar. Installera och öppna klockappen.");BatteryTelemetry.event("connection",outcome="unavailable")}
+    if(chosen==null){store.unavailable(if(nodes.size>1)"Välj klocka i Batteriwidget." else "Ingen NexusHub-klockapp nåbar. Installera och öppna klockappen.");BatteryTelemetry.event(c,"connection",outcome="unavailable")}
     else {
      val requestId=store.beginRequest(chosen.id)
      if(requestId.isBlank())return Result.success()
      Tasks.await(Wearable.getMessageClient(c).sendMessage(chosen.id,BatteryProtocol.REQUEST,JSONObject().put("v",1).put("requestId",requestId).toString().toByteArray(Charsets.UTF_8)),12,TimeUnit.SECONDS)
-     store.log("request","Ny mätning begärd från klockan");BatteryTelemetry.event("request",outcome="pending")
+     store.log("request","Ny mätning begärd från klockan");BatteryTelemetry.event(c,"request",outcome="pending")
      WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-timeout",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<BatteryTimeoutWorker>().setInputData(workDataOf("requestId" to requestId)).setInitialDelay(65,TimeUnit.SECONDS).build())
     }
    }
    BatteryWidgetProvider.render(c);return Result.success()
-  }catch(_:Exception){store.prefs.edit().putString("error","Klockans anslutning kunde inte kontrolleras. Försök igen.").apply();store.log("failure","Anslutning eller Play services misslyckades");BatteryTelemetry.event("failure",outcome="failed");BatteryWidgetProvider.render(c);return if(runAttemptCount<2)Result.retry() else Result.failure()}
+  }catch(_:Exception){store.prefs.edit().putString("error","Klockans anslutning kunde inte kontrolleras. Försök igen.").apply();store.log("failure","Anslutning eller Play services misslyckades");BatteryTelemetry.event(c,"failure",outcome="failed");BatteryWidgetProvider.render(c);return if(!store.paused() && runAttemptCount<2)Result.retry() else Result.failure()}
  }
 }
 class BatteryTimeoutWorker(c:Context,p:WorkerParameters):Worker(c,p) {
- override fun doWork():Result {val store=BatteryStore(applicationContext);if(store.timeout(inputData.getString("requestId").orEmpty())){store.log("timeout","Ingen ny mätning inom en minut");BatteryTelemetry.event("request",outcome="timeout");BatteryWidgetProvider.render(applicationContext)};return Result.success()}
+ override fun doWork():Result {val store=BatteryStore(applicationContext);if(store.paused()){store.clearRequest();return Result.success()};if(store.timeout(inputData.getString("requestId").orEmpty())){store.log("timeout","Ingen ny mätning inom en minut");BatteryTelemetry.event(applicationContext,"request",outcome="timeout");BatteryWidgetProvider.render(applicationContext)};return Result.success()}
 }
 class PhoneBatteryListener:WearableListenerService() {
  override fun onDataChanged(events:DataEventBuffer){for(event in events)if(event.type==DataEvent.TYPE_CHANGED)try{BatterySync.accept(this,event.dataItem)}catch(_:Exception){BatteryStore(this).log("failure","Mätningen kunde inte sparas")}}
 }
 class BatteryBootReceiver:BroadcastReceiver() {
- override fun onReceive(c:Context,i:Intent){if(i.action in listOf(Intent.ACTION_BOOT_COMPLETED,Intent.ACTION_MY_PACKAGE_REPLACED) && BatteryStore(c).prefs.getBoolean("started",false)){BatterySync.schedule(c);BatterySync.refresh(c,false)}}
+ override fun onReceive(c:Context,i:Intent){if(i.action in listOf(Intent.ACTION_BOOT_COMPLETED,Intent.ACTION_MY_PACKAGE_REPLACED,Intent.ACTION_TIME_CHANGED,Intent.ACTION_TIMEZONE_CHANGED) && BatteryStore(c).prefs.getBoolean("started",false)){BatterySync.schedule(c);BatterySync.refresh(c,false)}}
 }

@@ -1,0 +1,9 @@
+# Battery night pause
+
+Robin approved a configurable pause, enabled by default from 20:00 inclusive to 06:00 exclusive, on both phone and watch. The aim is to stop battery-feature activity during sleep and compare actual battery drain, not claim a proven battery fix.
+
+Use the existing native settings and Wear Data Layer. Shared wall-clock policy follows each device's current local time. All reads/requests/publications, including manual buttons, boot and widget-host refresh, obey it. Keep cached watch data and show pause plus last measurement time. Schedule only the next boundary during quiet hours; no periodic polling or retries overnight. WorkManager is inexact, so resume at the first permitted execution after 06:00; worker entry guards enforce silence even if boundary execution is delayed.
+
+Settings can enable/disable pause and edit start/end in NexusHub. Same start/end is rejected. Explicit configuration transfer and acknowledgement are the only permitted watch communications during the pause, needed to edit settings. Show pending until the selected updated watch acknowledges matching config. Both APKs must be updated once. Routine phone-only widget display may continue; battery-flow PostHog capture and watch journal relay pause too. No new permissions, sensors, server or dependency.
+
+Alternatives: phone-only pause leaves autonomous watch work running, and only reducing interval does not isolate overnight behavior. The approved two-sided guard fits the intended test. Builder choices: block manual measurements during pause, default on for upgrades, use system local time, and stop routine widget-host requests at all times (render cached data instead). Already queued Data Layer data may arrive during pause; cache it without publishing telemetry. In-flight platform transfers cannot be recalled.

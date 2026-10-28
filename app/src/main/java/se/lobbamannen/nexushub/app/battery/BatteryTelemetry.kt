@@ -6,7 +6,8 @@ import se.lobbamannen.nexushub.app.NexusTelemetry
 import se.lobbamannen.nexushub.battery.*
 
 object BatteryTelemetry {
- fun event(stage:String,s:BatterySnapshot?=null,outcome:String="success",phonePercent:Int?=null) {
+ fun event(c:Context,stage:String,s:BatterySnapshot?=null,outcome:String="success",phonePercent:Int?=null) {
+  if(BatteryStore(c).paused())return
   try{val p=JSONObject().put("stage",stage).put("outcome",outcome)
    if(s!=null)p.put("snapshot_id",s.id).put("watch_percent",s.percent.toString()).put("charging",s.status==2).put("measured_at",s.measuredAt)
    if(phonePercent!=null)p.put("phone_percent",phonePercent.toString())
@@ -14,6 +15,7 @@ object BatteryTelemetry {
   }catch(_:Exception){}
  }
  @Synchronized fun journal(c:Context,node:String,raw:ByteArray?) {
+  if(BatteryStore(c).paused())return
   if(raw==null || raw.size>24000)return
   val store=BatteryStore(c);if(node!=store.node())return
   try{

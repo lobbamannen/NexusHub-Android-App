@@ -11,7 +11,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class BatteryWidgetProvider:AppWidgetProvider() {
- override fun onUpdate(c:Context,m:AppWidgetManager,ids:IntArray){BatterySync.schedule(c);render(c);BatterySync.refresh(c)}
+ override fun onUpdate(c:Context,m:AppWidgetManager,ids:IntArray){BatterySync.schedule(c);render(c);BatterySync.refresh(c,false)}
  override fun onAppWidgetOptionsChanged(c:Context,m:AppWidgetManager,id:Int,options:Bundle){render(c)}
  override fun onReceive(c:Context,i:Intent){super.onReceive(c,i);if(i.action==REFRESH){BatterySync.refresh(c);render(c)}}
  companion object {
@@ -27,7 +27,7 @@ class BatteryWidgetProvider:AppWidgetProvider() {
     views.setInt(R.id.battery_root,"setBackgroundResource",bg)
     val date=watch?.let{SimpleDateFormat(if(now-it.measuredAt>=86400000)"d/M HH:mm" else "HH:mm",Locale("sv","SE")).format(Date(it.measuredAt))}
     val freshness=watch?.freshness(now,store.interval()) ?: "unknown"
-    val suffix=when{store.requestStatus()=="pending"->"uppdaterar"+(date?.let{" · $it"} ?: "");store.prefs.getString("error","").orEmpty().isNotBlank() && watch!=null->"senaste · $date";watch==null->"inväntar klocka";freshness=="stale"->"gammal · $date";freshness=="delayed"->"senast $date";watch.status==2->"laddar · $date";else->date}
+    val suffix=when{store.paused()->"nattpaus"+(date?.let{" · $it"} ?: "");store.requestStatus()=="pending"->"uppdaterar"+(date?.let{" · $it"} ?: "");store.prefs.getString("error","").orEmpty().isNotBlank() && watch!=null->"senaste · $date";watch==null->"inväntar klocka";freshness=="stale"->"gammal · $date";freshness=="delayed"->"senast $date";watch.status==2->"laddar · $date";else->date}
     views.setTextViewText(R.id.phone_label,if(phone?.status==2)"Telefon · laddar" else if(compact)"Telefon" else "Galaxy S26 Ultra")
     views.setTextViewText(R.id.watch_label,(if(compact)"Klocka" else "Watch8 Classic")+" · "+suffix)
     views.setTextViewText(R.id.phone_percent,phone?.let{"${it.percent}%"} ?: "—")
@@ -45,7 +45,7 @@ class BatteryWidgetProvider:AppWidgetProvider() {
    }
    // Accepted RemoteViews update is not proof that LockStar displayed it.
    val key=(watch?.id ?: "unknown")+":"+(phone?.percent ?: -1)
-   if(store.prefs.getString("lastRenderTrace","")!=key){store.prefs.edit().putString("lastRenderTrace",key).apply();BatteryTelemetry.event("widget_updated",watch,phonePercent=phone?.percent)}
+   if(store.prefs.getString("lastRenderTrace","")!=key){store.prefs.edit().putString("lastRenderTrace",key).apply();BatteryTelemetry.event(c,"widget_updated",watch,phonePercent=phone?.percent)}
   }
  }
 }
