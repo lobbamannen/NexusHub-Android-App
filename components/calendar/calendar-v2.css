@@ -1,6 +1,6 @@
 /* Calendar V2 owns only this surface; calendar.css is also used by Watch. */
 .nh-calendar-v2 {
- --calendar-row-height:clamp(124px,calc((100dvh - 330px)/6),148px);
+ --calendar-row-height:clamp(132px,calc((100dvh - 330px)/6),148px);
  --calendar-edge:rgba(208,166,83,.2);
  color:#f1edf7;
 }
