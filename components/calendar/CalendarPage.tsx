@@ -23,6 +23,8 @@ import {switchCalendarKind,calendarSaveEvent,selectionInRange} from '@/lib/calen
 import {calendarDaySelection,calendarDayEvents,closeDayFromSwipe} from '@/lib/calendar/view.mjs';
 import './calendar.css';
 import './calendar-v2.css';
+// FullCalendar 7 handles a truthy non-string as a custom action; its type omits this runtime branch.
+const KEEP_MONTH_VIEW=true as unknown as 'popover';
 const zone='Europe/Stockholm',DRAFT='calendar:editor:v1';
 const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(new Date());
 const format=(value:string)=>new Date(value).toLocaleString('sv-SE',{timeZone:zone,dateStyle:'medium',timeStyle:'short'});
@@ -84,7 +86,7 @@ export default function CalendarPage({onNavigate}:{onNavigate:(view:string)=>voi
  dayCellDidMount={info=>{info.el.querySelector('.nh-calendar-date-control')?.removeAttribute('aria-hidden');}}
  eventClass="nh-calendar-cell-event" eventInnerClass="nh-calendar-cell-event-inner"
  eventContent={info=><span className="nh-calendar-event-preview" title={info.event.title}>{info.timeText&&<span className="nh-calendar-event-time">{info.timeText} </span>}<span>{info.event.title}</span></span>}
- moreLinkClass="nh-calendar-more" moreLinkText={count=>'+'+count+' till'} moreLinkClick={info=>{setSelected(info.date.toISOString().slice(0,10));setDayOpen(true);return 'none';}}
+ moreLinkClass="nh-calendar-more" moreLinkText={count=>'+'+count+' till'} moreLinkClick={info=>{setSelected(info.date.toISOString().slice(0,10));setDayOpen(true);return KEEP_MONTH_VIEW;}}
  dateClick={info=>{if(!(info.jsEvent.target instanceof Element)||!info.jsEvent.target.closest('.nh-calendar-day-button'))selectDay(info.dateStr.slice(0,10));}} eventClick={info=>{info.jsEvent.stopPropagation();void openDetails(info.event.extendedProps.item);}} datesSet={info=>{setPeriod(info.view.title);const next={from:info.startStr.slice(0,10),toExclusive:info.endStr.slice(0,10)};const key=next.from+':'+next.toExclusive;if(periodKey.current!==key){periodKey.current=key;setDayOpen(false);}setSelected(old=>selectionInRange(old,new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(info.view.currentStart),new Intl.DateTimeFormat('sv-SE',{timeZone:zone}).format(info.view.currentEnd)));setRange(old=>old.from===next.from&&old.toExclusive===next.toExclusive?old:next);}}/></div>
  {view==='month'&&<section id="nh-calendar-day-panel" className="nh-calendar-day-panel" aria-labelledby="nh-calendar-day-heading" aria-hidden={!dayOpen} inert={!dayOpen}><div className="nh-calendar-day-panel-inner"><div className="nh-calendar-day-surface">
  <div className="nh-calendar-panel-handle" role="presentation" onPointerDown={event=>{if(!event.isPrimary||event.button!==0)return;swipe.current={pointerId:event.pointerId,x:event.clientX,y:event.clientY};event.currentTarget.setPointerCapture(event.pointerId);}} onPointerUp={event=>{const start=swipe.current;if(start?.pointerId!==event.pointerId)return;swipe.current=null;if(closeDayFromSwipe(start,{x:event.clientX,y:event.clientY}))setDayOpen(false);if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onPointerCancel={()=>{swipe.current=null;}} onLostPointerCapture={()=>{swipe.current=null;}}><span/></div>

@@ -9,6 +9,11 @@ try{
   // Native range request is asynchronous; wait for an actual named preview before testing day expansion.
   await page.getByText('Projektavstämning',{exact:true}).first().waitFor();
   assert.equal(await page.locator('.nh-calendar-v2').getAttribute('data-day-open'),'false');
+  const outside=page.locator('.nh-calendar-cell').filter({has:page.getByRole('button',{name:'Visa händelser för 2026-10-28',exact:true})});
+  await outside.locator('.nh-calendar-more').click();await page.waitForTimeout(350);
+  assert.equal(await page.locator('.nh-calendar-v2').getAttribute('data-day-open'),'true');
+  await page.getByRole('button',{name:'Visa händelser för 2026-11-11',exact:true}).waitFor();
+  await page.getByRole('button',{name:'Stäng dagens händelser'}).click();await page.waitForTimeout(350);
   const before=await page.locator('.nh-calendar-grid').boundingBox();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,'no calendar page overflow at '+width);
   await page.screenshot({path:`calendar-ui/month-${width}.png`,fullPage:true});
@@ -23,6 +28,10 @@ try{
   await panel.getByRole('button',{name:/Ny händelse|Skapa/}).first().click();await page.getByRole('dialog',{name:'Egen kalenderhändelse'}).waitFor();assert.ok((await page.getByLabel(/^Start/).inputValue()).startsWith('2026-11-12'));await page.getByRole('button',{name:'Stäng kalenderfönstret'}).click();
   // Root's native-back adapter must close the inline day panel before navigating away.
   await page.getByTestId('native-back').evaluate(el=>el.click());await page.waitForTimeout(350);assert.equal(await page.locator('.nh-calendar-v2').getAttribute('data-day-open'),'false');
+  await page.getByRole('button',{name:'Visa händelser för 2026-11-11',exact:true}).click();await page.waitForTimeout(350);
+  const list=page.locator('.nh-calendar-day-events');assert.ok(await list.evaluate(el=>el.scrollHeight>el.clientHeight),'day events scroll independently');
+  const handle=await page.locator('.nh-calendar-panel-handle').boundingBox();await page.mouse.move(handle.x+handle.width/2,handle.y+10);await page.mouse.down();await page.mouse.move(handle.x+handle.width/2,handle.y+90,{steps:8});await page.mouse.up();await page.waitForTimeout(350);assert.equal(await page.locator('.nh-calendar-v2').getAttribute('data-day-open'),'false');
+  await page.emulateMedia({reducedMotion:'reduce'});assert.equal(await page.locator('.nh-calendar-cell').first().evaluate(el=>getComputedStyle(el).transitionDuration),'0s');
   assert.deepEqual(errors,[]);await page.close();page=null;
  }
  console.log('Calendar UI: large month, actual layout contraction, same-day toggle, full details/location, empty-day create, native-back and overflow checks passed at320/412/900px (synthetic fixtures).');
