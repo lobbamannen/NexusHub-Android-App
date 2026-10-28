@@ -4,7 +4,7 @@ try{
  const url='http://127.0.0.1:5175/tests/ui/calendar-preview.html';for(let i=0;i<60;i++){try{if((await fetch(url)).ok)break;}catch{}await new Promise(r=>setTimeout(r,250));}
  browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox']});await fs.mkdir('calendar-ui',{recursive:true});
  for(const width of [320,412,900]){
-  page=await browser.newPage({viewport:{width,height:950},deviceScaleFactor:1});await page.clock.install({time:new Date('2026-11-11T12:00:00Z')});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url);
+  page=await browser.newPage({viewport:{width,height:950},deviceScaleFactor:1});await page.clock.setFixedTime(new Date('2026-11-11T12:00:00Z'));const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('CALENDAR_PAGE_ERROR',e.message)});await page.goto(url);
   await page.locator('.nh-calendar-v2').waitFor();await page.getByRole('button',{name:/Visa händelser för 2026-11-11/}).waitFor();
   // Native range request is asynchronous; wait for an actual named preview before testing day expansion.
   await page.getByText('Projektavstämning',{exact:true}).first().waitFor();
@@ -35,4 +35,4 @@ try{
   assert.deepEqual(errors,[]);await page.close();page=null;
  }
  console.log('Calendar UI: large month, actual layout contraction, same-day toggle, full details/location, empty-day create, native-back and overflow checks passed at320/412/900px (synthetic fixtures).');
-}catch(error){if(page){console.error('CALENDAR_UI_FAILURE_BODY',await page.locator('body').innerText().catch(()=>''));await page.screenshot({path:'calendar-ui/failure.png',fullPage:true}).catch(()=>{});}throw error;}finally{if(browser)await browser.close();server.kill();}
+}catch(error){if(page){console.error('CALENDAR_UI_FAILURE_DOM',await page.locator('.nh-calendar-grid').evaluate(el=>el.outerHTML.slice(0,16000)).catch(()=>''));console.error('CALENDAR_UI_FAILURE_BODY',await page.locator('body').innerText().catch(()=>''));await page.screenshot({path:'calendar-ui/failure.png',fullPage:false}).catch(()=>{});}throw error;}finally{if(browser)await browser.close();server.kill();}
