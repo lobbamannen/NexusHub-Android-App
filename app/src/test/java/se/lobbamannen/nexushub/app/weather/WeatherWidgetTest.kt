@@ -26,5 +26,7 @@ class WeatherWidgetTest {
   assertEquals(android.graphics.Color.BLACK,(view.background as GradientDrawable).color!!.defaultColor)
   assertTrue(view.findViewById<TextView>(R.id.weather_widget_month).text.toString().contains("2026"))
  }
- @Test fun onlyMissingTemperatureUsesDash(){assertEquals("0°",WeatherWidgetProvider.degrees(0.0));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.2));assertEquals("—",WeatherWidgetProvider.degrees(null))}
+ @Test fun onlyMissingTemperatureUsesDash(){assertEquals("3°",WeatherWidgetProvider.degrees(2.5));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.5));assertEquals("0°",WeatherWidgetProvider.degrees(0.0));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.2));assertEquals("—",WeatherWidgetProvider.degrees(null))}
+ @Test fun partlyCloudyIconDistinguishesDayAndNight(){assertFalse(WeatherWidgetGlyph.draw("partly_cloudy",true).sameAs(WeatherWidgetGlyph.draw("partly_cloudy",false)))}
+
 }

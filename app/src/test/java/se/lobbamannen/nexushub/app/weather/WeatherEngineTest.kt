@@ -182,4 +182,32 @@ class WeatherEngineTest {
   repo.refresh();now+=60000;repo.refresh()
   assertEquals(now,repo.state().getLong("expiresAt"))
  }
+ @Test fun durableMetSurvivesNoStorePrimaryAndOfflineRestart() {
+  val store=MemoryStore();var now=forecastNow;var phase=0
+  val transport=WeatherTransport {u,_->
+   if(phase==0) {
+    if("smhi" in u)WeatherHttpResponse(503)
+    else WeatherHttpResponse(200,fixture("metno"),mapOf("Cache-Control" to "max-age=40"))
+   }else WeatherHttpResponse(200,fixture("smhi"),mapOf("Cache-Control" to "no-store"))
+  }
+  val repo=WeatherRepository(store,transport,{now});repo.refresh()
+  assertEquals("metno",repo.state().getString("provider"))
+  phase=1;now+=60000;repo.refresh();assertEquals("smhi",repo.state().getString("provider"))
+  val disk=JSONObject(store.json!!)
+  assertFalse(disk.getJSONObject("entries").has(WeatherLocation.DEFAULT.key()+"|smhi"))
+  val restored=WeatherRepository(store,WeatherTransport {_,_->WeatherHttpResponse(503)},{now})
+  val state=restored.state();assertEquals("metno",state.getString("provider"));assertEquals(forecastNow,state.getLong("fetchedAt"))
+  restored.refresh();assertEquals("metno",restored.state().getString("provider"))
+ }
+ @Test fun missingOrMalformedActiveEntryFallsBackToValidDurableAlternate() {
+  val store=MemoryStore()
+  WeatherRepository(store,WeatherTransport {u,_->if("smhi" in u)WeatherHttpResponse(503) else WeatherHttpResponse(200,fixture("metno"))},{forecastNow}).refresh()
+  val seed=JSONObject(store.json!!);val key=WeatherLocation.DEFAULT.key()
+  seed.getJSONObject("active").put(key,"smhi")
+  store.json=seed.toString()
+  assertEquals("metno",WeatherRepository(store,WeatherTransport {_,_->throw AssertionError("state fetched network")},{forecastNow}).state().getString("provider"))
+  seed.getJSONObject("entries").put(key+"|smhi",JSONObject().put("provider","smhi").put("body","{}").put("fetchedAt",forecastNow+1000))
+  store.json=seed.toString()
+  assertEquals("metno",WeatherRepository(store,WeatherTransport {_,_->throw AssertionError("state fetched network")},{forecastNow}).state().getString("provider"))
+ }
 }

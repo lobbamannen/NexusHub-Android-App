@@ -10,6 +10,7 @@ import androidx.work.*
 import org.json.JSONObject
 import se.lobbamannen.nexushub.app.MainActivity
 import se.lobbamannen.nexushub.app.R
+import kotlin.math.roundToInt
 import java.time.*
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -27,7 +28,7 @@ class WeatherWidgetProvider:AppWidgetProvider(){
   internal fun destination(value:String)=value.takeIf{it in setOf("kalender","vader")}
   private fun open(c:Context,route:String,request:Int)=PendingIntent.getActivity(c,request,Intent(c,MainActivity::class.java).putExtra("nexus.destination",route).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   private fun number(j:JSONObject?,key:String):Double?=if(j==null||j.isNull(key))null else j.optDouble(key,Double.NaN).takeIf{it.isFinite()&&it in -100.0..70.0}
-  internal fun degrees(value:Double?)=value?.let{if(kotlin.math.round(it)<0)"−${kotlin.math.abs(kotlin.math.round(it).toInt())}°" else "${kotlin.math.round(it).toInt()}°"} ?: "—"
+  internal fun degrees(value:Double?)=value?.let{if(it.roundToInt()<0)"−${kotlin.math.abs(it.roundToInt())}°" else "${it.roundToInt()}°"} ?: "—"
   fun renderAll(c:Context){
    val ids=widgetIds(c);if(ids.isEmpty())return
    val manager=AppWidgetManager.getInstance(c);val state=WeatherRuntime.state(c)
@@ -64,7 +65,7 @@ internal object WeatherWidgetGlyph {
    else{val path=Path();path.moveTo(61f,12f);path.cubicTo(25f,7f,17f,61f,54f,61f);path.cubicTo(69f,61f,77f,52f,80f,42f);path.cubicTo(53f,51f,40f,29f,61f,12f);c.drawPath(path,p)}
   }else if(condition=="unknown"){c.drawCircle(48f,36f,22f,p);p.style=Paint.Style.FILL;p.textSize=31f;p.textAlign=Paint.Align.CENTER;c.drawText("?",48f,47f,p)}
   else{
-   if(condition=="partly_cloudy"){c.drawCircle(66f,22f,13f,p)}
+   if(condition=="partly_cloudy"){if(day)c.drawCircle(66f,22f,13f,p) else {val moon=Path();moon.moveTo(70f,8f);moon.cubicTo(49f,9f,50f,36f,72f,35f);moon.cubicTo(61f,29f,59f,18f,70f,8f);c.drawPath(moon,p)}}
    val cloud=Path();cloud.moveTo(24f,53f);cloud.cubicTo(4f,48f,10f,25f,28f,29f);cloud.cubicTo(26f,4f,67f,6f,69f,32f);cloud.cubicTo(92f,30f,95f,54f,76f,55f);cloud.lineTo(24f,55f);c.drawPath(cloud,p)
    when(condition){"rain","sleet"->{for(x in listOf(32f,48f,64f))c.drawLine(x,63f,x-3,73f,p)};"snow"->{p.style=Paint.Style.FILL;for(x in listOf(32f,48f,64f))c.drawCircle(x,68f,2.7f,p)};"thunder"->{val bolt=Path();bolt.moveTo(50f,57f);bolt.lineTo(39f,69f);bolt.lineTo(51f,68f);bolt.lineTo(44f,79f);c.drawPath(bolt,p)};"fog"->{c.drawLine(21f,64f,75f,64f,p);c.drawLine(30f,73f,66f,73f,p)}}
   }

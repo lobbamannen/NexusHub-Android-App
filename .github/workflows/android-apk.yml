@@ -40,10 +40,13 @@ jobs:
           node --test tests/shared-incoming.test.mjs tests/incoming-sync.test.mjs tests/home-sync-status.test.mjs tests/home-groups.test.mjs tests/personal-capture.test.mjs tests/todos-controller.test.mjs tests/telemetry.test.mjs tests/local-first-recent.test.mjs tests/calendar-*.test.mjs tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs tests/weather-*.test.mjs
           npm run build
       - name: Verify weather UI at phone and desktop sizes
+        id: weather_ui
+        continue-on-error: true
         run: |
           npm install --no-save --package-lock=false playwright@1.58.2
           CHROME_PATH="$(command -v google-chrome)" node scripts/weather-ui-check.mjs
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: weather-ui
           path: weather-ui/
@@ -80,6 +83,9 @@ jobs:
           name: nexus-hub-app-apk
           path: apk/
           retention-days: 30
+      - name: Require successful weather UI verification
+        if: steps.weather_ui.outcome != 'success'
+        run: exit 1
       - name: Publish installable APK
         if: github.ref == 'refs/heads/main'
         env:

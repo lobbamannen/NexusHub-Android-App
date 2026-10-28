@@ -55,15 +55,26 @@ class WeatherRepository(private val store:WeatherStore,private val transport:Wea
    val entry=entries.getJSONObject(key)
    if(entry.optJSONObject("http")?.optBoolean("noStore")!=true)durableEntries.put(key,entry)
   }
+  val durableActive=JSONObject()
+  active.keys().forEach {locationKey->
+   val provider=active.getString(locationKey)
+   if(durableEntries.has("$locationKey|$provider"))durableActive.put(locationKey,provider)
+  }
   store.write(JSONObject().put("location",location.json()).put("entries",durableEntries)
-   .put("active",active).put("limits",limits).toString())
+   .put("active",durableActive).put("limits",limits).toString())
  }
  private fun entry(loc:WeatherLocation,provider:String)=entries.optJSONObject(key(loc,provider))
  private fun selectedEntry():JSONObject? {
   val selected=active.optString(location.key())
-  if(selected.isNotEmpty())return entry(location,selected)
-  // One-time migration from V1 caches without an explicit active-provider pointer.
+  if(selected.isNotEmpty()) {
+   val chosen=entry(location,selected)
+   if(snapshot(chosen,location)!=null)return chosen
+   // Eviction, no-store omission or corrupt disk data can leave a dangling pointer.
+   active.remove(location.key())
+  }
+  // Migrate legacy caches and recover a surviving whole run when a pointer dangles.
   val legacy=listOfNotNull(entry(location,"smhi"),entry(location,"metno"))
+   .filter {snapshot(it,location)!=null}
    .maxByOrNull {it.optLong("fetchedAt")}?:return null
   active.put(location.key(),legacy.getString("provider"))
   return legacy
@@ -157,7 +168,14 @@ class WeatherRepository(private val store:WeatherStore,private val transport:Wea
       if(token!=generation||loc!=location)return
       entries.put(key(loc,provider),result)
       // Keep at most four location/provider snapshots; current result cannot be removed.
-      while(entries.length()>8) {val oldest=entries.keys().asSequence().filter {it!=key(loc,provider)}.minByOrNull {entries.getJSONObject(it).optLong("fetchedAt")};if(oldest!=null)entries.remove(oldest)else break}
+      while(entries.length()>8) {
+       val oldest=entries.keys().asSequence().filter {it!=key(loc,provider)}
+        .minByOrNull {entries.getJSONObject(it).optLong("fetchedAt")}?:break
+       entries.remove(oldest)
+       val stalePointers=active.keys().asSequence()
+        .filter {"$it|${active.getString(it)}"==oldest}.toList()
+       stalePointers.forEach {active.remove(it)}
+      }
       select(loc,provider);error=null;failure=null
      }
      return
