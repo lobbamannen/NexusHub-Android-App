@@ -1,7 +1,7 @@
 name: Build Nexus Hub App APK
 on:
   push:
-    branches: [main, feat/calendar-v2]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: write

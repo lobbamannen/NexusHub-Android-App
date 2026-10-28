@@ -1,9 +1,14 @@
-# NexusHub Weather V1
+# NexusHub Weather V1 + Kalender V2
 
 ## Installera
 Uppdatera **bara telefonappen** med `nexus-hub-app.apk` från den här releasen, ovanpå befintlig NexusHub. Avinstallera inte och radera inte appdata. Väderfunktionen kräver ingen uppdatering av klockappen och ändrar inte Two Thumbs Batterys intervall/nattpaus.
 
 Öppna NexusHub. Väderindikatorn uppe till vänster i hälsningskortet öppnar den nya vädersidan; GitHub-statusen till höger är kvar. Väder finns också i menyn. Första hämtningen behöver internet. Prognosen sparas sedan på telefonen för app och widget tillsammans.
+
+## Kalender V2
+Öppna Kalender i NexusHub, eller tryck på datumdelen i den nya widgeten. Månadsvyn visar händelsenamn direkt i datumrutorna med källans färg. Välj ett datum för att öppna dagens rullbara händelsepanel med fullständiga namn, tider och platser. Kalenderns höjd animeras utan att skala texten. Tryck på samma datum igen, stängknappen eller dra ned panelens handtag för att återgå. Telefonens Tillbaka stänger först händelsedetaljer, sedan dagpanelen.
+
+Månad, Vecka och Agenda finns kvar liksom kalenderkällor, egna utkast, redigering och GitHub-sparning. En tom dag erbjuder Skapa händelse. Telefonens bokningar och platser läses lokalt med befintlig kalenderbehörighet; de kopieras inte till GitHub.
 
 ## Datum & väder på hemskärmen
 Vädersidan → **Lägg till widget** → bekräfta telefonens dialog. Alternativt: tryck och håll på en tom yta på hemskärmen → Widgetar → NexusHub → **NexusHub · Datum & väder**. Anpassa storleken genom att dra i kanterna.
@@ -32,4 +37,4 @@ Android kan fördröja bakgrundsjobb; minutexakt väder- eller midnattsuppdateri
 
 
 ## Befintlig klock- och batterifunktion
-För separat klockinstallation och Two Thumbs Battery, se [batteriguiden](https://github.com/lobbamannen/NexusHub-Android-App/blob/main/docs/battery-widget-install.md). Om den redan fungerar behövs ingen klockinstallation för väderuppdateringen.
+För separat klockinstallation och Two Thumbs Battery, se [batteriguiden](https://github.com/lobbamannen/NexusHub-Android-App/blob/main/docs/battery-widget-install.md). Om den redan fungerar behövs ingen klockinstallation för den här telefonuppdateringen.

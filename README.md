@@ -287,3 +287,6 @@ Batterifunktionen pausar både telefonens förfrågningar och klockans mätninga
 
 ### NexusHub Weather och Datum & väder
 Väderindikator i hälsningskortet, komplett svensk vädersida och en kombinerad svart datum-/väderwidget använder samma native cache. SMHI SNOW1gv1 primärt, MET Norway som kontrollerad reserv; inga nycklar, backend eller GPS-behörigheter. Widgetdatum öppnar befintliga NexusHub Kalender och väderdelen öppnar Väder. Uppdatera endast telefonens APK för denna funktion; klockappens batteripolicy är oförändrad. [Installation och användning](docs/weather-install.md) · [Källor, verifiering och fysiska tester](docs/weather-verification.md).
+
+### Kalender V2
+Stor månadsvy med händelsenamn i rutorna, ISO-veckor och lila datumval. Datumtryck öppnar en animerad dagpanel med alla dagens händelser, fullständiga namn, tider och platser. Stäng genom samma datum, stängknapp, Tillbaka eller nedåtdrag i panelhandtaget. Vecka, Agenda, egna utkast och versionsskyddad sparning återanvänds. Telefonens bokningar och platser stannar i lokal läsning. [Installation](docs/android-install.md).

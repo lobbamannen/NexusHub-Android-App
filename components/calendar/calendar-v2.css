@@ -87,3 +87,7 @@
 @media(prefers-reduced-motion:reduce){.nh-calendar-v2 .nh-calendar-week-row {transition:none}}
 
 .nh-calendar-v2 .nh-calendar-event-preview {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere}
+
+.nh-calendar-v2 .nh-calendar-cell-event {background:#151019!important;color:#e8e1f1!important;border-color:transparent!important;border-inline-start:3px solid var(--fc-event-color,#b48bef)!important}
+
+.nh-calendar-v2 .nh-calendar-cell-event-inner {padding:1px 2px!important}
