@@ -12,6 +12,7 @@ object BatteryPause {
   val store=BatteryStore(c);val config=store.configuration();val work=WorkManager.getInstance(c)
   if(store.paused()){
    work.cancelUniqueWork(se.lobbamannen.nexushub.battery.BatteryProtocol.WORK)
+   work.cancelUniqueWork("nexus-battery-now")
    work.cancelUniqueWork("nexus-battery-timeout")
    store.clearRequest()
   }

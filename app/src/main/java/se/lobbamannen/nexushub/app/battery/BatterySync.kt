@@ -60,6 +60,7 @@ class BatterySyncWorker(c:Context,p:WorkerParameters):Worker(c,p) {
  override fun doWork():Result {
   val c=applicationContext;val store=BatteryStore(c);val manual=inputData.getString("trigger")=="manual"
   try {
+   if(isStopped)return Result.success()
    if(store.paused()){BatterySync.schedule(c);BatteryWidgetProvider.render(c);return Result.success()}
    // Render phone battery even when Play services or the watch is unavailable.
    BatteryWidgetProvider.render(c)
@@ -67,19 +68,21 @@ class BatterySyncWorker(c:Context,p:WorkerParameters):Worker(c,p) {
    if(store.node().isBlank() && nodes.size==1){store.select(nodes.single().id);BatterySync.sendConfiguration(c)}
    BatterySync.reconcile(c)
    if(manual) {
-    if(store.paused())return Result.success()
+    if(isStopped || store.paused())return Result.success()
     val chosen=nodes.firstOrNull{it.id==store.node()}
     if(chosen==null){store.unavailable(if(nodes.size>1)"Välj klocka i Batteriwidget." else "Ingen NexusHub-klockapp nåbar. Installera och öppna klockappen.");BatteryTelemetry.event(c,"connection",outcome="unavailable")}
     else {
+     if(isStopped || store.paused())return Result.success()
      val requestId=store.beginRequest(chosen.id)
      if(requestId.isBlank())return Result.success()
      Tasks.await(Wearable.getMessageClient(c).sendMessage(chosen.id,BatteryProtocol.REQUEST,JSONObject().put("v",1).put("requestId",requestId).toString().toByteArray(Charsets.UTF_8)),12,TimeUnit.SECONDS)
      store.log("request","Ny mätning begärd från klockan");BatteryTelemetry.event(c,"request",outcome="pending")
+     if(isStopped || store.paused()){store.clearRequest();return Result.success()}
      WorkManager.getInstance(c).enqueueUniqueWork("nexus-battery-timeout",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<BatteryTimeoutWorker>().setInputData(workDataOf("requestId" to requestId)).setInitialDelay(65,TimeUnit.SECONDS).build())
     }
    }
    BatteryWidgetProvider.render(c);return Result.success()
-  }catch(_:Exception){store.prefs.edit().putString("error","Klockans anslutning kunde inte kontrolleras. Försök igen.").apply();store.log("failure","Anslutning eller Play services misslyckades");BatteryTelemetry.event(c,"failure",outcome="failed");BatteryWidgetProvider.render(c);return if(!store.paused() && runAttemptCount<2)Result.retry() else Result.failure()}
+  }catch(_:Exception){store.prefs.edit().putString("error","Klockans anslutning kunde inte kontrolleras. Försök igen.").apply();store.log("failure","Anslutning eller Play services misslyckades");BatteryTelemetry.event(c,"failure",outcome="failed");BatteryWidgetProvider.render(c);return if(!isStopped && !store.paused() && runAttemptCount<2)Result.retry() else Result.failure()}
  }
 }
 class BatteryTimeoutWorker(c:Context,p:WorkerParameters):Worker(c,p) {

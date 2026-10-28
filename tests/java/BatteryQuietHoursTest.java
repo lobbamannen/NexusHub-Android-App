@@ -22,6 +22,12 @@ public class BatteryQuietHoursTest {
   // Follow the wall clock across both daylight-saving transitions.
   check(q.nextTransition(at("2026-10-24T22:00:00+02:00"),ZONE)==at("2026-10-25T06:00:00+01:00"));
   check(q.nextTransition(at("2026-03-28T22:00:00+01:00"),ZONE)==at("2026-03-29T06:00:00+02:00"));
+  check(q.isPaused(at("2026-10-28T20:30:00+01:00"),ZONE));
+  check(!q.isPaused(at("2026-10-28T20:30:00+01:00"),ZoneId.of("UTC")));
+  BatteryQuietHours overlap=new BatteryQuietHours(true,150,180);
+  check(overlap.nextTransition(at("2026-10-25T02:45:00+02:00"),ZONE)==at("2026-10-25T02:00:00+01:00"));
+  BatteryQuietHours gap=new BatteryQuietHours(true,150,240);
+  check(gap.nextTransition(at("2026-03-29T01:45:00+01:00"),ZONE)==at("2026-03-29T03:00:00+02:00"));
   for(int[] invalid:new int[][]{{-1,360},{1200,1440},{360,360}}){try{new BatteryQuietHours(true,invalid[0],invalid[1]);throw new AssertionError("accepted invalid time");}catch(IllegalArgumentException expected){}}
   check(q.label().equals("20:00–06:00"));
   System.out.println("BatteryQuietHours: boundaries, overnight/daytime, disabled, DST and validation passed");

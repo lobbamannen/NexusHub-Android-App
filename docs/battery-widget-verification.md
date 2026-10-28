@@ -20,3 +20,10 @@ Independent read-only reviewer identified four important issues: two unit assert
 
 ## Physical checks remaining
 Actual Watch8 Classic installation; real watch→phone Data Layer delivery; LockStar resize/render/taps; AOD separately; reboot/reconnect/Doze/deep sleep; 24–72h energy measurements. Neither CI nor PostHog widget_updated proves the pixels appeared on a Samsung lock screen. These checks require Robin's devices.
+
+
+## Night pause, 2026-10-28
+- Real shared Java tests cover 20:00/06:00 inclusivity, overnight/day windows, disable, invalid input, timezone and DST.
+- Both Android modules test strict v2 config round trips/revision rejection and use Robolectric worker tests to verify queued/manual work skips battery reads and requests in pause.
+- Runtime guards also cover boot/time/timezone updates and watch journal/PostHog relay. Config/ack is an explicit control-plane exception.
+- Physical acceptance: install both new APKs, verify selected watch config acknowledged; temporarily set pause around current time, check cached widget/pause label and blocked buttons, then restore20:00–06:00. Check automatic resume with apps closed; compare next night's actual battery decline under same routine. No battery-life improvement is claimed before this test.

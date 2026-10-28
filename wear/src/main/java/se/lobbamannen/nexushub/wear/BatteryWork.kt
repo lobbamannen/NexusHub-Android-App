@@ -22,7 +22,7 @@ object BatteryWork {
   val next=config.quietHours().nextTransition(System.currentTimeMillis(),java.time.ZoneId.systemDefault())
   if(next==0L)work.cancelUniqueWork("nexus-battery-quiet-transition")
   else work.enqueueUniqueWork("nexus-battery-quiet-transition",ExistingWorkPolicy.REPLACE,OneTimeWorkRequestBuilder<BatteryPauseWorker>().setInitialDelay((next-System.currentTimeMillis()).coerceAtLeast(1),TimeUnit.MILLISECONDS).build())
-  if(paused(c)){work.cancelUniqueWork(BatteryProtocol.WORK);return}
+  if(paused(c)){work.cancelUniqueWork(BatteryProtocol.WORK);work.cancelUniqueWork("nexus-battery-now");return}
   WorkManager.getInstance(c).enqueueUniquePeriodicWork(BatteryProtocol.WORK,ExistingPeriodicWorkPolicy.UPDATE,PeriodicWorkRequestBuilder<BatteryPublishWorker>(config.interval.toLong(),TimeUnit.MINUTES).setInitialDelay(config.interval.toLong(),TimeUnit.MINUTES).setInputData(workDataOf("trigger" to "periodic")).build())
  }
  fun now(c:Context,trigger:String="manual",requestId:String="") {
@@ -50,25 +50,26 @@ object BatteryWork {
 class BatteryPublishWorker(c:Context,p:WorkerParameters):Worker(c,p) {
  override fun doWork():Result {
   val c=applicationContext
+  if(isStopped)return Result.success()
   if(BatteryWork.paused(c)){BatteryWork.schedule(c);return Result.success()}
   val snapshot=LocalBattery.read(c)?.copy(requestId=inputData.getString("requestId").orEmpty())
-  if(snapshot==null){BatteryWork.log(c,"read",null,"failed");return if(runAttemptCount<3 && !BatteryWork.paused(c))Result.retry() else Result.failure()}
+  if(snapshot==null){BatteryWork.log(c,"read",null,"failed");return if(!isStopped && runAttemptCount<3 && !BatteryWork.paused(c))Result.retry() else Result.failure()}
   return try {
    BatteryWork.log(c,"read",snapshot)
    val request=PutDataRequest.create(BatteryProtocol.SNAPSHOT).setData(snapshot.encode().toByteArray(Charsets.UTF_8))
    // Only actual user requests are urgent; periodic sync is batched by Play services.
    if(inputData.getString("trigger")!="periodic")request.setUrgent()
-   if(BatteryWork.paused(c))return Result.success()
+   if(isStopped || BatteryWork.paused(c))return Result.success()
    Tasks.await(Wearable.getDataClient(c).putDataItem(request),20,TimeUnit.SECONDS)
    BatteryWork.log(c,"publish",snapshot)
    BatteryWork.prefs(c).edit().putString("snapshot",snapshot.encode()).putString("error","").apply()
    val journal=JSONObject().put("v",1).put("sentAt",System.currentTimeMillis()).put("events",JSONArray(BatteryWork.prefs(c).getString("journal","[]")))
    val diagnostic=PutDataRequest.create(BatteryProtocol.JOURNAL).setData(journal.toString().toByteArray(Charsets.UTF_8))
    if(inputData.getString("trigger")!="periodic")diagnostic.setUrgent()
-   if(BatteryWork.paused(c))return Result.success()
+   if(isStopped || BatteryWork.paused(c))return Result.success()
    Tasks.await(Wearable.getDataClient(c).putDataItem(diagnostic),20,TimeUnit.SECONDS)
    Result.success()
-  }catch(_:Exception){BatteryWork.log(c,"publish",snapshot,"failed");BatteryWork.prefs(c).edit().putString("error","Kunde inte synkronisera. Nytt försök görs senare.").apply();if(!BatteryWork.paused(c) && runAttemptCount<3)Result.retry() else Result.failure()}
+  }catch(_:Exception){BatteryWork.log(c,"publish",snapshot,"failed");BatteryWork.prefs(c).edit().putString("error","Kunde inte synkronisera. Nytt försök görs senare.").apply();if(!isStopped && !BatteryWork.paused(c) && runAttemptCount<3)Result.retry() else Result.failure()}
  }
 }
 class BatteryListener:WearableListenerService() {

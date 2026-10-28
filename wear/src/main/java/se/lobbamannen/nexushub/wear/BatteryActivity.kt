@@ -26,7 +26,7 @@ class BatteryActivity:Activity() {
  private fun showStatus(){
   val p=BatteryWork.prefs(this);val config=BatteryWork.configuration(this);val paused=BatteryWork.paused(this)
   val s=if(paused)BatterySnapshot.decode(p.getString("snapshot","").orEmpty(),System.currentTimeMillis()) else LocalBattery.read(this)
-  status.text="${s?.percent ?: "—"} %"+(if(paused)" · senaste" else if(s?.status==2)" · laddar" else "")+"\n"+(if(paused)"Nattpaus " else "Kontroll ca var ${config.interval} min\n")+(if(config.quietEnabled)config.quietHours().label() else "Nattpaus av")+"\n"+p.getString("error","")
+  status.text="${s?.percent ?: "—"} %"+(if(paused)" · senaste"+(s?.let{"\nMätt "+java.text.SimpleDateFormat("d/M HH:mm",java.util.Locale("sv","SE")).format(java.util.Date(it.measuredAt))} ?: "\nIngen mätning ännu") else if(s?.status==2)" · laddar" else "")+"\n"+(if(paused)"Nattpaus " else "Kontroll ca var ${config.interval} min\n")+(if(config.quietEnabled)config.quietHours().label() else "Nattpaus av")+"\n"+p.getString("error","")
  }
 
  override fun onResume(){super.onResume();handler.post(tick)}
