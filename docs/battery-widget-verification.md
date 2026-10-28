@@ -27,3 +27,10 @@ Actual Watch8 Classic installation; real watch→phone Data Layer delivery; Lock
 - Both Android modules test strict v2 config round trips/revision rejection and use Robolectric worker tests to verify queued/manual work skips battery reads and requests in pause.
 - Runtime guards also cover boot/time/timezone updates and watch journal/PostHog relay. Config/ack is an explicit control-plane exception.
 - Physical acceptance: install both new APKs, verify selected watch config acknowledged; temporarily set pause around current time, check cached widget/pause label and blocked buttons, then restore20:00–06:00. Check automatic resume with apps closed; compare next night's actual battery decline under same routine. No battery-life improvement is claimed before this test.
+
+### Automated results
+Branch CI run56 (40644255090) passed both Android module unit tests (including Robolectric queued/manual pause guards and existing delayed-work cancellation), release builds, lint and stable APK signing verification. Core Java wall-clock tests, TypeScript, original design42files and CI frontend106/106 passed. Final main release assets are checked separately after publication.
+
+The broad legacy JS suite is206/215 on both this branch and untouched main e63793d. Existing failures: github-inbox.test.mjs; local-posters.test.mjs (explicit Databas checkout and preserve-existing-bytes tests); series-ui.test.mjs (shared portal, filters/mobile CSS, Chroma season assertions); series-watchlist.test.mjs (watchlist source assertion); source-sync-dynamic.test.mjs (legacy Site integrity tool); upload-api.test.mjs. They are outside this change and are not hidden by the targeted green suite.
+
+Independent review found retained immediate/retry work chains. CI55 reproduced the phone cancellation regression (34tests,1failure); CI56 passed the corrected cancellation tests on both devices. Running workers also recheck stopped/paused state before transfers, timeout scheduling and retries. The paused watch status now includes the cached measurement date/time. No material review finding remains open.
