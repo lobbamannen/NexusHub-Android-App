@@ -76,8 +76,14 @@
 .nh-calendar-v2 .nh-calendar-week-number {position:absolute;inset-inline-start:3px;top:3px;z-index:2;pointer-events:none;line-height:18px}
 .nh-calendar-v2 .nh-calendar-cell {border:1px solid #d7ba7a1b}
 .nh-calendar-v2 .nh-calendar-weekday {border-bottom:1px solid #d7ba7a1b}
-/* FC7 measures an empty width ruler beside its flex header. Bound the engine and
-   viewport to the host so an intrinsic scrollbar filler cannot feed back into it. */
-.nh-calendar-v2 .nh-calendar-grid {width:100%;min-width:0;max-width:100%}
-.nh-calendar-v2 .nh-calendar-grid>div {width:100%;min-width:0;max-width:100%}
-.nh-calendar-v2 .nh-calendar-grid>div>div {width:100%;min-width:0;max-width:100%}
+
+/* FullCalendar omits its built-in week label on narrow cells; keep ISO weeks readable on phones. */
+.nh-calendar-v2 .nh-calendar-iso-week {position:absolute;inset-inline-start:2px;top:6px;font-size:8px;line-height:18px;color:#8d7956;pointer-events:none}
+.nh-calendar-v2 .nh-calendar-week-number {display:none}
+.portal-shell.nh-chroma-site .nh-calendar-v2 .nh-module-eyebrow {color:#d0ae6b}
+
+/* Override the library's width-derived inline row basis so day mode contracts equally on wide screens. */
+.nh-calendar-v2 .nh-calendar-week-row {flex-basis:var(--calendar-row-height)!important;transition:min-height 280ms cubic-bezier(.22,.61,.36,1),flex-basis 280ms cubic-bezier(.22,.61,.36,1)}
+@media(prefers-reduced-motion:reduce){.nh-calendar-v2 .nh-calendar-week-row {transition:none}}
+
+.nh-calendar-v2 .nh-calendar-event-preview {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;overflow-wrap:anywhere}
