@@ -1,3 +1,4 @@
+import {rememberMotionPoster} from '@/lib/navigation-motion';
 'use client';
 import React,{useEffect,useState} from 'react';
 import {useLocalImage} from '@/platform/resources';
@@ -21,5 +22,5 @@ export default function RepositoryPoster({kind,posterKey,revision,alt,children}:
  const url='/api/posters?'+new URLSearchParams({kind,key:posterKey,v:revision}).toString();
  useEffect(()=>setFailed(false),[url]);
  const image=useLocalImage(url,true);
- return !failed&&!image.error?<img ref={image.ref} src={image.source||undefined} loading="lazy" alt={alt} onError={()=>setFailed(true)}/>:<>{children}</>;
+ return !failed&&!image.error?<img data-poster-url={url} data-nexus-poster={posterKey} data-poster-kind={kind} onPointerDown={e=>rememberMotionPoster(e.currentTarget)} ref={image.ref} src={image.source||undefined} loading="lazy" alt={alt} onError={()=>setFailed(true)}/>:<>{children}</>;
 }

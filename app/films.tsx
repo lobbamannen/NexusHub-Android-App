@@ -1,3 +1,4 @@
+import {navigateMotion} from '@/lib/navigation-motion';
 'use client';
 import {cancelDraftWrites} from '@/platform/draft-writes';
 import { mediaFetch } from '@/lib/media-client';
@@ -225,12 +226,9 @@ export default function Films({ initialItem, onExitDetail, onDirtyChange }: {
     const seriesOptions = useMemo(() => [...new Set(films.flatMap(f => f.series ? [f.series.name] : []))].sort((a, b) => a.localeCompare(b, 'sv')), [films]);
     const visible = useMemo(() => films.filter(f => (status === 'alla' || f.status === status) && (!genreGroup || matchesGenreGroup(f, genreGroup)) && (genre === 'alla' || f.genres.includes(genre)) && (series === 'alla' || f.series?.name === series) && (favorite === 'alla' || Boolean(f.favorite) === (favorite === 'ja')) && [f.title, f.year.toString(), f.imdbId, f.genres.join(' '), f.series?.name || ''].join(' ').toLocaleLowerCase('sv').includes(query.trim().toLocaleLowerCase('sv'))).sort((a, b) => sort === 'år' ? b.year - a.year : sort === 'betyg' ? (b.ourRating ?? -1) - (a.ourRating ?? -1) : sort === 'serie' ? (a.series?.name || 'Övriga').localeCompare(b.series?.name || 'Övriga', 'sv') || (a.series?.number || 0) - (b.series?.number || 0) : a.title.localeCompare(b.title, 'sv')), [films, status, genreGroup, genre, series, favorite, query, sort]);
     const film = films.find(f => f.imdbId === selected);
-    const open = (f: FilmEntry) => { returnScroll.current = window.scrollY; openedLocally.current = true; window.history.replaceState(null, '', '#filmer?item=' + encodeURIComponent(f.imdbId)); window.scrollTo(0, 0); setStatistics(false); setDraft(null); setSelected(f.imdbId); setError(''); setNotice(''); };
-    const closeFilm = () => { setSelected(null); if (!openedLocally.current && onExitDetail) {
-        onExitDetail();
-        return;
-    } if (location.hash.startsWith('#filmer?'))
-        window.history.replaceState(null, '', '#filmer'); restoreListScroll(returnScroll.current); };
+    const open = (f: FilmEntry) => { returnScroll.current = window.scrollY; openedLocally.current = true; window.history.replaceState(null, '', '#filmer?item=' + encodeURIComponent(f.imdbId)); void navigateMotion(()=>{window.scrollTo(0, 0); setStatistics(false); setDraft(null); setSelected(f.imdbId); setError(''); setNotice('');},'detail',{kind:'films',key:f.imdbId},0); };
+    const closeFilm = () => { if (!openedLocally.current && onExitDetail) { onExitDetail(); return; }
+        const key=film?.imdbId;void navigateMotion(()=>{setSelected(null);if(location.hash.startsWith('#filmer?'))window.history.replaceState(null,'','#filmer');window.scrollTo(0,returnScroll.current);restoreListScroll(returnScroll.current);},'back',key?{kind:'films',key}:undefined,returnScroll.current); };
     useBackHandler(110, () => { if (!statistics)
         return false; setStatistics(false); restoreListScroll(returnScroll.current); return true; });
     useBackHandler(100, () => { if (!selected)

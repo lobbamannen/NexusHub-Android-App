@@ -1,0 +1,27 @@
+:root{--nh-motion-fast:180ms;--nh-motion-page:210ms;--nh-motion-detail:280ms;--nh-motion-ease:cubic-bezier(.2,.75,.25,1)}
+html[data-nexus-motion]::view-transition-old(root){animation:nh-view-out var(--nh-motion-page) var(--nh-motion-ease) both}
+html[data-nexus-motion]::view-transition-new(root){animation:nh-view-in var(--nh-motion-page) var(--nh-motion-ease) both}
+html[data-nexus-motion=back]{--nh-motion-direction:-1}
+html[data-nexus-motion=forward],html[data-nexus-motion=detail]{--nh-motion-direction:1}
+::view-transition-group(nexus-selected-poster){animation-duration:var(--nh-motion-detail);animation-timing-function:var(--nh-motion-ease);overflow:hidden;border-radius:12px}
+::view-transition-old(nexus-selected-poster),::view-transition-new(nexus-selected-poster){height:100%;object-fit:cover;mix-blend-mode:normal}
+@keyframes nh-view-in{from{opacity:0;transform:translateX(calc(10px * var(--nh-motion-direction,1)))}to{opacity:1;transform:none}}
+@keyframes nh-view-out{from{opacity:1;transform:none}to{opacity:0;transform:translateX(calc(-6px * var(--nh-motion-direction,1)))}}
+.portal-shell :is(.topbar,.bottom-nav,.sidebar){view-transition-name:none}
+/* Only the content region is captured. The app shell and fixed controls remain still. */
+html[data-nexus-motion] .portal-shell :is(.topbar,.bottom-nav,.sidebar){view-transition-name:nh-chrome}
+html[data-nexus-motion] .portal-shell .bottom-nav{view-transition-name:nh-bottom}
+html[data-nexus-motion] .portal-shell .sidebar{view-transition-name:nh-sidebar}
+::view-transition-group(nh-chrome),::view-transition-group(nh-bottom),::view-transition-group(nh-sidebar){animation:none}
+.portal-shell :is(.modal-backdrop,.nh-calendar-backdrop){animation:nh-overlay-in 160ms ease-out both}
+.portal-shell :is(.menu-sheet,.nh-calendar-sheet,.nh-calendar-settings){animation:nh-panel-in 190ms var(--nh-motion-ease) both}
+.portal-shell :is(.nh-module-card,.nh-module-shortcut,.nh-pulse-action){transition:transform 140ms ease,border-color 140ms ease}
+.portal-shell :is(.nh-module-card,.nh-module-shortcut,.nh-pulse-action):active{transform:scale(.987)}
+@keyframes nh-panel-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes nh-overlay-in{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}.portal-shell :is(.modal-backdrop,.nh-calendar-backdrop,.menu-sheet,.nh-calendar-sheet,.nh-calendar-settings){animation:none!important}.portal-shell :is(.nh-module-card,.nh-module-shortcut,.nh-pulse-action){transition:none!important;transform:none!important}}
+.portal-shell .nh-motion-closing{animation:nh-overlay-out 160ms ease-in both;pointer-events:none}
+.portal-shell .nh-motion-closing :is(.menu-sheet,.editor-modal),.portal-shell .nh-calendar-settings.nh-motion-closing{animation:nh-panel-out 160ms ease-in both}
+@keyframes nh-panel-out{to{opacity:0;transform:translateY(12px)}}
+@keyframes nh-overlay-out{to{opacity:0}}
+@media(prefers-reduced-motion:reduce){.portal-shell .nh-motion-closing,.portal-shell .nh-motion-closing *{animation:none!important}}

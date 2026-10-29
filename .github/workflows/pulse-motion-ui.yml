@@ -1,0 +1,29 @@
+name: Verify Pulse and motion UI
+on:
+  push:
+    branches: [main]
+    paths: ['components/home/**', 'lib/*motion*', 'lib/home-pulse.mjs', 'lib/use-panel-presence.ts', 'tests/ui/pulse-*', 'scripts/pulse-ui-check.mjs', '.github/workflows/pulse-motion-ui.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check && node --test tests/pulse-motion.test.mjs tests/pulse-surface.test.mjs tests/navigation-motion.test.mjs
+      - run: npm install --no-save --package-lock=false playwright@1.58.2
+      - name: Verify real browser rendering and interactions
+        run: CHROME_PATH="$(command -v google-chrome)" node scripts/pulse-ui-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pulse-ui
+          path: pulse-ui/
+          retention-days: 14

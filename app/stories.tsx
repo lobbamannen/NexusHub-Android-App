@@ -1,3 +1,4 @@
+import {navigateMotion} from '@/lib/navigation-motion';
 'use client';
 import {telemetry} from '@/platform/telemetry';
 import {cancelDraftWrites} from '@/platform/draft-writes';
@@ -217,12 +218,9 @@ export default function Stories({ documents, onNavigate, mirrorChecks, onInspect
     } }, [initialCategory, categories.join('|')]);
     const visible = useMemo(() => all.filter(x => (category === 'alla' || x.category === category) && (rating === 'alla' || (rating === 'betygsatt' ? x.numericRating !== null : rating === 'obetygsatt' ? x.numericRating === null : rating === 'sparade' ? saved.includes(x.path) : finished.includes(x.path))) && [x.title, x.rawName, x.category].join(' ').toLocaleLowerCase('sv').includes(query.trim().toLocaleLowerCase('sv'))).sort((a, b) => sort === 'betyg' ? (b.numericRating ?? -1) - (a.numericRating ?? -1) || a.title.localeCompare(b.title, 'sv') : sort === 'kategori' ? a.category.localeCompare(b.category, 'sv') || a.title.localeCompare(b.title, 'sv') : a.title.localeCompare(b.title, 'sv')), [all, query, category, rating, sort, finished, saved]);
     const story = all.find(s => s.path === selected) || null;
-    const open = (path: string) => { returnScroll.current = window.scrollY; setSelected(path); setArticle(null); setReading(true); setError(''); window.scrollTo(0, 0); };
-    const back = () => { if (location.hash.startsWith('#heading-'))
-        window.history.replaceState(null, '', '#berattelser'); setSelected(null); setArticle(null); setError(''); if (onExitRead) {
-        onExitRead();
-        return;
-    } restoreListScroll(returnScroll.current); };
+    const open = (path: string) => { returnScroll.current = window.scrollY; void navigateMotion(()=>{setSelected(path); setArticle(null); setReading(true); setError(''); window.scrollTo(0, 0);},'detail',{kind:'stories',key:path},0); };
+    const back = () => { if(onExitRead){onExitRead();return;}const key=selected;
+        void navigateMotion(()=>{if(location.hash.startsWith('#heading-'))window.history.replaceState(null,'','#berattelser');setSelected(null);setArticle(null);setError('');restoreListScroll(returnScroll.current);},'back',key?{kind:'stories',key}:undefined,returnScroll.current); };
     useBackHandler(65, () => { if (!showIssues)
         return false; setShowIssues(false); return true; });
     useBackHandler(100, () => { if (!selected)

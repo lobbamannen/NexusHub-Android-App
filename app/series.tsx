@@ -1,3 +1,4 @@
+import {navigateMotion} from '@/lib/navigation-motion';
 import {WatchSeriesControl} from '@/components/watch/ReleaseWatch';
 'use client';
 import { mediaFetch } from '@/lib/media-client';
@@ -267,12 +268,9 @@ export default function Series({ initialItem, onExitDetail }: {
     const providers = useMemo(() => [...new Set(items.flatMap(x => (x.seasonAvailabilityResearch?.swedenProviderSeasonCounts || []).map(p => p.provider)))].sort((a, b) => a.localeCompare(b, 'sv')), [items]);
     const filtered = useMemo(() => items.map((item, index) => ({ item, index })).filter(({ item }) => (status === 'alla' || (status === 'sedda' ? item.allSeasonsAvailableInSwedenWatched : status === 'villse' ? seriesIsWatchlisted(item) : status === 'favoriter' ? !!item.favorite : !item.allSeasonsAvailableInSwedenWatched)) && (!genreGroup || matchesGenreGroup(item, genreGroup)) && (genre === 'alla' || item.genres.includes(genre)) && (provider === 'alla' || (item.seasonAvailabilityResearch?.swedenProviderSeasonCounts || []).some(p => p.provider === provider)) && [item.title, item.originalTitle || '', item.swedishTitle || '', item.startYear || '', item.imdbId || '', item.genres.join(' ')].join(' ').toLocaleLowerCase('sv').includes(query.trim().toLocaleLowerCase('sv'))).sort((a, b) => sort === 'år' ? (b.item.startYear || 0) - (a.item.startYear || 0) : sort === 'betyg' ? (b.item.ourRating ?? -1) - (a.item.ourRating ?? -1) : sort === 'säsonger' ? numbers(b.item.seasonAvailabilityResearch?.swedenAvailableSeasonNumbers).length - numbers(a.item.seasonAvailabilityResearch?.swedenAvailableSeasonNumbers).length : a.item.title.localeCompare(b.item.title, 'sv')), [items, status, genreGroup, genre, provider, sort, query]);
     const visible = filtered.slice(page * 24, (page + 1) * 24);
-    const choose = (x: number) => { returnScroll.current = window.scrollY; openedLocally.current = true; window.history.replaceState(null, '', '#serier?item=' + encodeURIComponent(items[x].imdbId || `${items[x].title}|${items[x].startYear ?? ''}`)); setStatistics(false); setChosen(x); window.scrollTo(0, 0); };
-    const closeSeries = () => { setChosen(null); if (!openedLocally.current && onExitDetail) {
-        onExitDetail();
-        return;
-    } if (location.hash.startsWith('#serier?'))
-        window.history.replaceState(null, '', '#serier'); restoreListScroll(returnScroll.current); };
+    const choose = (x: number) => { returnScroll.current = window.scrollY; openedLocally.current = true; window.history.replaceState(null, '', '#serier?item=' + encodeURIComponent(items[x].imdbId || `${items[x].title}|${items[x].startYear ?? ''}`)); void navigateMotion(()=>{setStatistics(false); setChosen(x); window.scrollTo(0, 0);},'detail',{kind:'series',key:items[x].imdbId||`${items[x].title}|${items[x].startYear??''}`},0); };
+    const closeSeries = () => { if (!openedLocally.current && onExitDetail) {onExitDetail();return;}
+        const item=chosen===null?null:items[chosen];void navigateMotion(()=>{setChosen(null);if(location.hash.startsWith('#serier?'))window.history.replaceState(null,'','#serier');window.scrollTo(0,returnScroll.current);restoreListScroll(returnScroll.current);},'back',item?{kind:'series',key:item.imdbId||`${item.title}|${item.startYear??''}`}:undefined,returnScroll.current); };
     useBackHandler(110, () => { if (!statistics)
         return false; setStatistics(false); restoreListScroll(returnScroll.current); return true; });
     useBackHandler(100, () => { if (chosen === null)

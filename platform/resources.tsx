@@ -8,6 +8,9 @@ const sharedImages=createImageCache({
   revoke:(url:string)=>URL.revokeObjectURL(url),
 });
 
+/** Keep an already displayed image alive while a selected-image transition captures it. */
+export function retainLocalImage(url:string){return sharedImages.acquire(url);}
+
 /** Transport adapter only: the original image element, classes and layout stay unchanged. */
 export function useLocalImage(url: string, lazy = false) {
   const element = useRef<HTMLImageElement>(null);
