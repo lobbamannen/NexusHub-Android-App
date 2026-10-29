@@ -10,7 +10,7 @@ try{
  for(const [width,height] of [[360,740],[412,850]]){
   page=await browser.newPage({viewport:{width,height},deviceScaleFactor:1});await page.clock.setFixedTime(new Date('2026-11-11T12:00:00Z'));const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url);assert.equal(await page.evaluate(()=>document.compatMode),'CSS1Compat');
   const day=page.getByRole('button',{name:'Visa händelser för 2026-11-11',exact:true});await day.waitFor();await page.locator('.nh-calendar-event-marker').first().waitFor();await page.waitForTimeout(350);const month=await fits();
-  assert.equal(await page.locator('.nh-calendar-day-button').count(),42);await page.screenshot({path:`calendar-ui/month-${width}.png`});
+  assert.equal(await page.locator('.nh-calendar-day-button').count(),42);assert.equal(await page.locator('.nh-calendar-fit>.nh-module-dashboard-header').evaluate(el=>getComputedStyle(el).flexDirection),'row','compact title and settings share one row');await page.screenshot({path:`calendar-ui/month-${width}.png`});
   await day.click();await page.waitForTimeout(350);const compact=await fits();assert.ok(compact.grid.height<month.grid.height-80,'month contracts using layout');
   const panel=page.locator('.nh-calendar-day-panel');await panel.getByText('Planeringsmöte för kommande projekt och gemensamma aktiviteter',{exact:true}).waitFor();await panel.getByText('Testlokal A',{exact:true}).first().waitFor();
   const panelBox=await panel.boundingBox();assert.ok(panelBox.y+panelBox.height<=compact.nav.top+1,'day panel above bottom navigation');assert.ok(await page.locator('.nh-calendar-day-events').evaluate(el=>el.scrollHeight>el.clientHeight),'event list scrolls independently');await page.screenshot({path:`calendar-ui/day-${width}.png`});
