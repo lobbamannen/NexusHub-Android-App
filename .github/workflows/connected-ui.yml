@@ -1,0 +1,28 @@
+name: Verify connected NexusHub UI
+on:
+  push:
+    branches: [main, feat/connected-library]
+    paths: ['components/**', 'platform/connection-index.ts', 'platform/training-archive.ts', 'lib/connections*', 'lib/training-archive.mjs', 'lib/guardian.mjs', 'lib/commands.mjs', 'tests/ui/connected-*', 'scripts/connected-ui-check.mjs', '.github/workflows/connected-ui.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check && npm run check:design && node --test tests/connected-library.test.mjs tests/widget-activity.test.mjs
+      - run: npm install --no-save --package-lock=false playwright@1.58.2
+      - run: CHROME_PATH="$(command -v google-chrome)" node scripts/connected-ui-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: connected-ui
+          path: connected-ui/
+          retention-days: 14

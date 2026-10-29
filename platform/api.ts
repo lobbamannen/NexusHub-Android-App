@@ -1,4 +1,6 @@
 import {telemetry,resourceForPath,categoryForPath} from './telemetry';
+import * as trainingArchive from '@/app/api/training-archive/route';
+import * as connections from '@/app/api/connections/route';
 import * as additions from '@/app/api/media-additions/route';
 import {localFirstReader,cacheCommitter,compatibleMutationModel} from '@/lib/local-first.mjs';
 import {localReadSeed} from './local-read-seed';
@@ -29,6 +31,7 @@ export { pendingWrites, retryPendingWrites, discardPendingWrite, cancelQueuedEdi
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'HEAD' | 'PUT' | 'OPTIONS';
 type Route = Partial<Record<Method, (request: Request) => Promise<Response>>>;
 const routes: Record<string, Route> = {
+ '/api/training-archive':trainingArchive,'/api/connections':connections,
  '/api/media-additions':additions,
  '/api/calendar':calendar,'/api/series-watch-settings':watchSettings,'/api/watch-history':watchHistory,
   '/api/daily-activity':dailyActivity, '/api/todos':todos, '/api/incoming':incoming, '/api/idea-files':ideaFiles, '/api/idea-plans': ideaPlans, '/api/ideas': ideas, '/api/films': films, '/api/series': series, '/api/media-register': media,

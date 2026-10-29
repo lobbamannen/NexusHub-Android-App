@@ -122,6 +122,8 @@ export function useIdeas() {
             if (!response.ok || !data.deleted) throw Error(data.error || 'Raderingen kunde inte bekräftas. Försök igen.');
             const next = {...draftsRef.current}; delete next[id]; await commitDrafts(next);
             setRows(current => current.filter(row => row.idea.id !== id)); setSelected(null); setRemote(null);
+            setNumbering(current=>({...current,entries:current.entries.filter(entry=>entry.id!==id)}));
+            window.dispatchEvent(new CustomEvent('nexus-write-completed',{detail:{path:'/api/ideas',method:'DELETE',id}}));
         } catch (e: any) { setError(e.message); }
         finally { busyRef.current = false; setBusy(false); }
     }
