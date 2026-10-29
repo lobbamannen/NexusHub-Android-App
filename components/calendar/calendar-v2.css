@@ -3,58 +3,70 @@ body:has(.nh-calendar-fit){overflow:hidden}
 .portal-shell:has(.nh-calendar-fit) .workspace{height:100dvh;min-height:0!important;overflow:hidden}
 .portal-shell:has(.nh-calendar-fit) .workspace>.topbar{flex-shrink:0}
 .portal-shell:has(.nh-calendar-fit) .workspace>main{flex:1 1 0!important;min-height:0;overflow:hidden;padding:8px 12px!important}
-.portal-shell .nh-calendar-fit.nh-module-dashboard{position:relative;display:flex;flex-direction:column;gap:0;box-sizing:border-box;height:var(--calendar-screen-height,calc(100dvh - 150px));min-height:0;min-width:0;margin:0;padding:8px;border:1px solid #c9a66d26;border-radius:15px;background:#08080b;overflow:hidden;color:#f1edf7}
-.nh-calendar-fit .nh-module-dashboard-header{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:6px;flex-shrink:0;margin:0 0 6px}
-.nh-calendar-fit .nh-module-dashboard-title{display:flex;align-items:center;gap:9px;min-width:0}
-.nh-calendar-fit .nh-module-dashboard-title .nh-material-icon{--material-size:34px!important;--material-scale:.89474!important;width:34px!important;height:34px!important;flex-shrink:0}
-.portal-shell.nh-chroma-site .nh-calendar-fit .nh-module-eyebrow{font-size:8px;letter-spacing:.11em;color:#d0ae6b;line-height:1.2}
-.nh-calendar-fit .nh-module-dashboard-title h1{font-size:clamp(19px,5vw,25px);line-height:1.15;margin:3px 0 0;text-transform:capitalize;white-space:nowrap;letter-spacing:-.03em}
-.nh-calendar-fit .nh-calendar-year{color:#ad86df;font-weight:450}
-.nh-calendar-fit .nh-calendar-settings-button{display:grid;place-items:center;width:34px;min-height:34px;border-radius:10px;padding:0;flex-shrink:0}
-.nh-calendar-fit .nh-calendar-toolbar{display:flex;flex-wrap:nowrap;gap:5px;margin:0 0 6px;flex-shrink:0}
-.nh-calendar-fit .nh-calendar-toolbar button{display:flex;align-items:center;justify-content:center;min-height:32px;min-width:34px;padding:5px 9px;border-radius:9px;font-size:12px}
-.nh-calendar-fit .nh-calendar-toolbar .nh-calendar-add{margin-left:auto}.nh-calendar-fit .nh-calendar-add span{display:none}
-.nh-calendar-fit .nh-calendar-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;border:1px solid #c9a66d24;border-radius:11px;padding:3px;margin:0 0 7px;flex-shrink:0;background:#0b0910}
-.nh-calendar-fit .nh-calendar-tabs button{min-height:31px;font-size:12px;padding:4px;border-radius:8px;border:0;background:transparent;color:#a89db7}
-.nh-calendar-fit .nh-calendar-tabs button[aria-pressed=true]{color:#f0e4ff;background:linear-gradient(130deg,#49306b,#261735);box-shadow:inset 0 0 0 1px #ad83dc66}
-.nh-calendar-fit .nh-calendar-content{display:grid;grid-template-rows:minmax(0,1fr) 0fr;gap:0;flex:1;min-height:0;min-width:0;overflow:hidden;transition:grid-template-rows 280ms ease,gap 280ms ease}
-.nh-calendar-fit[data-day-open=true] .nh-calendar-content{grid-template-rows:minmax(0,1.05fr) minmax(0,1fr);gap:7px}
-.nh-calendar-fit .nh-calendar-grid{min-height:0;min-width:0;height:100%;margin:0;padding:2px;overflow:hidden;border:1px solid #d3b47626;border-radius:10px;background:#08080b;--fc-monarch-background:#08080b;--fc-monarch-border:#d7ba7a22;--fc-monarch-strong-border:#d3ae6e33}
-.nh-calendar-fit:not([data-calendar-view=month]) .nh-calendar-grid{overflow:auto}
-.nh-calendar-fit .nh-calendar-weekday{height:23px;min-width:0;font-size:9px;text-transform:uppercase;color:#b6a9c5;letter-spacing:0}
-.nh-calendar-fit[data-calendar-view=month] .nh-calendar-week-row{flex:1 1 0!important;min-height:0!important;overflow:hidden}
-.nh-calendar-fit .nh-calendar-cell{min-height:0!important;min-width:0;overflow:hidden;background:#08080b;border-color:#d7ba7a22}
-.nh-calendar-fit .nh-calendar-cell-top{position:relative;min-height:24px;padding:0 1px}
-.nh-calendar-fit .nh-calendar-day-button{width:100%;min-width:0;min-height:24px;line-height:20px;padding:2px 3px;border:0;background:transparent;color:#d9d1e2;text-align:right;font-size:12px;cursor:pointer}
-.nh-calendar-fit .nh-calendar-iso-week{position:absolute;inset-inline-start:1px;top:4px;line-height:16px;font-size:7px;color:#8d7956;pointer-events:none}
-.nh-calendar-fit .nh-calendar-week-number{display:none}
-.nh-calendar-fit .nh-calendar-sunday,.nh-calendar-fit .nh-calendar-sunday .nh-calendar-day-button{color:#d37783}
-.nh-calendar-fit .nh-calendar-outside .nh-calendar-day-button{color:#655d70}.nh-calendar-fit .nh-calendar-outside .nh-calendar-event-marker{opacity:.4}
-.nh-calendar-fit .nh-calendar-today-cell .nh-calendar-day-button{color:#e1bc75;font-weight:750}
-.nh-calendar-fit .nh-calendar-selected{background:#45296880;box-shadow:inset 0 0 0 1px #bc91f0}
-.nh-calendar-fit .nh-calendar-cell-events{padding-inline:2px;min-width:0}
-.nh-calendar-fit[data-calendar-view=month] .nh-calendar-cell-event{min-height:6px!important;height:6px!important;line-height:6px!important;margin:1px 0!important;padding:0!important;border:0!important;background:transparent!important}
-.nh-calendar-fit[data-calendar-view=month] .nh-calendar-cell-event-inner{min-height:0!important;height:6px!important;padding:0!important}
-.nh-calendar-fit .nh-calendar-event-marker{display:block;width:15px;height:4px;margin-top:1px;border-radius:3px}
-.nh-calendar-fit .nh-calendar-more,.nh-calendar-fit .nh-calendar-more *{min-height:11px!important;line-height:11px!important;font-size:8px!important;padding:0 1px!important;color:#be9be5!important}
-.nh-calendar-fit .nh-calendar-event-preview{display:block;font-size:11px;white-space:normal;overflow-wrap:anywhere}
-.nh-calendar-fit .nh-calendar-day-panel{min-height:0;overflow:hidden;opacity:0;pointer-events:none;transition:opacity 280ms ease}
-.nh-calendar-fit[data-day-open=true] .nh-calendar-day-panel{opacity:1;pointer-events:auto}
-.nh-calendar-fit .nh-calendar-day-panel-inner{display:flex;height:100%;min-height:0;overflow:hidden}
-.nh-calendar-fit .nh-calendar-day-surface{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;border:1px solid #a482da42;border-radius:13px;background:linear-gradient(160deg,#1b1128,#0b090f 65%)}
-.nh-calendar-fit .nh-calendar-panel-handle{height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab}
-.nh-calendar-fit .nh-calendar-panel-handle>span{display:block;width:40px;height:3px;border-radius:3px;background:#71617e}
-.nh-calendar-fit .nh-calendar-day-surface>header{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 10px 7px;flex-shrink:0;border-bottom:1px solid #b995e41a}
-.nh-calendar-fit .nh-calendar-panel-eyebrow{font-size:8px;letter-spacing:.08em;color:#ae90c9}.nh-calendar-fit .nh-calendar-day-surface h2{font-size:15px;line-height:1.3;margin:3px 0 0;text-transform:capitalize}
-.nh-calendar-fit .nh-calendar-day-surface .icon-button{display:grid;place-items:center;min-width:32px;min-height:32px;flex-shrink:0}
-.nh-calendar-fit .nh-calendar-day-events{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 9px 8px;scrollbar-width:thin}
-.nh-calendar-fit .nh-calendar-day-event{display:flex;align-items:center;gap:9px;width:100%;min-height:67px;padding:10px 0;text-align:left;background:transparent;color:#eee7f6;border:0;border-bottom:1px solid #c3a0ed14;touch-action:pan-y}
-.nh-calendar-fit .nh-calendar-source-bar{width:3px;align-self:stretch;flex-shrink:0;min-height:30px;border-radius:3px;background:var(--event-color,#b48bef)}
-.nh-calendar-fit .nh-calendar-day-event-text{display:grid;gap:4px;flex:1;min-width:0}.nh-calendar-fit .nh-calendar-day-event-text strong{font-size:13px;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
-.nh-calendar-fit .nh-calendar-day-event-meta,.nh-calendar-fit .nh-calendar-day-event-location{font-size:10px;line-height:1.4;color:#b5a5c4;overflow-wrap:anywhere}.nh-calendar-fit .nh-calendar-day-event>svg{flex-shrink:0;color:#aa8bca}
-.nh-calendar-fit .nh-calendar-empty{padding:12px 0;color:#b5a5c4;font-size:12px}.nh-calendar-fit .nh-calendar-empty button{padding:9px;min-height:36px;border-radius:10px;display:flex;align-items:center;gap:5px;margin-top:10px}
-.nh-calendar-fit .nh-calendar-settings{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;min-height:0;background:#0b0810;border:1px solid #ae85db55;border-radius:14px;overflow:hidden}
-.nh-calendar-fit .nh-calendar-settings>header{display:flex;align-items:center;justify-content:space-between;padding:12px;flex-shrink:0;border-bottom:1px solid #ae85db33}.nh-calendar-fit .nh-calendar-settings>header button{min-width:40px;min-height:40px}
-.nh-calendar-fit .nh-calendar-settings>div{padding:12px;overflow:auto;min-height:0;flex:1}.nh-calendar-fit .nh-calendar-filters{font-size:12px}.nh-calendar-fit .nh-watch-note{font-size:11px;color:#a69ab5}
-.nh-calendar-fit>.error-banner,.nh-calendar-fit>.info-note,.nh-calendar-fit>.nh-ideas-note{flex-shrink:0;margin:2px 0;font-size:11px}
-@media(prefers-reduced-motion:reduce){.nh-calendar-fit .nh-calendar-content,.nh-calendar-fit .nh-calendar-day-panel{transition:none}}
+.portal-shell .nh-calendar-fit.nh-calendar-v2.nh-module-dashboard{position:relative;display:flex;flex-direction:column;gap:0;box-sizing:border-box;height:var(--calendar-screen-height,calc(100dvh - 150px));min-height:0;min-width:0;margin:0;padding:8px;border:1px solid #c9a66d26;border-radius:15px;background:#08080b;overflow:hidden;color:#f1edf7}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-module-dashboard-header{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:5px;flex-shrink:0;margin:0 0 6px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-module-dashboard-title{display:flex;align-items:center;gap:6px;min-width:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-module-dashboard-title .nh-material-icon{--material-size:30px!important;--material-scale:.78947!important;width:30px!important;height:30px!important;flex-shrink:0}
+.portal-shell.nh-chroma-site .nh-calendar-fit .nh-module-eyebrow{font-size:7px;letter-spacing:.08em;color:#d0ae6b;line-height:1.2;margin-bottom:3px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-module-dashboard-title h1{font-size:clamp(15px,4.2vw,21px);line-height:1.15;margin:3px 0 0;text-transform:capitalize;white-space:nowrap;letter-spacing:-.03em}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-year{color:#ad86df;font-weight:450}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-settings-button{display:grid;place-items:center;width:34px;min-height:34px;border-radius:10px;padding:0;flex-shrink:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-toolbar{display:flex;flex-wrap:nowrap;gap:3px;margin:0;flex-shrink:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-toolbar button{display:flex;align-items:center;justify-content:center;height:30px;min-height:30px;min-width:28px;padding:3px 5px;border-radius:9px;font-size:10px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-toolbar .nh-calendar-add{margin-left:0}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-add span{display:none}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;border:1px solid #c9a66d24;border-radius:11px;padding:3px;margin:0 0 7px;flex-shrink:0;background:#0b0910}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-tabs button{min-height:31px;font-size:12px;padding:4px;border-radius:8px;border:0;background:transparent;color:#a89db7}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-tabs button[aria-pressed=true]{color:#f0e4ff;background:linear-gradient(130deg,#49306b,#261735);box-shadow:inset 0 0 0 1px #ad83dc66}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-content{display:grid;grid-template-rows:minmax(0,1fr) 0fr;gap:0;flex:1;min-height:0;min-width:0;overflow:hidden;transition:grid-template-rows 280ms ease,gap 280ms ease}
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-day-open=true] .nh-calendar-content{grid-template-rows:minmax(0,1.05fr) minmax(0,1fr);gap:7px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-grid{min-height:0;min-width:0;height:100%;margin:0;padding:2px;overflow:hidden;border:1px solid #d3b47626;border-radius:10px;background:#08080b;--fc-monarch-background:#08080b;--fc-monarch-border:#d7ba7a22;--fc-monarch-strong-border:#d3ae6e33}
+.portal-shell .nh-calendar-fit.nh-calendar-v2:not([data-calendar-view=month]) .nh-calendar-grid{overflow:auto}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-weekday{height:23px;min-width:0;font-size:10px;text-transform:uppercase;color:#b6a9c5;letter-spacing:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month] .nh-calendar-week-row{flex:1 1 0!important;min-height:0!important;overflow:hidden}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-cell{min-height:0!important;min-width:0;overflow:hidden;background:#08080b;border-color:#d7ba7a22}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-cell-top{position:relative;min-height:24px;padding:0 1px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-button{width:100%;min-width:0;min-height:24px;line-height:20px;padding:2px 3px;border:0;background:transparent;color:#d9d1e2;text-align:left;font-size:13px;cursor:pointer}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-iso-week{position:absolute;inset-inline-end:1px;top:4px;line-height:16px;font-size:7px;color:#8d7956;pointer-events:none}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-week-number{display:none}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-sunday,.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-sunday .nh-calendar-day-button{color:#d37783}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-outside .nh-calendar-day-button{color:#655d70}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-outside .nh-calendar-event-marker{opacity:.4}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-today-cell .nh-calendar-day-button{color:#e1bc75;font-weight:750}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-selected{background:#45296880;box-shadow:inset 0 0 0 1px #bc91f0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-cell-events{padding-inline:2px;min-width:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month] .nh-calendar-cell-event{height:29px!important;min-height:29px!important;line-height:13px!important;margin:1px 0!important;padding:0!important;border:0!important;background:transparent!important;overflow:hidden}
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month] .nh-calendar-cell-event-inner{display:block;height:29px!important;min-height:0!important;padding:0!important;overflow:hidden}
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month] .nh-calendar-event-preview{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-height:28px;padding:1px 2px 1px 4px;border-left:3px solid var(--event-color);border-radius:3px;background:#19121e;color:#e5dfec;font-size:10.5px;line-height:13px;white-space:normal;overflow-wrap:normal;word-break:normal}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-more,.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-more *{min-height:11px!important;line-height:11px!important;font-size:8px!important;padding:0 1px!important;color:#be9be5!important}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-event-preview{display:block;font-size:11px;white-space:normal;overflow-wrap:anywhere}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-panel{min-height:0;overflow:hidden;opacity:0;pointer-events:none;transition:opacity 280ms ease}
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-day-open=true] .nh-calendar-day-panel{opacity:1;pointer-events:auto}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-panel-inner{display:flex;height:100%;min-height:0;overflow:hidden}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-surface{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;border:1px solid #a482da42;border-radius:13px;background:linear-gradient(160deg,#1b1128,#0b090f 65%)}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-panel-handle{height:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:grab}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-panel-handle>span{display:block;width:40px;height:3px;border-radius:3px;background:#71617e}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-surface>header{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 10px 7px;flex-shrink:0;border-bottom:1px solid #b995e41a}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-panel-eyebrow{font-size:8px;letter-spacing:.08em;color:#ae90c9}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-surface h2{font-size:15px;line-height:1.3;margin:3px 0 0;text-transform:capitalize}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-surface .icon-button{display:grid;place-items:center;min-width:32px;min-height:32px;flex-shrink:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-events{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:0 9px 8px;scrollbar-width:thin}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-event{display:flex;align-items:center;gap:9px;width:100%;min-height:67px;padding:10px 0;text-align:left;background:transparent;color:#eee7f6;border:0;border-bottom:1px solid #c3a0ed14;touch-action:pan-y}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-source-bar{width:3px;align-self:stretch;flex-shrink:0;min-height:30px;border-radius:3px;background:var(--event-color,#b48bef)}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-event-text{display:grid;gap:4px;flex:1;min-width:0}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-event-text strong{font-size:13px;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-event-meta,.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-event-location{font-size:10px;line-height:1.4;color:#b5a5c4;overflow-wrap:anywhere}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-event>svg{flex-shrink:0;color:#aa8bca}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-empty{padding:12px 0;color:#b5a5c4;font-size:12px}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-empty button{padding:9px;min-height:36px;border-radius:10px;display:flex;align-items:center;gap:5px;margin-top:10px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-settings{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;min-height:0;background:#0b0810;border:1px solid #ae85db55;border-radius:14px;overflow:hidden}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-settings>header{display:flex;align-items:center;justify-content:space-between;padding:12px;flex-shrink:0;border-bottom:1px solid #ae85db33}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-settings>header button{min-width:40px;min-height:40px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-settings>div{padding:12px;overflow:auto;min-height:0;flex:1}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-filters{font-size:12px}.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-watch-note{font-size:11px;color:#a69ab5}
+.portal-shell .nh-calendar-fit.nh-calendar-v2>.error-banner,.portal-shell .nh-calendar-fit.nh-calendar-v2>.info-note,.portal-shell .nh-calendar-fit.nh-calendar-v2>.nh-ideas-note{flex-shrink:0;margin:2px 0;font-size:11px}
+@media(prefers-reduced-motion:reduce){.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-content,.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-day-panel{transition:none}}
+
+/* The phone header follows the reference: title and period controls share a row. */
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-module-dashboard-title{align-items:center;flex:1;gap:6px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-module-dashboard-title>div{min-width:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-module-dashboard-header{flex-wrap:nowrap;min-height:40px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-toolbar svg{width:15px;height:15px}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-viewbar{display:flex;align-items:center;gap:5px;margin-bottom:8px;flex-shrink:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-viewbar .nh-calendar-tabs{flex:1;margin:0;min-width:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-date-control{display:flex;width:100%;min-width:0;height:24px;border-radius:0;background:transparent!important;box-shadow:none;color:inherit;padding:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-selected{border-radius:6px;background:linear-gradient(160deg,#432363b3,#21122c)!important;box-shadow:inset 0 0 0 1px #bc91f0,0 0 8px #a45af52b}
+.portal-shell .nh-calendar-fit.nh-calendar-v2 .nh-calendar-today-cell .nh-calendar-day-button{background:transparent;color:#ddbc75}
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-day-open=true] .nh-calendar-cell-top,.portal-shell .nh-calendar-fit.nh-calendar-v2[data-day-open=true] .nh-calendar-day-button,.portal-shell .nh-calendar-fit.nh-calendar-v2[data-day-open=true] .nh-calendar-date-control{min-height:20px;height:20px;line-height:18px;padding-block:0}

@@ -92,7 +92,7 @@ jobs:
         if: always()
         with:
           name: weather-widget-render
-          path: app/build/reports/weather-widget.png
+          path: app/build/reports/weather-widget*.png
           retention-days: 14
       - name: Verify APK signature and prepare download
         env:

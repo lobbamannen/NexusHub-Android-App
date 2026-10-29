@@ -39,12 +39,17 @@ val current=state.optJSONObject("current");val locale=Locale("sv","SE")
    val condition=current?.optString("condition")?:"unknown";val isDay=current?.optBoolean("isDay",true)?:true;val label=conditionLabel(condition)
    val place=state.optJSONObject("location")?.optString("name")?:"Västra Torup";val zone=try{ZoneId.of(state.optJSONObject("location")?.optString("timeZone")?:"Europe/Stockholm")}catch(_:Exception){ZoneId.systemDefault()}
    val fetched=state.optLong("fetchedAt",0);val fetchedText=if(fetched>0)DateTimeFormatter.ofPattern("d/M HH:mm",locale).format(Instant.ofEpochMilli(fetched).atZone(zone)) else ""
-    val compact=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,280)<250||options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,160)<155
+    val height=options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,150)
+    val compact=height<125||options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,320)<250
     val v=RemoteViews(c.packageName,R.layout.widget_weather)
     v.setTextViewText(R.id.weather_widget_month,date.format(DateTimeFormatter.ofPattern("MMM yyyy",locale)).uppercase(locale));v.setTextViewText(R.id.weather_widget_date,date.dayOfMonth.toString());v.setTextViewText(R.id.weather_widget_weekday,date.format(DateTimeFormatter.ofPattern("EEEE",locale)))
     v.setTextViewText(R.id.weather_widget_temperature,degrees(number(current,"temperature")));v.setTextViewText(R.id.weather_widget_condition,if(current==null)"Öppna väder" else label);v.setTextViewText(R.id.weather_widget_place,place)
     v.setTextViewText(R.id.weather_widget_status,if(fetched==0L)"Ingen prognos ännu" else (if(state.optString("status")=="stale")"Äldre · " else "Prognos · ")+fetchedText)
-    v.setTextViewTextSize(R.id.weather_widget_brand,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)8f else 10f);v.setTextViewTextSize(R.id.weather_widget_date,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)44f else 58f);v.setTextViewTextSize(R.id.weather_widget_temperature,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)28f else 33f)
+    v.setTextViewTextSize(R.id.weather_widget_brand,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)8f else 10f);v.setTextViewTextSize(R.id.weather_widget_date,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)42f else if(height<145)54f else 62f);v.setTextViewTextSize(R.id.weather_widget_temperature,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)28f else if(height<145)36f else 42f)
+    for(viewId in listOf(R.id.weather_widget_month,R.id.weather_widget_weekday))v.setTextViewTextSize(viewId,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)11f else 13f)
+    v.setTextViewTextSize(R.id.weather_widget_condition,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)10f else 12f)
+    v.setTextViewTextSize(R.id.weather_widget_place,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)9f else 11f)
+    v.setTextViewTextSize(R.id.weather_widget_status,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)8f else 9f)
     v.setImageViewBitmap(R.id.weather_widget_icon,WeatherWidgetGlyph.draw(condition,isDay))
     v.setOnClickPendingIntent(R.id.weather_widget_calendar,open(c,"kalender",201));v.setOnClickPendingIntent(R.id.weather_widget_forecast,open(c,"vader",202))
     v.setContentDescription(R.id.weather_widget_calendar,date.format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy",locale))+". Öppna NexusHubs kalender.")
