@@ -45,11 +45,12 @@ val current=state.optJSONObject("current");val locale=Locale("sv","SE")
     v.setTextViewText(R.id.weather_widget_month,date.format(DateTimeFormatter.ofPattern("MMM yyyy",locale)).uppercase(locale));v.setTextViewText(R.id.weather_widget_date,date.dayOfMonth.toString());v.setTextViewText(R.id.weather_widget_weekday,date.format(DateTimeFormatter.ofPattern("EEEE",locale)))
     v.setTextViewText(R.id.weather_widget_temperature,degrees(number(current,"temperature")));v.setTextViewText(R.id.weather_widget_condition,if(current==null)"Öppna väder" else label);v.setTextViewText(R.id.weather_widget_place,place)
     v.setTextViewText(R.id.weather_widget_status,if(fetched==0L)"Ingen prognos ännu" else (if(state.optString("status")=="stale")"Äldre · " else "Prognos · ")+fetchedText)
-    v.setTextViewTextSize(R.id.weather_widget_brand,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)8f else 10f);v.setTextViewTextSize(R.id.weather_widget_date,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)42f else if(height<145)54f else 62f);v.setTextViewTextSize(R.id.weather_widget_temperature,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)28f else if(height<145)36f else 42f)
+    v.setTextViewTextSize(R.id.weather_widget_brand,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)10f else 12f);v.setTextViewTextSize(R.id.weather_widget_date,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)40f else if(height<145)54f else 66f);v.setTextViewTextSize(R.id.weather_widget_temperature,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)28f else if(height<145||degrees(number(current,"temperature")).length>=4)36f else 44f)
     for(viewId in listOf(R.id.weather_widget_month,R.id.weather_widget_weekday))v.setTextViewTextSize(viewId,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)11f else 13f)
     v.setTextViewTextSize(R.id.weather_widget_condition,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)10f else 12f)
     v.setTextViewTextSize(R.id.weather_widget_place,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)9f else 11f)
     v.setTextViewTextSize(R.id.weather_widget_status,android.util.TypedValue.COMPLEX_UNIT_SP,if(compact)8f else 9f)
+    if(compact)for(viewId in listOf(R.id.weather_widget_condition,R.id.weather_widget_place,R.id.weather_widget_status))v.setViewPadding(viewId,0,(c.resources.displayMetrics.density).roundToInt(),0,0)
     v.setImageViewBitmap(R.id.weather_widget_icon,WeatherWidgetGlyph.draw(condition,isDay))
     v.setOnClickPendingIntent(R.id.weather_widget_calendar,open(c,"kalender",201));v.setOnClickPendingIntent(R.id.weather_widget_forecast,open(c,"vader",202))
     v.setContentDescription(R.id.weather_widget_calendar,date.format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy",locale))+". Öppna NexusHubs kalender.")
@@ -64,7 +65,7 @@ class WeatherDateWorker(c:Context,p:WorkerParameters):Worker(c,p){override fun d
 /** Original vector-like glyphs drawn once per render, never a downloaded Samsung asset. */
 internal object WeatherWidgetGlyph {
  fun draw(condition:String,day:Boolean):Bitmap {
-  val bitmap=Bitmap.createBitmap(96,80,Bitmap.Config.ARGB_8888);val c=Canvas(bitmap);val p=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.rgb(157,199,235);style=Paint.Style.STROKE;strokeWidth=4f;strokeCap=Paint.Cap.ROUND;strokeJoin=Paint.Join.ROUND}
+  val bitmap=Bitmap.createBitmap(96,80,Bitmap.Config.ARGB_8888);val c=Canvas(bitmap);val p=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=Color.rgb(216,185,118);style=Paint.Style.STROKE;strokeWidth=3.5f;strokeCap=Paint.Cap.ROUND;strokeJoin=Paint.Join.ROUND}
   if(condition=="clear"){
    if(day){c.drawCircle(48f,36f,17f,p);for(i in 0..7){val angle=i*Math.PI/4;c.drawLine((48+25*kotlin.math.cos(angle)).toFloat(),(36+25*kotlin.math.sin(angle)).toFloat(),(48+31*kotlin.math.cos(angle)).toFloat(),(36+31*kotlin.math.sin(angle)).toFloat(),p)}}
    else{val path=Path();path.moveTo(61f,12f);path.cubicTo(25f,7f,17f,61f,54f,61f);path.cubicTo(69f,61f,77f,52f,80f,42f);path.cubicTo(53f,51f,40f,29f,61f,12f);c.drawPath(path,p)}

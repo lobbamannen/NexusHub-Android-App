@@ -20,12 +20,12 @@ import java.time.LocalDate
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class WeatherWidgetTest {
  @Test fun calendarAndWeatherOnlyAllowExistingNexusRoutes(){assertEquals("kalender",WeatherWidgetProvider.destination("kalender"));assertEquals("vader",WeatherWidgetProvider.destination("vader"));for(s in listOf("https://bad.example/","javascript:alert(1)","vader?url=bad","","Kalender"))assertNull(WeatherWidgetProvider.destination(s))}
- @Test fun widgetRendersActualDateBlackSurfaceAndMissingWeatherWithoutZero(){
+ @Test fun widgetRendersActualDateDarkGlassAndMissingWeatherWithoutZero(){
   val c=RuntimeEnvironment.getApplication();val state=JSONObject().put("location",WeatherLocation.DEFAULT.json()).put("status","empty").put("current",JSONObject.NULL)
   val view=WeatherWidgetProvider.views(c,state,Bundle(),LocalDate.of(2026,10,28)).apply(c,FrameLayout(c))
   assertEquals("28",view.findViewById<TextView>(R.id.weather_widget_date).text.toString());assertEquals("onsdag",view.findViewById<TextView>(R.id.weather_widget_weekday).text.toString())
   assertEquals("—",view.findViewById<TextView>(R.id.weather_widget_temperature).text.toString());assertEquals("TWO THUMBS INCORPORATED™",view.findViewById<TextView>(R.id.weather_widget_brand).text.toString())
-  assertEquals(android.graphics.Color.BLACK,(view.background as GradientDrawable).color!!.defaultColor)
+  for(color in (view.background as GradientDrawable).colors!!){assertTrue(android.graphics.Color.alpha(color) in 230..250);assertTrue(android.graphics.Color.red(color)<16);assertTrue(android.graphics.Color.green(color)<16);assertTrue(android.graphics.Color.blue(color)<16)}
   assertTrue(view.findViewById<TextView>(R.id.weather_widget_month).text.toString().contains("2026"))
  }
  @Test fun onlyMissingTemperatureUsesDash(){assertEquals("3°",WeatherWidgetProvider.degrees(2.5));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.5));assertEquals("0°",WeatherWidgetProvider.degrees(0.0));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.2));assertEquals("—",WeatherWidgetProvider.degrees(null))}
