@@ -1,3 +1,4 @@
+import {startWidgetActivity} from '@/platform/widget-activity';
 import {startIncomingSync} from '@/platform/incoming-sync';
 import {startTelemetry} from '@/platform/telemetry';
 import {startWatchSync} from '@/platform/watch-sync';
@@ -27,6 +28,7 @@ async function start() {
   createRoot(document.getElementById('root')!).render(<App/>);
   startReplicaSync();
   startWatchSync();
+  startWidgetActivity();
   startIncomingSync();
 
 }

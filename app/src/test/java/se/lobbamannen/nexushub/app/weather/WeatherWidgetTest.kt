@@ -32,6 +32,35 @@ class WeatherWidgetTest {
  @Test fun onlyMissingTemperatureUsesDash(){assertEquals("3°",WeatherWidgetProvider.degrees(2.5));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.5));assertEquals("0°",WeatherWidgetProvider.degrees(0.0));assertEquals("−3°",WeatherWidgetProvider.degrees(-3.2));assertEquals("—",WeatherWidgetProvider.degrees(null))}
  @Test fun partlyCloudyIconDistinguishesDayAndNight(){assertFalse(WeatherWidgetGlyph.draw("partly_cloudy",true).sameAs(WeatherWidgetGlyph.draw("partly_cloudy",false)))}
 
+ @Test fun activityExpiresAtStockholmMidnightAndHidesZeroCategories(){
+  val c=RuntimeEnvironment.getApplication()
+  val day=WidgetActivity.today()
+  val snapshot=JSONObject().put("day",day).put("counts",JSONObject().put("ideas",3).put("films",0).put("series",2))
+  assertEquals(mapOf("ideas" to 3,"series" to 2),WidgetActivity.counts(snapshot,day))
+  assertTrue(WidgetActivity.counts(snapshot,"2000-01-01").isEmpty())
+  c.getSharedPreferences("widget_activity",0).edit().putString("snapshot",snapshot.toString()).commit()
+  try{
+   for(height in listOf(110,150)){
+    val opts=Bundle().apply{putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,height)}
+    val view=WeatherWidgetProvider.views(c,JSONObject(),opts).apply(c,FrameLayout(c)) as android.view.ViewGroup
+    assertEquals(android.view.View.VISIBLE,view.findViewById<android.view.View>(R.id.weather_widget_activity).visibility)
+    assertEquals(android.view.View.GONE,view.findViewById<android.view.View>(R.id.widget_activity_films).visibility)
+    assertEquals("3",view.findViewById<TextView>(R.id.widget_activity_ideas_count).text.toString())
+    val d=c.resources.displayMetrics.density;val w=(320*d).toInt();val h=(height*d).toInt()
+    view.measure(android.view.View.MeasureSpec.makeMeasureSpec(w,1073741824),android.view.View.MeasureSpec.makeMeasureSpec(h,1073741824));view.layout(0,0,w,h)
+    for(id in listOf(R.id.weather_widget_date,R.id.weather_widget_weekday,R.id.widget_activity_ideas_count)){
+     val child=view.findViewById<TextView>(id);val rect=android.graphics.Rect();child.getDrawingRect(rect);view.offsetDescendantRectToMyCoords(child,rect)
+     assertTrue("Activity fits widget at $height dp: $rect",rect.top>=0&&rect.bottom<=h&&rect.height()>0)
+    }
+    val bitmap=android.graphics.Bitmap.createBitmap(w,h,android.graphics.Bitmap.Config.ARGB_8888);view.draw(android.graphics.Canvas(bitmap))
+    val file=java.io.File("build/reports/weather-widget-activity-$height.png");file.parentFile.mkdirs();file.outputStream().use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
+   }
+   c.getSharedPreferences("widget_activity",0).edit().putString("snapshot",snapshot.put("day","2000-01-01").toString()).commit()
+   val view=WeatherWidgetProvider.views(c,JSONObject(),Bundle()).apply(c,FrameLayout(c))
+   assertEquals(android.view.View.GONE,view.findViewById<android.view.View>(R.id.weather_widget_activity).visibility)
+  }finally{c.getSharedPreferences("widget_activity",0).edit().clear().commit()}
+ }
+
  @Test fun renderNativeWidgetPreview(){
   val c=RuntimeEnvironment.getApplication();val density=c.resources.displayMetrics.density
   val state=JSONObject().put("location",WeatherLocation.DEFAULT.json()).put("status","fresh").put("fetchedAt",1793203200000L).put("current",JSONObject().put("temperature",6.5).put("condition","rain").put("isDay",false))

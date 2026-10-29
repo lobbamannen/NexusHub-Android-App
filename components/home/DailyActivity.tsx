@@ -2,6 +2,7 @@ import Lightbulb from '@/components/ideas/IdeaBulb';
 import React,{useEffect,useState} from 'react';
 import {Clapperboard,Tv,BookOpen,ChevronRight} from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
+import {dailyWidgetSnapshot} from '@/lib/widget-activity.mjs';
 import {ideaDay} from '@/lib/idea-numbers.mjs';
 import './daily-activity.css';
 export default function DailyActivity({now,revision,ideaEntries,ideasStale,onNavigate}:{now:Date|null;revision?:string;ideaEntries:{createdAt:string}[];ideasStale:boolean;onNavigate:(view:string)=>void}){
@@ -12,8 +13,8 @@ export default function DailyActivity({now,revision,ideaEntries,ideasStale,onNav
  void load();window.addEventListener('nexus-github-changed',load);window.addEventListener('online',load);
  return()=>{active=false;controller.abort();window.removeEventListener('nexus-github-changed',load);window.removeEventListener('online',load);};
  },[day,revision]);
- const counts=activity?.day===day?activity.counts:{};
- const cards=[{key:'films',view:'filmer',label:'Nya filmer',count:counts?.films,Icon:Clapperboard,tone:'ruby' as const},{key:'series',view:'serier',label:'Nya serier',count:counts?.series,Icon:Tv,tone:'blue' as const},{key:'stories',view:'berattelser',label:'Nya berättelser',count:counts?.stories,Icon:BookOpen,tone:'blue' as const},{key:'ideas',view:'ideer',label:'Nya idéer',count:day?ideaEntries.filter(e=>ideaDay(e.createdAt)===day).length:0,Icon:Lightbulb,tone:'orange' as const}].filter(c=>c.count>0);
+ const counts:Record<string,number>=now?dailyWidgetSnapshot(activity,ideaEntries,now).counts:{};
+ const cards=[{key:'films',view:'filmer',label:'Nya filmer',count:counts?.films,Icon:Clapperboard,tone:'ruby' as const},{key:'series',view:'serier',label:'Nya serier',count:counts?.series,Icon:Tv,tone:'blue' as const},{key:'stories',view:'berattelser',label:'Nya berättelser',count:counts?.stories,Icon:BookOpen,tone:'blue' as const},{key:'ideas',view:'ideer',label:'Nya idéer',count:counts.ideas,Icon:Lightbulb,tone:'orange' as const}].filter(c=>c.count>0);
  if(!cards.length)return null;
  return <section className="nh-daily" aria-label="Nytt idag"><span className="nh-module-eyebrow">NYTT IDAG</span><div className="nh-daily-grid">{cards.map(({key,view,label,count,Icon,tone})=><button type="button" key={key} className="nh-daily-card" onClick={()=>onNavigate(view)}><MaterialIcon tone={tone} size={30}><Icon size={20}/></MaterialIcon><span><strong>+{count}</strong><small>{count===1?({films:'Ny film',series:'Ny serie',stories:'Ny berättelse',ideas:'Ny idé'} as Record<string,string>)[key]:label}</small></span><ChevronRight size={16}/></button>)}</div>{(offline||ideasStale)&&<small className="nh-daily-note">Senast hämtade uppgifter – väntar på uppdatering.</small>}</section>;
 }

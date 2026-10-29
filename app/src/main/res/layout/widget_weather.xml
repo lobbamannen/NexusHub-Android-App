@@ -16,4 +16,25 @@
    <TextView android:id="@+id/weather_widget_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:textColor="#8F8998" android:textSize="9sp" android:includeFontPadding="false" android:maxLines="1" android:ellipsize="end" android:paddingTop="3dp"/>
   </LinearLayout>
  </LinearLayout>
+ <LinearLayout android:id="@+id/weather_widget_activity" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+  <ImageView android:layout_width="match_parent" android:layout_height="1dp" android:background="#4DAD925A" android:layout_marginTop="4dp" android:layout_marginBottom="4dp" android:importantForAccessibility="no"/>
+  <LinearLayout android:layout_width="match_parent" android:layout_height="22dp" android:orientation="horizontal" android:gravity="center" android:baselineAligned="false">
+   <LinearLayout android:id="@+id/widget_activity_ideas" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center" android:visibility="gone">
+    <ImageView android:id="@+id/widget_activity_ideas_icon" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/widget_activity_ideas" android:importantForAccessibility="no"/>
+    <TextView android:id="@+id/widget_activity_ideas_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:textColor="#EEE9E1" android:textSize="12sp" android:maxLines="1" android:includeFontPadding="false"/>
+   </LinearLayout>
+   <LinearLayout android:id="@+id/widget_activity_films" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center" android:visibility="gone">
+    <ImageView android:id="@+id/widget_activity_films_icon" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/widget_activity_films" android:importantForAccessibility="no"/>
+    <TextView android:id="@+id/widget_activity_films_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:textColor="#EEE9E1" android:textSize="12sp" android:maxLines="1" android:includeFontPadding="false"/>
+   </LinearLayout>
+   <LinearLayout android:id="@+id/widget_activity_series" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center" android:visibility="gone">
+    <ImageView android:id="@+id/widget_activity_series_icon" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/widget_activity_series" android:importantForAccessibility="no"/>
+    <TextView android:id="@+id/widget_activity_series_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:textColor="#EEE9E1" android:textSize="12sp" android:maxLines="1" android:includeFontPadding="false"/>
+   </LinearLayout>
+   <LinearLayout android:id="@+id/widget_activity_stories" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center" android:visibility="gone">
+    <ImageView android:id="@+id/widget_activity_stories_icon" android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/widget_activity_stories" android:importantForAccessibility="no"/>
+    <TextView android:id="@+id/widget_activity_stories_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:textColor="#EEE9E1" android:textSize="12sp" android:maxLines="1" android:includeFontPadding="false"/>
+   </LinearLayout>
+  </LinearLayout>
+ </LinearLayout>
 </LinearLayout>

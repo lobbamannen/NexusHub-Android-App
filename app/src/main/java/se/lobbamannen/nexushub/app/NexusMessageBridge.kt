@@ -45,6 +45,7 @@ class NexusMessageBridge(private val activity:Activity,private val web:WebView) 
                     "telemetry.getStatus" -> perform {NexusTelemetry.status()}
                     "telemetry.setEnabled" -> {require(p.opt("enabled") is Boolean);perform {NexusTelemetry.setEnabled(p.getBoolean("enabled"))}}
                     "telemetry.capture" -> perform {require(p.optString("name")!="battery_flow");JSONObject().put("accepted",NexusTelemetry.capture(p.getString("name"),p.getJSONObject("properties"),"react"))}
+                    "widget.setActivity" -> perform {se.lobbamannen.nexushub.app.weather.WidgetActivity.save(activity,p)}
                     "weather.getState" -> perform {WeatherRuntime.state(activity)}
                     "weather.refresh" -> perform {WeatherRuntime.initialize(activity);WeatherRuntime.refresh(activity,p.optBoolean("manual",true));WeatherRuntime.state(activity)}
                     "weather.setLocation" -> perform {WeatherRuntime.initialize(activity);WeatherRuntime.setLocation(activity,p)}
