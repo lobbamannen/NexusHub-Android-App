@@ -1,4 +1,4 @@
-.portal-shell.nh-chroma-site.nh-locked-home .nh-home-weather{position:absolute;top:-5px;left:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;max-width:48%;padding:5px 9px;border:1px solid #a78bfa30;border-radius:16px;background:linear-gradient(135deg,#181320,#0f0e14);color:#efe9fa;font-family:inherit;font-size:13px;font-weight:600;line-height:1.3;cursor:pointer;white-space:nowrap}
+.portal-shell.nh-chroma-site.nh-locked-home .nh-home-weather{position:absolute;top:-5px;left:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;max-width:48%;padding:5px 3px;border:0;border-radius:0;background:none;box-shadow:none;color:#efe9fa;font-family:inherit;font-size:13px;font-weight:600;line-height:1.3;cursor:pointer;white-space:nowrap}
 .portal-shell.nh-chroma-site .nh-weather-glyph{color:#9ac7ed;flex:none}
 .portal-shell .nh-weather-old-dot{width:5px;height:5px;border-radius:50%;background:#e7c176}
 .portal-shell.nh-chroma-site.nh-locked-home .nh-home-weather:focus-visible{outline:2px solid #b5d7f6;outline-offset:3px}

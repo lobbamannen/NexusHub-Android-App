@@ -17,3 +17,7 @@ Implements approved ideas 1 (Pulse), 23 (living welcome border) and 24 (navigati
 The available cloud browser could not connect to the workspace localhost server (connection refused). No local browser screenshot or physical Android result is claimed.
 The independent `Verify Pulse and motion UI` GitHub workflow checks real Chromium rendering at 320/412/900 px, counters, action routing, forward/back poster state and cleanup, panels and reduced motion. Its result is separate from the APK build.
 Physical Samsung launcher/app testing remains a follow-up when installing the combined APK; no APK is downloaded or awaited for this task.
+
+## On-device design feedback revision
+
+Robin requested removing the new welcome and Pulse boxes and the weather/sync indicator pills. The welcome SVG component and perimeter animation were removed. Greeting/signature render directly as before; Pulse and its counters use no background, border or shadow. Weather and sync remain interactive with their previous hit areas, colors, labels and navigation, but have transparent backgrounds and no visible outlines except keyboard focus. The independent browser workflow now checks all four surfaces for this treatment. Module cards and navigation transitions remain unchanged.

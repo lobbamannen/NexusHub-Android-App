@@ -6,7 +6,6 @@ import {useWatchState} from '@/components/watch/use-watch-state';
 import './grouped-home.css';
 'use client';
 import HomePulse from './HomePulse';
-import WelcomeFrame from './WelcomeFrame';
 import { mediaFetch } from '@/lib/media-client';
 import React, { useEffect, useState } from 'react';
 import HomeSyncStatus from './HomeSyncStatus';
@@ -97,7 +96,7 @@ export default function HomeDashboard({ ideaCount, ideaEntries=[], ideasStale, c
         watchlist: filmsLoaded && seriesLoaded ? films.filter(f => f.status === "Vill se").length + series.filter(s => seriesIsWatchlisted(s)).length : null
     };
     return <div className="nh-home">
-  <header className="nh-home-welcome"><HomeWeatherIndicator onNavigate={onNavigate}/><HomeSyncStatus files={counts.files} onNavigate={onNavigate}/><WelcomeFrame><div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div><p className="nh-home-signature"><strong>Two Thumbs</strong>{' '}<span>Incorporated<sup>™</sup></span></p></WelcomeFrame></header>
+  <header className="nh-home-welcome"><HomeWeatherIndicator onNavigate={onNavigate}/><HomeSyncStatus files={counts.files} onNavigate={onNavigate}/><div className="nh-home-greeting" aria-live="off">{greeting || 'Välkommen till Nexus Hub'}<span className="nh-home-greeting-dot" aria-hidden="true">.</span></div><p className="nh-home-signature"><strong>Two Thumbs</strong>{' '}<span>Incorporated<sup>™</sup></span></p></header>
   <HomePulse now={now} revision={catalog?.commit} ideaEntries={ideaEntries} ideasStale={ideasStale} releases={watchState.events} onNavigate={onNavigate} onOpenSeries={id=>onOpenMedia('serier',id)} posterRevision={posterRevision}/>
   <ModuleGrid counts={counts} onNavigate={onNavigate}/>
   <RecentActivity additions={additions} loading={mediaLoading} error={mediaError} onRetry={() => setRetry(n => n + 1)} posterRevision={posterRevision} films={films} series={series} stories={stories} files={recentFiles} plugins={plugins} commits={commits} onNavigate={onNavigate} onOpenMedia={onOpenMedia} onOpenStory={onOpenStory} onOpenFile={onOpenFile}/>
