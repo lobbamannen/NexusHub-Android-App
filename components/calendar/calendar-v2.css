@@ -102,6 +102,8 @@ body:has(.nh-calendar-fit){overflow:hidden}
 /* Keep one event name in short month rows. More-count badges use the date header. */
 .portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month][data-day-open=true] .nh-calendar-cell-top,
 .portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month][data-day-open=true] .nh-calendar-day-button,
-.portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month][data-day-open=true] .nh-calendar-date-control{min-height:18px;height:18px;line-height:17px;padding-block:0}
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month][data-day-open=true] .nh-calendar-date-control{min-height:16px;height:16px;line-height:15px;padding-block:0}
 .portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month][data-day-open=true] .nh-calendar-more{position:absolute!important;top:2px;right:2px;z-index:3;width:auto;max-width:25px;height:13px;min-height:13px!important;line-height:11px!important;border-radius:4px;overflow:hidden;background:#160e20}
 .portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month][data-day-open=true] .nh-calendar-cell:has(.nh-calendar-more) .nh-calendar-iso-week{display:none}
+
+.portal-shell .nh-calendar-fit.nh-calendar-v2[data-calendar-view=month][data-day-open=true] .nh-calendar-cell-event{margin:0!important}
