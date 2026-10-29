@@ -11,7 +11,7 @@ const slots=[['ideas','ideer','idéer',Lightbulb],['films','filmer','filmer',Cla
 export function PulseSurface({snapshot,actions,stale,onNavigate,onOpenSeries,revision=''}:{snapshot:{counts:Record<string,number>};actions:any[];stale:boolean;onNavigate:(view:string)=>void;onOpenSeries:(id:string)=>void;revision?:string}){
  const counters=slots.filter(([key])=>snapshot.counts[key]>0);
  if(!counters.length&&!actions.length)return null;
- return <section className="nh-pulse" aria-label="Just nu i NexusHub"><div className="nh-pulse-heading"><span>JUST NU</span>{stale&&<small>Senast hämtade uppgifter</small>}</div>
+ return <section className="nh-pulse" aria-label="Just nu i NexusHub" data-stale={stale||undefined}><div className="nh-pulse-heading"><span>JUST NU</span></div>
  {counters.length>0&&<div className="nh-pulse-counters" aria-label="Nytt idag">{counters.map(([key,view,label,Icon])=><button key={key} data-kind={key} type="button" aria-label={snapshot.counts[key]+' nya '+label+' idag'} onClick={()=>onNavigate(view)}><Icon size={16}/><strong>{snapshot.counts[key].toLocaleString('sv-SE')}</strong></button>)}</div>}
  {actions.map(action=>{const calendar=action.kind==='calendar',Icon=calendar?CalendarDays:Tv;return <button className="nh-pulse-action" data-kind={action.kind} key={action.id} type="button" onClick={()=>calendar?onNavigate('kalender'):action.imdbId?onOpenSeries(action.imdbId):onNavigate('bevakning')}>
  <span className="nh-pulse-art">{!calendar&&action.imdbId?<RepositoryPoster kind="series" posterKey={action.imdbId} revision={revision} alt=""><Icon size={20}/></RepositoryPoster>:<Icon size={20}/>}</span>

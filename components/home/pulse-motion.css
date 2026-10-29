@@ -1,8 +1,7 @@
 .portal-shell.nh-chroma-site .nh-pulse{border:0;border-radius:0;background:none;padding:4px 0 8px;min-width:0;box-shadow:none}
-.nh-pulse-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}
+.nh-pulse-heading{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:7px}
 .nh-pulse-heading>span{font-size:9px;font-weight:700;letter-spacing:1.8px;color:#a49aad}
-.nh-pulse-heading small{font-size:9px;color:#99909f;text-align:right}
-.nh-pulse-counters{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:1px}
+.nh-pulse-counters{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:1px}
 .nh-pulse-counters button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;min-width:48px;padding:5px 3px;border:0;border-radius:0;background:none;box-shadow:none;color:#dfdae5}
 .nh-pulse-counters button svg{color:#7eb9ed}.nh-pulse-counters button[data-kind=ideas] svg{color:#efb56f}.nh-pulse-counters button[data-kind=films] svg{color:#e88196}
 .nh-pulse-counters strong{font-size:12px;font-weight:600}

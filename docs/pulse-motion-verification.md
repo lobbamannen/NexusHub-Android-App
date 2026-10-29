@@ -21,3 +21,7 @@ Physical Samsung launcher/app testing remains a follow-up when installing the co
 ## On-device design feedback revision
 
 Robin requested removing the new welcome and Pulse boxes and the weather/sync indicator pills. The welcome SVG component and perimeter animation were removed. Greeting/signature render directly as before; Pulse and its counters use no background, border or shadow. Weather and sync remain interactive with their previous hit areas, colors, labels and navigation, but have transparent backgrounds and no visible outlines except keyboard focus. The independent browser workflow now checks all four surfaces for this treatment. Module cards and navigation transitions remain unchanged.
+
+## Centering and animation fallback correction
+
+Removed the visible stale-data caption while preserving internal stale state. Centered the Just nu heading and the counter group with intrinsic-width items and symmetric growth. Module motion now uses 280 ms/24 px. When startViewTransition is absent, throws or rejects capture readiness, the updated main content receives a Web Animations API entrance instead of an instant change. Reduced motion still disables both paths. Regression tests cover missing/rejected captures, exactly-once updates and reduced motion; Chromium UI tests exercise those fallback paths and one/two/three-category centering. Device-specific capture availability cannot be inferred from a screenshot.

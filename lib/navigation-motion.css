@@ -1,12 +1,12 @@
-:root{--nh-motion-fast:180ms;--nh-motion-page:210ms;--nh-motion-detail:280ms;--nh-motion-ease:cubic-bezier(.2,.75,.25,1)}
+:root{--nh-motion-fast:180ms;--nh-motion-page:280ms;--nh-motion-detail:280ms;--nh-motion-ease:cubic-bezier(.2,.75,.25,1)}
 html[data-nexus-motion]::view-transition-old(root){animation:nh-view-out var(--nh-motion-page) var(--nh-motion-ease) both}
 html[data-nexus-motion]::view-transition-new(root){animation:nh-view-in var(--nh-motion-page) var(--nh-motion-ease) both}
 html[data-nexus-motion=back]{--nh-motion-direction:-1}
 html[data-nexus-motion=forward],html[data-nexus-motion=detail]{--nh-motion-direction:1}
 ::view-transition-group(nexus-selected-poster){animation-duration:var(--nh-motion-detail);animation-timing-function:var(--nh-motion-ease);overflow:hidden;border-radius:12px}
 ::view-transition-old(nexus-selected-poster),::view-transition-new(nexus-selected-poster){height:100%;object-fit:cover;mix-blend-mode:normal}
-@keyframes nh-view-in{from{opacity:0;transform:translateX(calc(10px * var(--nh-motion-direction,1)))}to{opacity:1;transform:none}}
-@keyframes nh-view-out{from{opacity:1;transform:none}to{opacity:0;transform:translateX(calc(-6px * var(--nh-motion-direction,1)))}}
+@keyframes nh-view-in{from{opacity:0;transform:translateX(calc(24px * var(--nh-motion-direction,1)))}to{opacity:1;transform:none}}
+@keyframes nh-view-out{from{opacity:1;transform:none}to{opacity:0;transform:translateX(calc(-12px * var(--nh-motion-direction,1)))}}
 .portal-shell :is(.topbar,.bottom-nav,.sidebar){view-transition-name:none}
 /* Only the content region is captured. The app shell and fixed controls remain still. */
 html[data-nexus-motion] .portal-shell :is(.topbar,.bottom-nav,.sidebar){view-transition-name:nh-chrome}
