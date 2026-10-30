@@ -8,7 +8,9 @@ test('document analysis is tied to verified local indexed content',()=>{
  assert.match(worker,/fun document\(context:Context,path:String\)/);
  assert.match(worker,/sourceSha/);
  assert.match(worker,/sourceCommit/);
- assert.match(worker,/Källdokumentet ändrades under analys/);
+ assert.match(worker,/indexed\.hasVerifiedSource\(/);
+ assert.match(worker,/sourceUnchanged/);
+ assert.match(worker,/candidateSourcesUnchanged/);
  assert.match(index,/fun document\(path:String\)/);
 });
 test('incremental sync queues bounded research analysis rather than a flood',()=>{
