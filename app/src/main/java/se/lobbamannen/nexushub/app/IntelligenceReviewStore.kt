@@ -90,6 +90,35 @@ class IntelligenceReviewStore(private val context: Context) {
     }
 
 
+    /** A cross-run inbox derived entirely from saved proposals and durable decisions. */
+    fun pending(limit:Int=30):JSONArray = synchronized(lock) {
+        val out=JSONArray()
+        val runs=IntelligenceRunStore(context).list(200)
+        for(i in 0 until runs.length()) {
+            if(out.length()>=limit.coerceIn(1,100))break
+            val run=runs.getJSONObject(i)
+            if(run.optString("state") !in setOf("local_completed","completed"))continue
+            val proposals=run.optJSONObject("result")?.optJSONArray("proposals") ?: continue
+            val decided=HashSet<Int>()
+            val decisions=list(run.getString("id"))
+            for(j in 0 until decisions.length())decided.add(decisions.getJSONObject(j).getInt("proposalIndex"))
+            for(j in 0 until proposals.length()) {
+                if(out.length()>=limit.coerceIn(1,100))break
+                if(j in decided)continue
+                val p=proposals.getJSONObject(j)
+                if(p.optString("status")!="proposal")continue
+                out.put(JSONObject()
+                    .put("runId",run.getString("id"))
+                    .put("workflow",run.getString("workflow"))
+                    .put("proposalIndex",j)
+                    .put("path",p.optString("path"))
+                    .put("quote",p.optString("quote").take(250))
+                    .put("confidence",p.optDouble("confidence",0.0)))
+            }
+        }
+        out
+    }
+
     /** Call only after a user-initiated GitHub PUT and independently verified GET. */
     fun recordPublication(runId:String,index:Int,proposalHash:String,
                           registrySha:String,registryCommit:String):JSONObject = synchronized(lock) {

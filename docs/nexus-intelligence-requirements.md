@@ -118,3 +118,8 @@ Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actio
 ## Resurspolicy och begränsning av lokala AI-anrop
 - För tung modellkörning finns deterministisk förkontroll av batteriprocent/laddning, Android Thermal Status och tillgängligt RAM. Kritiska, verifierade signaler ger `waiting_resource` och WorkManager backoff/retry; användarstatus behålls i databasen.
 - Arbetsflödet använder högst två inferensanrop och högst 512 genererade token per anrop (eller en lägre användargräns). En 15-minuters watchdog begär native stopp vid hård tidsgräns; plattformens avbrott och hårdvarutest krävs fortfarande för säkerhetsbevis.
+
+## Beslutskö och forskningspaket
+- Alla lokalt validerade och ännu ej avgjorda källförslag samlas i en beständig granskningsinkorg. Status läses från samma SQLite-register som manuella beslut.
+- Forskningspaket exporteras som strukturerad JSON med Git-commit, Git-blob, direktcitat, AI-motivering, granskningsstatus, publiceringsstatus och öppna frågor. Förslag märks uttryckligen som icke-fakta.
+- Robolectric-tester kontrollerar persistens, idempotens och att en publicerad relation inte tyst kan avvisas lokalt.

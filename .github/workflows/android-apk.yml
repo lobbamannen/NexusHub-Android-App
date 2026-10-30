@@ -210,6 +210,7 @@ jobs:
           node --test tests/intelligence-bootstrap.test.mjs
           node --test tests/intelligence-document-contract.test.mjs
           node --test tests/intelligence-resource-contract.test.mjs
+          node --test tests/intelligence-research-package.test.mjs
           node --test tests/activity-*.test.mjs tests/shared-incoming.test.mjs tests/incoming-sync.test.mjs tests/home-sync-status.test.mjs tests/home-groups.test.mjs tests/personal-capture.test.mjs tests/todos-controller.test.mjs tests/telemetry.test.mjs tests/local-first-recent.test.mjs tests/calendar-*.test.mjs tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs tests/weather-*.test.mjs tests/widget-activity.test.mjs tests/pulse-motion.test.mjs tests/pulse-surface.test.mjs tests/navigation-motion.test.mjs tests/pasted-text.test.mjs tests/connected-library.test.mjs tests/connected-services.test.mjs tests/page-scroll-lock.test.mjs
           npm run build
       - name: Compile native background and activity code

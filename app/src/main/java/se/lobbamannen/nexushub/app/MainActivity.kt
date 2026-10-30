@@ -305,6 +305,9 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceAnalyzeDocument(path:String):String =
             if(trustedDocument)try{IntelligenceJobs.document(applicationContext,path).toString()}
             catch(e:Exception){JSONObject().put("error",e.message?:"Dokumentanalysen kunde inte starta").toString()} else "{}"
+        @JavascriptInterface fun intelligencePendingReviews():String =
+            if(trustedDocument)try{IntelligenceReviewStore(applicationContext).pending().toString()}
+            catch(e:Exception){JSONObject().put("error",e.message?:"Kön kunde inte läsas").toString()} else "[]"
         @JavascriptInterface fun intelligenceReviews(id:String):String =
             if(trustedDocument)try{IntelligenceReviewStore(applicationContext).list(id).toString()}
             catch(e:Exception){JSONObject().put("error",e.message?:"Beslut kunde inte läsas").toString()} else "[]"
