@@ -118,10 +118,10 @@ object IntelligenceJobs {
 class IntelligenceWorker(private val app:Context,params:WorkerParameters):Worker(app,params) {
     companion object {
         private val WORK_LOCK=Any()
-        @Volatile private var ownerRunId:String?=null
+        @Volatile private var ownerWorkerId:UUID?=null
     }
     override fun onStopped() {
-        if(ownerRunId == inputData.getString("runId")) IntelligenceRuntime.get(app).cancel()
+        if(ownerWorkerId == id) IntelligenceRuntime.get(app).cancel()
         super.onStopped()
     }
     private fun classify(runtime:IntelligenceRuntime,input:String):Pair<JSONObject,JSONObject> {
@@ -158,8 +158,8 @@ ${source}
     override fun doWork():Result {
         val id=inputData.getString("runId") ?: return Result.failure()
         return synchronized(WORK_LOCK) {
-            ownerRunId=id
-            try { execute(id) } finally { ownerRunId=null }
+            ownerWorkerId=this.id
+            try { execute(id) } finally { ownerWorkerId=null }
         }
     }
 
