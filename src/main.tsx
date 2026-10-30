@@ -15,7 +15,6 @@ import { installLocalApi } from '@/platform/api';
 import { installResourceHandling } from '@/platform/resources';
 import './android.css';
 import { startReplicaSync } from '@/platform/replica-sync';
-import { startIntelligenceSync } from '@/platform/intelligence-index';
 
 function App() {
   const [connected,setConnected]=useState(hasGithubToken());
@@ -27,7 +26,6 @@ async function start() {
   startTelemetry();
   await initializeStorage(); installLocalApi(); installResourceHandling();
   createRoot(document.getElementById('root')!).render(<App/>);
-  startIntelligenceSync();
   startReplicaSync();
   startWatchSync();
   startWidgetActivity();
