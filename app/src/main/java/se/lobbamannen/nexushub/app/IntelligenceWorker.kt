@@ -357,11 +357,10 @@ ${source}
         try{
             val input=IntelligenceJobs.payload(app,id)
             if(isDocument) {
-                val now=indexed.status()
-                // The same verified source SHA may survive unrelated Git commits.
-                // Pin the working index below; reject only a changed/deleted source.
-                val source=indexed.document(input.getString("sourcePath"))
-                if(source.getString("sha")!=input.getString("sourceSha")) {
+                // A source must still exist at the exact original blob SHA.
+                // An unrelated Git commit does not invalidate unchanged bytes.
+                if(!indexed.hasVerifiedSource(input.getString("sourcePath"),
+                        input.getString("sourceSha"))) {
                     store.transition(id,"running","conflict","Dokumentets innehåll har ändrats.")
                     IntelligenceNotifications.terminal(app,id,"conflict")
                     return Result.success()
@@ -413,11 +412,24 @@ ${source}
                         .put("telemetry",comparison.getJSONObject("telemetry")))
             }
             val current=indexed.status()
-            if(isDocument && (!current.optBoolean("ready") ||
-                current.optString("commit")!=indexState.optString("commit"))) {
-                store.transition(id,"running","conflict","Källdokumentet ändrades under analys.")
-                IntelligenceNotifications.terminal(app,id,"conflict")
-                return Result.success()
+            if(isDocument) {
+                val sourceUnchanged=current.optBoolean("ready") &&
+                    indexed.hasVerifiedSource(input.getString("sourcePath"),
+                        input.getString("sourceSha"))
+                var candidateSourcesUnchanged=true
+                for(i in 0 until evidence.length()) {
+                    val item=evidence.getJSONObject(i)
+                    if(!indexed.hasVerifiedSource(item.getString("path"),item.getString("sha"))) {
+                        candidateSourcesUnchanged=false
+                        break
+                    }
+                }
+                if(!sourceUnchanged || !candidateSourcesUnchanged) {
+                    store.transition(id,"running","conflict",
+                        "Källdokumentet eller en använd forskningskälla ändrades under analys.")
+                    IntelligenceNotifications.terminal(app,id,"conflict")
+                    return Result.success()
+                }
             }
             if(isIdea && (!current.optBoolean("ready") ||
                 current.optString("commit")!=indexState.optString("commit"))) {
