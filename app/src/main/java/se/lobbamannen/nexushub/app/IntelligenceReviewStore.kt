@@ -55,6 +55,10 @@ class IntelligenceReviewStore(private val context: Context) {
         require(run.getString("state") in setOf("local_completed","completed")) {
             "Analysen måste vara färdig innan ett beslut kan registreras"
         }
+        require(run.optString("syncState")!="stale" &&
+            !run.getJSONObject("result").optBoolean("evidenceStale",false)) {
+            "Inaktuellt analysunderlag; kör om analysen innan godkännande eller publicering."
+        }
         val result = run.getJSONObject("result")
         val proposals = result.getJSONArray("proposals")
         require(index < proposals.length()) { "Förslaget finns inte" }
@@ -101,7 +105,9 @@ class IntelligenceReviewStore(private val context: Context) {
           for(i in 0 until runs.length()) {
             if(out.length()>=limit.coerceIn(1,100))break
             val run=runs.getJSONObject(i)
-            if(run.optString("state") !in setOf("local_completed","completed"))continue
+            if(run.optString("state") !in setOf("local_completed","completed") ||
+                run.optString("syncState")=="stale" ||
+                run.optJSONObject("result")?.optBoolean("evidenceStale",false)==true)continue
             val proposals=run.optJSONObject("result")?.optJSONArray("proposals") ?: continue
             val decided=HashSet<Int>()
             val decisions=list(run.getString("id"))
