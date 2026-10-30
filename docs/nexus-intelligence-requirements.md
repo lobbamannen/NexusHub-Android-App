@@ -106,3 +106,6 @@ Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actio
 - Godkända förslag från idéanalyser kan via en separat användarknapp registreras i befintliga `System/NexusHub/connections.json`. Endast samma källblobs som i den verifierade analysen godtas; båda dokumenten återläses live innan skrivning.
 - Stabilt relations-ID gör upprepningar idempotenta, befintligt connections-register har CAS på blob SHA, och den publicerade relationen återläses och verifieras före lokal kvittens. Ingen AI-modell har skrivrättigheter. Lokal publiceringskvittens och aktivitetslogg får separat tillstånd `github_verified`.
 - Endast idéanalyser har en auktoritativ ursprungskälla för publicering; manuella textanalyser kan exporteras och granskas men inte skriva fristående relationer.
+
+## Aktiv även utan öppen kontrollcentral
+- Appbootstrap installerar en indexobservatör efter initierad lokal lagring. Fullbordad verifierad GitHub-replika utlöser säker återindexering även om användaren aldrig öppnar Nexus Intelligence-sidan. En ofullständig replika får inte läsas in.

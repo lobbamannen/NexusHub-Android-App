@@ -55,3 +55,23 @@ export async function syncIntelligenceIndex(force=false):Promise<Progress> {
     .finally(()=>{current=null});
  return current;
 }
+
+/**
+ * Runs from the app bootstrap, not just when the Intelligence dashboard is open.
+ * Replica completion is the authoritative trigger. Failed attempts remain visible
+ * in progress and can be retried on the next completed replica notification.
+ * Never creates an incomplete index from an unverified partial mirror.
+ */
+let installed=false;
+export function startIntelligenceSync() {
+ if(typeof window==='undefined'||installed)return;
+ installed=true;
+ const run=()=>{if(bridge()?.intelligenceIndexBegin)void syncIntelligenceIndex();};
+ window.addEventListener('nexus-github-changed',run);
+ window.addEventListener('nexus-credentials-changed',run);
+ window.addEventListener('nexus-replica-status',()=>{
+  // Not every progress tick: only after a completed inventory can reader.current resolve.
+  if(!current && !progress.commit && !progress.total)run();
+ });
+ window.setTimeout(run,1500);
+}
