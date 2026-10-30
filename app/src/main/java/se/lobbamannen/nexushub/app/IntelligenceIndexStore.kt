@@ -45,6 +45,26 @@ class IntelligenceIndexStore(context: Context) {
                     path TEXT PRIMARY KEY,blob_sha TEXT NOT NULL,
                     failures INTEGER NOT NULL DEFAULT 0
                 )""")
+                // A previously completed index contains valid research reports.
+                // Queue them once on upgrade; no fresh Git commit is required.
+                db.execSQL("""INSERT OR IGNORE INTO pending_analysis(path,blob_sha,failures)
+                    SELECT path,blob_sha,0 FROM documents
+                    WHERE (path LIKE 'NexusHub inkorg/%' OR path LIKE 'Research/%')
+                    AND (lower(path) LIKE '%.md' OR lower(path) LIKE '%.txt'
+                        OR lower(path) LIKE '%.json' OR lower(path) LIKE '%.csv')
+                    AND lower(path) NOT LIKE '%/metadata.json'
+                    AND lower(path) NOT LIKE '%/delad-text.txt'""")
+                // Purge sidecars from the old generation without an expensive
+                // network reindex, keeping its full-text tables consistent.
+                db.execSQL("""DELETE FROM documents
+                    WHERE path LIKE 'NexusHub inkorg/%'
+                    AND (lower(path) LIKE '%/metadata.json'
+                        OR lower(path) LIKE '%/delad-text.txt')""")
+                db.delete("documents_fts",null,null)
+                db.execSQL("""INSERT INTO documents_fts(docid,title,body)
+                    SELECT docid,title,body FROM documents""")
+                db.delete("staging_documents",null,null)
+                db.execSQL("DELETE FROM meta WHERE key='working'")
             }
             require(new==3 && old in 1..2) { "Unsupported index schema migration" }
         }
