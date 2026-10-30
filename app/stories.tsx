@@ -54,6 +54,7 @@ type StoryCheck = {
     error?: string;
 };
 type Props = {
+    renderConnections?: (item: any) => React.ReactNode;
     documents: any[];
     onNavigate: (view: string) => void;
     mirrorChecks: Record<string, StoryCheck>;
@@ -91,7 +92,7 @@ function StoryCover({ story, big = false, revision }: {
   </RepositoryPoster>
  </div>;
 }
-export default function Stories({ documents, onNavigate, mirrorChecks, onInspect, onRefresh, loading = false, initialCategory = '', initialPath = '', onDirtyChange, initialRegister = false, onExitRead, onOpenRegister, onRegisterBack }: Props) {
+export default function Stories({ documents, onNavigate, mirrorChecks, onInspect, onRefresh, loading = false, initialCategory = '', initialPath = '', onDirtyChange, initialRegister = false, onExitRead, onOpenRegister, onRegisterBack, renderConnections }: Props) {
     const storyReloadAllowed=useRef(true);
     const register = useStoryRegister(()=>storyReloadAllowed.current);
     const [pendingRead,setPendingRead]=useState<Record<string,boolean>>({}),[batchSaving,setBatchSaving]=useState(false),[saveMessage,setSaveMessage]=useState('');
@@ -263,6 +264,7 @@ export default function Stories({ documents, onNavigate, mirrorChecks, onInspect
             id: string;
             text: string;
         }) => <a key={h.id} href={'#' + h.id}>{h.text}</a>)}</nav><p>Rubriker hämtade ur originalberättelsen.</p></details><article className="stories-reader-article"><div className="stories-reading-tools"><span><BookOpen size={18}/> Berättelse i fulltext</span><div><button aria-label="Mindre text" disabled={font <= 15} onClick={() => setFont(n => Math.max(15, n - 1))}><Minus size={17}/></button><span>{font}px</span><button aria-label="Större text" disabled={font >= 24} onClick={() => setFont(n => Math.min(24, n + 1))}><Plus size={17}/></button></div></div><div className="prose stories-prose" style={{ fontSize: font }}><Markdown text={readingBody}/></div><div className="stories-reading-end"><p>Du har nått slutet av berättelsen.</p><button className="secondary" disabled={marksLoading || !!marksBusy || !!marksError} onClick={() => mark(story.path, 'finished')}>{(registerView ? projectedRead : finished).includes(story.path) ? <CheckCircle2 size={17}/> : <BookOpen size={17}/>} {(registerView ? projectedRead : finished).includes(story.path) ? 'Markerad som läst – ångra' : 'Markera som läst'}</button><button type="button" className="secondary" disabled={register.loading || !register.data} onClick={() => setEditing({ path: story.path, full: false })}><MessageSquare size={16}/>Lämna omdöme</button><button className="stories-text-button" onClick={back}>{registerView ? 'Till registret' : 'Till biblioteket'} <ChevronRight size={16}/></button><small>{registerView?'Läsmarkeringen är ett utkast tills du väljer Spara ändringar i registret.':'Din läsmarkering sparas i GitHub.'}</small></div></article></div> : !reading && !error ? <div className="stories-loading">Det finns ingen läsbar Markdowntext för denna post. Använd originalfilen ovan.</div> : null}
+   {renderConnections?.(story)}
    {article?.mirror && <div className="stories-source-note"><strong>{article.mirror.state === 'verified' ? 'GitHub-kontrollerat original' : 'Lokalt dokument med begränsad GitHub-verifiering'}</strong><span>{article.mirror.state === 'verified' ? 'Lokal kopia verifierad' : article.mirror.state === 'stale' ? 'Reservkopia – GitHub kunde inte nås' : article.mirror.state === 'archived' ? 'Arkiverad version' : 'Källa: ' + article.origin} · GitHub-commit {article.commit?.slice(0, 12) || 'okänd'}</span></div>}
   </> : !registerView ? <>
    <StoryOverview onSurprise={surprise} stories={all} categories={categories} counts={counts} finishedCount={finished.filter(x => all.some(s => s.path === x)).length} selectedCategory={category} loading={loading} onSelectCategory={chooseCategory} toolbar={<DiscoveryToolbar query={query} onQuery={value => { setQuery(value); if (value.trim())

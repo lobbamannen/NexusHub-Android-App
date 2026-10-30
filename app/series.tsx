@@ -145,7 +145,8 @@ function Detail({ item, back, onToggleWatchlist, onToggleSeason, watchSaving, se
   </div>
  </article>;
 }
-export default function Series({ initialItem, onExitDetail }: {
+export default function Series({ initialItem, onExitDetail, renderConnections }: {
+    renderConnections?: (item: any) => React.ReactNode;
     initialItem?: string | null;
     onExitDetail?: () => void;
 } = {}) {
@@ -290,7 +291,7 @@ export default function Series({ initialItem, onExitDetail }: {
    </DiscoveryToolbar>}/>}
    {notice && <div className="film-success" role="status">{notice}</div>}
   {error && <div className="film-error" role="alert"><AlertCircle size={18}/><span>{error}</span><button type="button" onClick={() => load(true)}>Försök igen</button></div>}
-  {statistics ? <MediaStatistics initialFilter="serier" onBack={() => { setStatistics(false); restoreListScroll(returnScroll.current); }}/> : chosen !== null && items[chosen] ? <Detail item={items[chosen]} back={closeSeries} onToggleWatchlist={() => toggleWatchlist(items[chosen])} onToggleSeason={n => toggleSeason(items[chosen], n)} seasonSaving={seasonSaving} watchSaving={watchSaving} posterRevision={posterRevision}/> : <>
+  {statistics ? <MediaStatistics initialFilter="serier" onBack={() => { setStatistics(false); restoreListScroll(returnScroll.current); }}/> : chosen !== null && items[chosen] ? <><Detail item={items[chosen]} back={closeSeries} onToggleWatchlist={() => toggleWatchlist(items[chosen])} onToggleSeason={n => toggleSeason(items[chosen], n)} seasonSaving={seasonSaving} watchSaving={watchSaving} posterRevision={posterRevision}/>{renderConnections?.(items[chosen])}</> : <>
    
    {showing && <div className="nh-discovery-results" id="nh-series-results">
    {activeGenreGroup && <GenreSubfilters category={activeGenreGroup} onSelect={chooseCategory} mode="series"/>}

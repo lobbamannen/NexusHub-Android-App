@@ -158,7 +158,8 @@ function FilmForm({ value, save, cancel, saving, onDirtyChange }: {
   <div className="film-actions"><button className="secondary" type="button" disabled={saving} onClick={close}>Avbryt</button><button className="primary" disabled={saving}>{saving ? <Loader2 size={17} className="spin"/> : <Save size={17}/>}Spara till GitHub</button></div>
  </form>;
 }
-export default function Films({ initialItem, onExitDetail, onDirtyChange }: {
+export default function Films({ initialItem, onExitDetail, onDirtyChange, renderConnections }: {
+    renderConnections?: (item: any) => React.ReactNode;
     initialItem?: string | null;
     onExitDetail?: () => void;
     onDirtyChange?: (dirty: boolean, busy?: boolean) => void;
@@ -286,6 +287,7 @@ export default function Films({ initialItem, onExitDetail, onDirtyChange }: {
     <section className="nh-detail-panel"><span className="nh-detail-caption">FILMEN</span><h3>Om filmen</h3><p>{film.synopsis || 'Ingen spoilerfri handling finns registrerad ännu.'}</p></section>
     <section className="nh-detail-panel"><span className="nh-detail-caption">PERSONLIGT</span><h3>Vårt betyg & omdöme</h3><ChromaRating rating={film.ourRating}/><p className={film.ourReview ? '' : 'nh-review-empty'}>{film.ourReview || 'Vi har inte skrivit något omdöme än.'}</p></section>
     <div className="film-detail-sections"><section><h3>Visningshistorik</h3>{film.viewings.length ? film.viewings.map((v, i) => <div className="film-viewing" key={i}><CalendarDays size={19}/><div><strong>{dateLabel(v.date)}</strong><p>{providerLabel(v)} · {v.accessType} · {money(v.priceSek)} i extra kostnad</p></div></div>) : <p>Inga visningar registrerade.</p>}{film.startedViewingDate && <p><Play size={15}/> Påbörjad: {dateLabel(film.startedViewingDate)}</p>}{film.plannedViewingDate && <p><CalendarDays size={15}/> Planerad: {dateLabel(film.plannedViewingDate)}</p>}</section></div>
+   {renderConnections?.(film)}
   </div> : <React.Fragment>
    
    {showing && <div className="nh-discovery-results" id="nh-film-results">

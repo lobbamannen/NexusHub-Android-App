@@ -25,7 +25,7 @@ export async function buildConnectionIndex(documents:any[],signal:AbortSignal,pr
     const walk=(value:any,key='')=>{if(Array.isArray(value)){for(const v of value)walk(v,key);}else if(value&&typeof value==='object'){for(const [k,v]of Object.entries(value))walk(v,k);}else if(typeof value==='string'&&/^(source_id|source_ids|source_refs)$/.test(key))sourceIds.add(value);};if(record)walk(record);
     p={...refs,sourceIds:[...sourceIds],title:record?.title||record?.headline||(n.path.startsWith('Ideer/')?record?.text?.split('\n')[0]?.slice(0,130):null),tags:record?.tags||record?.tag_keys||[],summary:record?.summary||''};await durableSet(cacheKey,p);
    }
-   if(p.title)n.title=p.title;if(Array.isArray(p.tags)&&p.tags.length)n.tags=p.tags;n.summary=p.summary;
+   if(typeof p.title==='string'&&p.title)n.title=p.title;if(Array.isArray(p.tags)&&p.tags.length)n.tags=p.tags.filter((tag:unknown)=>typeof tag==='string');n.summary=p.summary;
    references[n.id]={paths:p.paths,urls:[...new Set([...p.urls,...p.sourceIds.map((id:string)=>sourceUrls.get(id)).filter(Boolean)])]};
    for(const path of p.paths)if(!allPaths.has(path)&&!files.some(f=>f.path.startsWith(path.replace(/\/$/,'')+'/')))broken.push({from:n.id,path});
   }catch(e:any){warnings.push(n.path+': '+(e.message||'Kunde inte läsas.'));}
