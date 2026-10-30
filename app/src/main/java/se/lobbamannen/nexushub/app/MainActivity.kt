@@ -269,6 +269,21 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceStatus():String =
             if(trustedDocument)try{IntelligenceRuntime.get(applicationContext).status().toString()}
             catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
+        @JavascriptInterface fun intelligenceIndexStatus():String =
+            if(trustedDocument)try{IntelligenceIndexStore(applicationContext).status().toString()}catch(_:Exception){"{}"} else "{}"
+        @JavascriptInterface fun intelligenceIndexBegin(commit:String):String =
+            if(trustedDocument)try{IntelligenceIndexStore(applicationContext).begin(commit).toString()}
+            catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
+        @JavascriptInterface fun intelligenceIndexUpsert(raw:String):Boolean =
+            trustedDocument && try {
+                require(raw.length<=200000)
+                val x=JSONObject(raw)
+                IntelligenceIndexStore(applicationContext).upsert(x.getString("commit"),
+                    x.getString("path"),x.getString("sha"),x.getString("title"),x.getString("body"))
+            } catch(_:Exception){false}
+        @JavascriptInterface fun intelligenceIndexFinish(commit:String,count:Int):String =
+            if(trustedDocument)try{IntelligenceIndexStore(applicationContext).finish(commit,count).toString()}
+            catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
         @JavascriptInterface fun intelligenceRuns():String =
             if(trustedDocument)try{IntelligenceRunStore(applicationContext).list().toString()}
             catch(_:Exception){"[]"} else "[]"
