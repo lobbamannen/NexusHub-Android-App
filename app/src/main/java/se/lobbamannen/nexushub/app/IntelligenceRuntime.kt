@@ -56,7 +56,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         require(current.getString("backend") in setOf("AUTO","CPU","GPU_OPENCL","NPU_HEXAGON"))
         for((key,lo,hi) in listOf(
             Triple("threads",1,12),Triple("batchThreads",1,12),
-            Triple("contextSize",1024,32768),Triple("batch",64,2048),
+            Triple("contextSize",1024,65536),Triple("batch",64,2048),
             Triple("microbatch",32,1024),Triple("gpuLayers",0,999),
             Triple("topK",1,256),Triple("maxOutputTokens",16,4096))) {
             val value = current.getInt(key)
@@ -182,6 +182,11 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                     p.getInt("microbatch"),p.getBoolean("mlock"),
                     backend=="NPU_HEXAGON" || backend=="AUTO",p.getBoolean("audit"))
                 check(ok) { LlamaNative.getLastErrorMsg().ifBlank { "Kunde inte ladda modellen." } }
+                val initialized=JSONObject(LlamaNative.getLatestTelemetryJson())
+                val appliedContext=initialized.optInt("active_ctx_size",-1)
+                check(appliedContext==p.getInt("contextSize")) {
+                    "Begärd kontext ${p.getInt("contextSize")} men runtime rapporterade ${appliedContext}. Ingen tyst nedskalning tillåts."
+                }
                 loadedSignature=signature
             }
             LlamaNative.resetStop()

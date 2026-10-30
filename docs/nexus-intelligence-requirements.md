@@ -6,7 +6,7 @@ Datum: 2026-10-30. Källa: Databas `Ideer/05dac249-5b6f-4920-8871-6293ef214119.j
 - Jarvis main: `943b40c27f1fce42ef7bfab613a0cc1d039b3575`.
 - llama.cpp: `c7bda030e7faee594dbe7550185e857351ad405d`.
 - Jarvis har JNI `llama_android`, CPU-kärna, OpenCL, Hexagon, HTP v73/v75/v79/v81, audit och toolchain från separat GitHub Actions + Docker. **Ingen av detta är ännu verifierat som integrerat i NexusHub.**
-- Jarvis main normaliserar `contextSize` till högst **8192**. Telefonmätningarna vid **32768** kan inte tillskrivas denna commit utan export av installerad APK/profil.
+- Jarvis main normaliserar `contextSize` till **8192**. Under källgranskning identifierades grenen `codex/meta-mobilemoe-track` (commit `6ae4625e882665f18a8a4e067f711fabc7a4f03a`): UI-valen 1024/2048/4096/8192/16384/32768/65536, Kotlin-profilgräns 65536 och JNI `std::clamp(...,1024,65536)`. NexusHub har nu samma 64K-gräns i egen UI, profilvalidering och JNI, och kontrollerar faktisk `active_ctx_size` efter modelladdning. **Detta verifierar kodvägen, inte minne/prestanda/NPU på fysisk telefon eller vilken Jarvis-APK som användes.**
 - NexusHub har redan SQLite ActivityJournal, WorkManager för inkorg och synk. Dessa är inte en generell agentmotor.
 
 ## Säkerhetsprinciper
@@ -90,4 +90,4 @@ Statusarna nedan avser HELA kravpunkten. Delimplementering utan sluttest får in
 - **Andel**: nämn 99% först när täljare, nämnare och instrumenteringsmetod är kända.
 
 ## Känd leveransstatus
-Ingen signerad Nexus Intelligence APK har skapats inom denna utvecklingsgren. Idé 33 kvarstår som `new`. Fortsätt endast med verifierade commits; publicera inte på main förrän acceptanskriterierna är uppfyllda.
+Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actions 41057247594 (commit `da70520b1df4c0755eaacd65ed79591610827df4`). Den nya 64K-kodvägen kräver ytterligare CI och telefonprov. Idé 33 kvarstår som `new`. Fortsätt endast med verifierade commits; publicera inte på main förrän acceptanskriterierna är uppfyllda.

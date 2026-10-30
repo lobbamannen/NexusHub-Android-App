@@ -462,7 +462,7 @@ Java_com_example_ai_runtime_LlamaNative_initEngineExt(
         const bool request_hexagon = useNpu == JNI_TRUE;
         const bool request_opencl = gpuLayers > 0;
         ensure_requested_backends(request_opencl, request_hexagon);
-        g_engine.context_size = std::clamp((int)contextSize, 1024, 32768);
+        g_engine.context_size = std::clamp((int)contextSize, 1024, 65536);
         g_engine.threads = std::clamp((int)threads, 1, 12);
         g_engine.threads_batch = std::clamp((int)threadsBatch, 1, 12);
         g_engine.n_batch = std::clamp((int)nBatch, 64, 2048);
