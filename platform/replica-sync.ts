@@ -1,3 +1,6 @@
+import {beginBackgroundWork} from './background-work';
+import {observeFiles} from './activity-observer';
+import {recordActivity} from './activity';
 import {telemetry,bucketDuration,bucketFiles,bucketBytes,errorCategory} from './telemetry';
 import { github, invalidatePortalCache } from '@/lib/github';
 import { saveMirrorBatch } from '@/lib/mirror';
@@ -16,7 +19,7 @@ let active:Promise<void>|null=null,installed=false,cooldown=0,paused=false,resca
 export const replicaStatus=()=>state;
 const report=(patch:Partial<ReplicaStatus>)=>{state={...state,...patch};window.dispatchEvent(new Event('nexus-replica-status'));};
 export const replicatePath=(_path:string)=>true;
-const stop=()=>paused||document.visibilityState!=='visible';
+const stop=()=>paused;
 export function pauseReplicaSync(){paused=true;telemetry('replica_sync_paused',{trigger:'manual'});report({paused:true});}
 async function refreshViews(){
  invalidateMedia();invalidatePortalCache();
@@ -25,10 +28,10 @@ async function refreshViews(){
  window.dispatchEvent(new Event('nexus-github-changed'));
 }
 async function cycle(force=false){
- if(!hasGithubToken()||stop()||(!force&&Date.now()<cooldown))return;
+ if(!hasGithubToken()||stop()||(!force&&Date.now()<cooldown)||(!force&&document.visibilityState!=='visible'&&!active))return;
  report({running:true,paused:false,error:'',phase:'checking',currentPath:''});
- let changed=false,started=false,copied=0,bytes=0;const began=performance.now(),trigger=force?'manual':'auto';
- const begin=()=>{if(!started){started=true;telemetry('replica_sync_started',{trigger});}};
+ let changed=false,started=false,copied=0,bytes=0,endWork:(()=>void)|undefined;const began=performance.now(),trigger=force?'manual':'auto';
+ const begin=()=>{if(!started){started=true;endWork=beginBackgroundWork('replica');telemetry('replica_sync_started',{trigger});}};
  if(force)begin();
  try{
   for(const repo of ['databas','plugins']){
@@ -42,6 +45,7 @@ async function cycle(force=false){
    const files:File[]=snapshot.tree.filter((f:File)=>f.type==='blob');
    const [versions,keys]=await Promise.all([db().prepare('SELECT path,blob_sha,object_key FROM mirror_versions WHERE repo=?').bind(repo).all(),bucket().keys('mirror/')]);
    const plan=planReplica(files,versions.results,keys,repo);
+   const previousInventory=await durableGet<{files:File[]}>('replica-inventory:v1:'+repo);
    if(plan.missing.length || previous?.commit!==snapshot.commit)begin();
    let progress:RepoReplica={commit:snapshot.commit,total:plan.total,done:plan.done,totalBytes:plan.totalBytes,doneBytes:plan.doneBytes,failed:0};
    const update=()=>report({done:progress.done,total:progress.total,repositories:{...state.repositories,[repo]:{...progress}}});
@@ -77,8 +81,10 @@ async function cycle(force=false){
     await new Promise(resolve=>setTimeout(resolve,0));
    }
    if(stop())return;
+   if(await client.head()!==snapshot.commit){rescan=true;return;}
    if(progress.failed)throw Error(progress.failed+' filer kunde inte hämtas. Övriga filer har sparats. Tryck Försök igen. '+Object.values(errors).map((e:any)=>e.error)[0]);
    progress.checkedAt=new Date().toISOString();update();
+   await observeFiles(repo,previousInventory?.files||null,files,snapshot.commit);
    await durableSet('replica-inventory:v1:'+repo,{commit:snapshot.commit,files});
    await durableSet('replica-recent:v1:'+repo,{commit:snapshot.commit,recent:snapshot.recent||[]});
    await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:progress.checkedAt});
@@ -89,9 +95,10 @@ async function cycle(force=false){
   if(changed||viewsDirty){report({phase:'refreshing',currentPath:''});await refreshViews();if(!stop())viewsDirty=false;}
   if(stop())return;
   report({checkedAt:new Date().toISOString(),error:'',currentPath:''});
+  if(started)await recordActivity({category:'sync',action:'replica_completed',status:'succeeded',source:'app',title:'GitHub-hämtningen slutförd',details:{files:copied,bytes}});
   if(started)telemetry('replica_sync_completed',{trigger,duration_bucket:bucketDuration(performance.now()-began),files_bucket:bucketFiles(copied),bytes_bucket:bucketBytes(bytes),changes:changed});
- }catch(error:any){telemetry('replica_sync_failed',{trigger,duration_bucket:bucketDuration(performance.now()-began),error_category:errorCategory(error)});cooldown=Date.now()+60000;report({error:error.message||'Lokal kopiering kunde inte slutföras.'});}
- finally{report({running:false,paused,phase:undefined});}
+ }catch(error:any){await recordActivity({category:'sync',action:'replica_failed',status:'failed',source:'app',title:'GitHub-hämtningen kunde inte slutföras'});telemetry('replica_sync_failed',{trigger,duration_bucket:bucketDuration(performance.now()-began),error_category:errorCategory(error)});cooldown=Date.now()+60000;report({error:error.message||'Lokal kopiering kunde inte slutföras.'});}
+ finally{endWork?.();report({running:false,paused,phase:undefined});}
 }
 function run(force=false):Promise<void>{
  if(active)return active;

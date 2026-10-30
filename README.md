@@ -28,7 +28,7 @@ Token kan senare bytas under **Inställningar & system → GitHub & lokal lagrin
 
 Telefonen och GitHub behåller varsin lagring. **Hela Databas kopieras, inklusive Kunskap, bilder, dokument, register och planpaket.** ChatGPT-Plugin kopieras också. Ingen innehållsmapp undantas.
 
-- Automatisk kontroll av GitHubs `main` sker var **15:e sekund medan appen är synlig**, vid återupptagning, återanslutning och efter egna sparningar. Under en längre första hämtning kontrolleras också om GitHub ändras, så att kopieringen kan börja om mot den nya inventeringen. Ingen bakgrundstjänst håller en stängd app aktiv.
+- Automatisk kontroll av GitHubs `main` sker var **15:e sekund medan appen är synlig**, vid återupptagning, återanslutning och efter egna sparningar. Under en längre första hämtning kontrolleras också om GitHub ändras, så att kopieringen kan börja om mot den nya inventeringen. Pågående hämtning fortsätter vid appbyte med en tillfällig Android-tjänst; nya automatiska kontroller startas när appen är synlig igen.
 - **Inställningar → GitHub & lokal lagring → Hämta allt nytt från GitHub** använder samma arbetare som automatiken. Ett extra knapptryck startar inte en konkurrerande synk. Det gamla gränssnittet med 20 filer per omgång är borttaget.
 - Inventeringen jämför sökväg, Git-blob-SHA, befintlig spegelversion och lagringsnyckel. Den laddar inte in alla lokala filbytes bara för att kontrollera om de finns. Befintliga kopior från det äldre synkflödet återanvänds. Saknade bytes och nya filversioner hämtas; oförändrade filer hämtas inte igen.
 - Register och text prioriteras, sedan mindre filer. Högst fyra filhämtningar pågår samtidigt för att hålla minnesanvändningen rimlig. Detta är samtidighet, inte ett tak på antal filer eller filstorlek. Varje hämtad fil kontrolleras mot storlek och GitHub-hash innan metadata skrivs. Metadata sparas i en beständig databastransaktion per grupp.
@@ -293,3 +293,9 @@ Stor månadsvy med händelsenamn i rutorna, ISO-veckor och lila datumval. Datumt
 
 ### Klistra in research i NexusHub inkorg
 Helskärmseditor med valfri Källa / AI. Spara skapar rå Markdown lokalt och försöker omedelbart spegla/verifiera i den privata GitHub-inkorgen. Originaltexten ändras inte; källan ligger separat i metadata/filnamn. Befintlig beständig lagring och dubblettsäkra återförsök återanvänds. Kryss/Tillbaka före Spara skapar ingen fil. [Användning](docs/android-install.md).
+
+## Bakgrundssparning och aktivitetslogg
+
+Inkorgens uttryckligt sparade text och bilagor läggs först i en beständig Android-kö. WorkManager laddar upp originalen även efter appbyte, med nätverksvillkor, återförsök och kontroll av GitHub-resultatet. Radering stoppar väntande leverans och stämmer av en eventuell redan publicerad fil. Konflikter visas för uttrycklig hantering. Övriga pågående sparningar och replikhämtning får en tidsbegränsad förgrundstjänst vid appbyte; osparade redigeringsutkast skickas aldrig automatiskt. Android kan fördröja jobb och tvångsstopp kräver att appen öppnas igen.
+
+**Menyn → Aktivitetslogg** visar verkliga innehållsändringar, sparningar, uppladdningar och synkresultat med sökning, datum, kategori, resultat och detaljer. Sidbyten och klick registreras inte. Externa GitHub-ändringar loggas när de upptäcks, utan att tillskrivas en viss person. Historiken börjar med uppdateringen och sparas på telefonen utan automatisk gallring; exportera hela registret som NDJSON för egen säkerhetskopia. Den skickas inte till analysverktyg eller automatiskt till GitHub. Dokumentens fulltext och inloggningshemligheter hör inte till loggen.

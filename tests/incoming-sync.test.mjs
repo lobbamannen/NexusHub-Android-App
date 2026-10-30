@@ -1,7 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import ts from 'typescript';
 const shared={entries:[{path:'Mottagningsinkorg/test/metadata.json',sha:'a'.repeat(40)}],manifestSha:'a'.repeat(40),commit:'b'.repeat(40)};
 async function setup(){const kv=new Map();globalThis.window=new EventTarget();globalThis.__attachmentStore={durableGet:async k=>{if(globalThis.__attachmentStore.failRead)throw Error('Read failed');return structuredClone(kv.get(k));},durableSet:async(k,v)=>{if(globalThis.__attachmentStore.failWrite)throw Error('Disk full');kv.set(k,structuredClone(v));},durableEntries:async prefix=>[...kv].filter(([k])=>k.startsWith(prefix)).map(([k,v])=>[k,structuredClone(v)]),durableDelete:async k=>kv.delete(k)};
- let source=readFileSync(new URL('../platform/incoming-store.ts',import.meta.url),'utf8').replace("import {durableGet,durableSet,durableEntries,durableDelete} from './local-store';","const {durableGet,durableSet,durableEntries,durableDelete}=globalThis.__attachmentStore;").replace("'@/lib/pasted-text.mjs'",JSON.stringify(new URL('../lib/pasted-text.mjs',import.meta.url).href)).replace("'@/lib/github-inbox.mjs'",JSON.stringify(new URL('../lib/github-inbox.mjs',import.meta.url).href));
+ const backgroundSource=ts.transpileModule(readFileSync(new URL('../platform/incoming-background.ts',import.meta.url),'utf8').replace("'@/lib/github-inbox.mjs'",JSON.stringify(new URL('../lib/github-inbox.mjs',import.meta.url).href)),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
+ const backgroundURL='data:text/javascript;base64,'+Buffer.from(backgroundSource).toString('base64');
+ let source=readFileSync(new URL('../platform/incoming-store.ts',import.meta.url),'utf8').replace("'./incoming-background'",JSON.stringify(backgroundURL)).replace("import {beginBackgroundWork} from './background-work';","const beginBackgroundWork=()=>()=>{};").replace("import {recordActivity} from './activity';","const recordActivity=async()=>{};").replace("import {durableGet,durableSet,durableEntries,durableDelete} from './local-store';","const {durableGet,durableSet,durableEntries,durableDelete}=globalThis.__attachmentStore;").replace("'@/lib/pasted-text.mjs'",JSON.stringify(new URL('../lib/pasted-text.mjs',import.meta.url).href)).replace("'@/lib/github-inbox.mjs'",JSON.stringify(new URL('../lib/github-inbox.mjs',import.meta.url).href));
  const m=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64')+'#'+crypto.randomUUID());return {m,kv};}
 test('automatic intake retries lost acknowledgments and persists offline deletion before cleanup',async()=>{
  const {m}=await setup();let cloud=null,lost=true,offlineDelete=false,uploads=0,deletes=0;
@@ -65,4 +67,19 @@ test('paste during an older sync snapshot is sent immediately after that sync fi
 test('a read failure after commit cannot turn a durable save into a second intake',async()=>{
  const {m}=await setup();globalThis.__attachmentStore.failRead=true;globalThis.fetch=async()=>{throw Error('Offline');};
  const result=await m.savePastedText('Committed body','DeepSeek');assert.ok(result.id);assert.equal((await m.incomingItems()).length,1);assert.equal(await result.files[0].blob.text(),'Committed body');
+});
+
+test('Android paste returns after durable native queueing without waiting for GitHub and reconciles the worker receipt',async()=>{
+ const {m,kv}=await setup();const jobs=new Map();let queued=0,release;
+ window.Android={queueIncoming(raw){const p=JSON.parse(raw);assert.ok(kv.has('incoming:v1:'+p.id));assert.equal(new TextDecoder().decode(Uint8Array.from(atob(p.files[0].base64),c=>c.charCodeAt(0))),'My research');queued++;const job={id:p.id,state:'pending'};jobs.set(p.id,job);return JSON.stringify(job);},incomingJobs(){return JSON.stringify([...jobs.values()]);},cancelIncomingJob(){return true;}};
+ globalThis.fetch=async()=>await new Promise(r=>release=r);
+ const item=await m.savePastedText('My research','DeepSeek');assert.equal(queued,1);assert.equal(item.nativeQueued,true);assert.equal((await m.incomingItems())[0].id,item.id);
+ for(let i=0;i<20&&!release;i++)await new Promise(r=>setTimeout(r,0));assert.ok(release);release(Response.json({items:[]}));await m.syncIncoming();
+ jobs.set(item.id,{id:item.id,state:'succeeded',receipt:shared});globalThis.fetch=async()=>Response.json({items:[{...shared,metadata:{id:item.id,files:[]}}]});
+ await m.syncIncoming();assert.equal((await m.incomingItems())[0].shared.commit,shared.commit);assert.equal(queued,1);
+});
+
+test('Android idea attachment drafts never enter the autonomous intake queue',async()=>{
+ const {m}=await setup();let queued=0;window.Android={queueIncoming(){queued++;return '{}';},incomingJobs(){return '[]';}};
+ await m.saveIncoming([new File(['draft'],'draft.md')],'',['idea:test']);assert.equal(queued,0);
 });

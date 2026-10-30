@@ -62,6 +62,7 @@ class MainActivity : Activity() {
         val root = FrameLayout(this)
         webView = WebView(this)
         webView.setBackgroundColor(android.graphics.Color.rgb(9, 8, 17))
+        webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
         root.addView(webView, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(root)
         applySystemBars()
@@ -228,7 +229,7 @@ class MainActivity : Activity() {
         if (sharedIntent.action != Intent.ACTION_SEND && sharedIntent.action != Intent.ACTION_SEND_MULTIPLE) return
         io.execute {
             try {
-                if (incomingShares.receive(sharedIntent)) { pendingIncomingOpen = true; runOnUiThread {
+                if (incomingShares.receive(sharedIntent)) { BackgroundIntake.importShares(applicationContext); pendingIncomingOpen = true; runOnUiThread {
                     if (!isFinishing && !isDestroyed) {
                         Toast.makeText(this, "Sparat i NexusHubs mottagningsinkorg", Toast.LENGTH_SHORT).show()
                         if (trustedDocument) { pendingIncomingOpen = false; webView.evaluateJavascript("window.NexusHubIncomingOpen=true;window.dispatchEvent(new Event('nexus-incoming-changed'));window.dispatchEvent(new Event('nexus-native-share'));", null) }
@@ -238,14 +239,34 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun activityEvent(action:String,status:String,title:String,details:JSONObject=JSONObject()) {
+        try { ActivityJournal(applicationContext).append(JSONObject().put("id",java.util.UUID.randomUUID().toString()).put("at",java.time.Instant.now().toString()).put("category",if(action=="github_credentials_changed")"settings" else "documents").put("action",action).put("status",status).put("source","native").put("title",title).put("details",details)) } catch(_:Exception) { }
+    }
+
     /** Called only from the bundled document; CSP excludes foreign child frames. */
     inner class NativeBridge {
+        @JavascriptInterface fun queueIncoming(raw:String):String {
+            if(!trustedDocument)return JSONObject().put("error","Otillåtet ursprung").toString()
+            return try { require(raw.length<=100*1024*1024);BackgroundIntake.enqueue(applicationContext,JSONObject(raw)).toString() } catch(e:Exception){JSONObject().put("error",e.message?:"Originalet kunde inte säkras för bakgrundssynk.").toString()}
+        }
+        @JavascriptInterface fun incomingJobs():String = if(trustedDocument)BackgroundIntakeStore(applicationContext).jobs().toString() else "[]"
+        @JavascriptInterface fun cancelIncomingJob(id:String):Boolean = trustedDocument && try{BackgroundIntake.cancel(applicationContext,id)}catch(_:Exception){false}
+        @JavascriptInterface fun retryIncomingJob(id:String):Boolean = trustedDocument && try{BackgroundIntake.retry(applicationContext,id)}catch(_:Exception){false}
+        @JavascriptInterface fun backgroundActive(id:String,active:Boolean):Boolean = trustedDocument && try{ActiveSyncService.active(applicationContext,id,active)}catch(_:Exception){false}
+        @JavascriptInterface fun appendActivity(raw:String):Boolean = trustedDocument && try{require(raw.length<=65536);ActivityJournal(applicationContext).append(JSONObject(raw))}catch(_:Exception){false}
+        @JavascriptInterface fun activityPage(query:String):String = if(trustedDocument)try{require(query.length<=10000);ActivityJournal(applicationContext).query(JSONObject(query)).toString()}catch(_:Exception){JSONObject().put("error","Aktivitetsloggen kunde inte läsas.").toString()} else "{}"
+        @JavascriptInterface fun activityExport():String = if(trustedDocument)try{ActivityJournal(applicationContext).export()}catch(_:Exception){""} else ""
         @JavascriptInterface fun listIncoming(): String = if (trustedDocument) incomingShares.list() else "[]"
         @JavascriptInterface fun readIncomingFile(id: String, fileId: String): String = if (trustedDocument) incomingShares.read(id, fileId) else ""
         @JavascriptInterface fun removeIncoming(id: String): Boolean = trustedDocument && incomingShares.remove(id)
 
         @JavascriptInterface fun getGithubToken(): String = if (trustedDocument) credentials.get() else ""
-        @JavascriptInterface fun setGithubToken(token: String): Boolean = trustedDocument && credentials.set(token)
+        @JavascriptInterface fun setGithubToken(token: String): Boolean {
+            if(!trustedDocument)return false
+            val saved=credentials.set(token)
+            if(saved){activityEvent("github_credentials_changed","succeeded","GitHub-anslutningen uppdaterades",JSONObject().put("configured",token.isNotBlank()));BackgroundIntake.resume(applicationContext)}
+            return saved
+        }
         @JavascriptInterface fun saveFile(name: String, mime: String, base64: String) {
             if (trustedDocument) receiveFile(name, mime, base64, false)
         }
@@ -291,13 +312,13 @@ class MainActivity : Activity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             clipData = ClipData.newRawUri(file.name, uri)
         }
-        try { startActivity(Intent.createChooser(view, "Öppna med")) }
+        try { startActivity(Intent.createChooser(view, "Öppna med")); activityEvent("file_open_external","succeeded",file.name) }
         catch (_: ActivityNotFoundException) {
             val share = Intent(Intent.ACTION_SEND).apply {
                 type = mime; putExtra(Intent.EXTRA_STREAM, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION); clipData = ClipData.newRawUri(file.name, uri)
             }
-            try { startActivity(Intent.createChooser(share, "Dela fil")) }
+            try { startActivity(Intent.createChooser(share, "Dela fil")); activityEvent("file_shared_external","succeeded",file.name) }
             catch (_: ActivityNotFoundException) { notifyUser("Ingen app kan öppna filen.") }
         }
     }
@@ -408,8 +429,9 @@ class MainActivity : Activity() {
                         val output = contentResolver.openOutputStream(uri, "wt") ?: error("Kunde inte öppna målfilen.")
                         output.use { target -> input.copyTo(target) }
                     }
+                    activityEvent("file_exported","succeeded",source.name)
                     notifyUser("Filen har sparats.")
-                } catch (_: Exception) { notifyUser("Kunde inte spara filen.") }
+                } catch (_: Exception) { activityEvent("file_exported","failed",source.name); notifyUser("Kunde inte spara filen.") }
                 finally { source.delete() }
             }
         }

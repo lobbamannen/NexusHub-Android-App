@@ -1,3 +1,4 @@
+import {auditMutation,observeSnapshot} from './activity-observer';
 import {telemetry,resourceForPath,categoryForPath} from './telemetry';
 import * as trainingArchive from '@/app/api/training-archive/route';
 import * as connections from '@/app/api/connections/route';
@@ -46,7 +47,7 @@ async function dispatch(request: Request): Promise<Response> {
   const route = routes[path] || fallback as Route;
   const handler = route[request.method as Method];
   if (!handler) return Response.json({ error: 'Metoden stöds inte.' }, { status: 405, headers: { Allow: Object.keys(route).filter(key => /^[A-Z]+$/.test(key)).join(', ') } });
-  try { return await handler(request); }
+  try { return await auditMutation(request,()=>handler(request)); }
   catch (error) { return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 503 }); }
 }
 function readCacheKey(request: Request) {
@@ -64,6 +65,7 @@ const writeBarrier=createMirrorWriteBarrier();
 async function dispatchWithCache(request: Request) {
   const epoch=apiEpoch;
   const response = await dispatch(request);
+  if(epoch===apiEpoch&&request.method==='GET'&&response.ok){try{await observeSnapshot(new URL(request.url).pathname,await response.clone().json());}catch{/* History failure never converts a successful read into a failure. */}}
   if (!cacheable(request)) return response;
   if(epoch!==apiEpoch){const headers=new Headers(response.headers);headers.set('X-Nexus-Superseded','true');return new Response(response.body,{status:response.status,headers});}
   const path = new URL(request.url).pathname;
@@ -124,7 +126,7 @@ async function dispatchWithCache(request: Request) {
 }
 
 const readUiLocal=localFirstReader({
- get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(writeBarrier.blocked(url.pathname,current?.commit||null))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data)return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
+ get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(writeBarrier.blocked(url.pathname,current?.commit||null))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data){try{await observeSnapshot(url.pathname,data);}catch{/* Optional history projection. */}return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
  refresh:(request:Request)=>{telemetry('local_read_fallback',{resource:resourceForPath(new URL(request.url).pathname),outcome:'network'});return dispatchWithCache(request);},
  changed:()=>window.dispatchEvent(new Event('nexus-github-changed')),
  failure:(key:string,at:string)=>signalStale(key,at),

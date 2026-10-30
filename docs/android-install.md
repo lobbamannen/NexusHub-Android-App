@@ -46,3 +46,8 @@ Android kan fördröja bakgrundsjobb; minutexakt väder- eller midnattsuppdateri
 
 ## Befintlig klock- och batterifunktion
 För separat klockinstallation och Two Thumbs Battery, se [batteriguiden](https://github.com/lobbamannen/NexusHub-Android-App/blob/main/docs/battery-widget-install.md). Om den redan fungerar behövs ingen klockinstallation för den här telefonuppdateringen.
+
+## Bakgrundssparning och aktivitet
+Installera telefonuppdateringen ovanpå befintlig app. Spara ett inkorgsunderlag och byt till en annan app: Android tar hand om uppladdningen och NexusHub visar resultatet när du återvänder. En kortvarig synknotis visas medan arbete pågår. Testa även utan nät och anslut igen. Tvångsstopp skiljer sig från vanligt appbyte och kan stoppa jobb tills appen öppnas.
+
+Öppna **Menyn → Aktivitetslogg** för sökning, datumfilter, resultat och händelsedetaljer. Exporten innehåller hela den tillgängliga historiken, även när listan är filtrerad. Loggen lagras på telefonen; avinstallation eller rensad appdata tar bort den, så exportera om du vill behålla en separat kopia. Historiska händelser före uppdateringen återskapas inte.
