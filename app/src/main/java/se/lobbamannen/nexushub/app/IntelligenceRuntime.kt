@@ -28,7 +28,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
     private val prefs = app.getSharedPreferences("nexus_intelligence_profile_v1",Context.MODE_PRIVATE)
     private val root = File(app.filesDir,"nexus-intelligence-model").apply { mkdirs() }
     private val model get() = File(root,FILENAME)
-    private var loadedSignature: String? = null
+    @Volatile private var loadedSignature: String? = null
     @Volatile private var importing = false
     @Volatile private var processing = false
     @Volatile private var copied = 0L
@@ -46,7 +46,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
     private fun config(): JSONObject = JSONObject(prefs.getString("config",null) ?: defaults().toString())
     fun profile(): JSONObject = synchronized(mutex) { JSONObject(config().toString()) }
 
-    fun saveProfile(input: JSONObject): JSONObject = synchronized(mutex) {
+    fun saveProfile(input: JSONObject): JSONObject {\n        check(!processing && !importing) { "Modellen arbetar. Vänta på säker gräns." }\n        return synchronized(mutex) {
         check(!processing && !importing) { "Inställningar kan inte ändras medan modellen arbetar." }
         val current = defaults()
         require(input.keys().asSequence().all { current.has(it) }) { "Okänd inställning" }
@@ -75,9 +75,10 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         if(LlamaNative.isLoaded && LlamaNative.isEngineInitialized()) LlamaNative.releaseEngine()
         loadedSignature = null
         JSONObject(current.toString())
+        }
     }
 
-    fun status(): JSONObject = synchronized(mutex) {
+    fun status(): JSONObject {
         JSONObject().put("nativeLoaded",LlamaNative.isLoaded)
             .put("importing",importing).put("processing",processing)
             .put("imported",model.isFile && model.length()>100L*1024*1024)
@@ -85,7 +86,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             .put("filename",prefs.getString("sourceName","") ?: "")
             .put("sha256",prefs.getString("sha256","") ?: "")
             .put("copyBytes",copied).put("copyTotal",total)
-            .put("warm",loadedSignature!=null && LlamaNative.isLoaded && LlamaNative.isEngineInitialized())
+            .put("warm",loadedSignature!=null && LlamaNative.isLoaded && !processing)
             .put("config",config())
             .put("lastTelemetry",JSONObject(prefs.getString("telemetry","{}") ?: "{}"))
     }
