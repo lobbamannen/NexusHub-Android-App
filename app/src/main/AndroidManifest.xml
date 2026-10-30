@@ -11,6 +11,7 @@
     <application android:name=".NexusHubApplication" android:allowBackup="false" android:usesCleartextTraffic="false"
         android:label="@string/app_name" android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher" android:theme="@style/NexusHubTheme">
+        <receiver android:name=".IntelligenceControlReceiver" android:exported="false" />
         <service android:name=".ActiveSyncService" android:exported="false" android:foregroundServiceType="dataSync" />
         <service android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync|specialUse" tools:node="merge">
