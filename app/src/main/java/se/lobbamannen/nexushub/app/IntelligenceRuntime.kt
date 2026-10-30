@@ -294,6 +294,18 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         if(LlamaNative.isLoaded)LlamaNative.requestStop()
     }
 
+    /**
+     * Recheck the lifecycle predicate UNDER the same lock as native release.
+     * A foreground transition during an in-flight generation must not
+     * accidentally unload a model after the user has returned.
+     */
+    fun unloadIfIdle(allowed: () -> Boolean): Boolean = synchronized(mutex) {
+        if (processing || importing || !allowed()) return@synchronized false
+        if (LlamaNative.isLoaded && LlamaNative.isEngineInitialized()) LlamaNative.releaseEngine()
+        loadedSignature = null
+        true
+    }
+
     fun unload()=synchronized(mutex) {
         check(!processing && !importing)
         if(LlamaNative.isLoaded && LlamaNative.isEngineInitialized())LlamaNative.releaseEngine()

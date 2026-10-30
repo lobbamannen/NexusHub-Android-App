@@ -65,16 +65,12 @@ class GemmaRuntime private constructor(context: Context) {
         scheduleIdleRelease()
     }
 
+    private fun releaseRequested(): Boolean =
+        memoryPressure || (inBackground && graceExpired)
+
     private fun scheduleIdleRelease() {
         releaseExecutor.execute {
-            if (memoryPressure || (inBackground && graceExpired)) {
-                try {
-                    native.unload() // synchronized with generation/import, never interrupts a turn
-                    memoryPressure = false
-                } catch (_: IllegalStateException) {
-                    // Import is in progress: defer until a later lifecycle event.
-                }
-            }
+            if (native.unloadIfIdle { releaseRequested() }) memoryPressure = false
         }
     }
 
@@ -83,7 +79,12 @@ class GemmaRuntime private constructor(context: Context) {
         .put("backgroundGraceExpired", graceExpired)
 
     fun saveProfile(changes: JSONObject): JSONObject = native.saveProfile(changes)
-    fun importModel(uri: Uri): JSONObject = native.import(uri)
+    fun importModel(uri: Uri): JSONObject = try {
+        native.import(uri)
+    } finally {
+        // A trim-memory signal arriving during import is honored after import.
+        if (releaseRequested()) scheduleIdleRelease()
+    }
     fun deleteModel(): JSONObject = native.delete()
     fun unload(): Unit = native.unload()
     fun cancel(): Unit = native.cancel()
