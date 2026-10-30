@@ -61,7 +61,7 @@ class IntelligenceIndexStoreTest {
         assertThrows(IllegalArgumentException::class.java) {
             index.upsert(a,"Research/real.md","incorrect_sha","Dokument","text")
         }
-        assertThrows(IllegalStateException::class.java) {
+        assertThrows(IllegalArgumentException::class.java) {
             index.upsert(c,"Research/real.md",b,"Dokument","text")
         }
         assertTrue(index.finish(a,0).getBoolean("ready"))
