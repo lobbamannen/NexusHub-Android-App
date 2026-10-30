@@ -250,7 +250,7 @@ export default function Portal() {
         readRequest.current++;
         setReading(false);
         setMediaItem(null);
-        setView(h === 'mysterier' ? 'berattelser' : h);
+        setView(target === 'intelligence' ? 'intelligence' : h === 'mysterier' ? 'berattelser' : h);
         setReader(null);
     } }; window.addEventListener('hashchange', onHash); return () => window.removeEventListener('hashchange', onHash); }, []);
     useEffect(() => { if (view !== 'inkorg')

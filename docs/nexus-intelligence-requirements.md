@@ -17,59 +17,59 @@ Statusarna nedan avser HELA kravpunkten. Delimplementering utan sluttest får in
 
 | # | Kravområde | Status | Kvarvarande verifiering |
 |---:|---|---|---|
-| 1 | Händelsetriggers | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 2 | Lokal Gemma | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 3 | Flerstegskörningar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 4 | Bakgrund utan aktiv UI | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 5 | Beständig kö | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 6 | Kontrollpunkter | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 7 | Pausa/återuppta/avbryt | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 8 | Typade tillåtna verktyg | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 9 | Resursbudget | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 10 | Arbetsnotifikation | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 11 | Statusändring i samma notifikation | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 12 | Faktiskt förlopp | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 13 | Slutnotifikation | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 14 | Varaktiga fel | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 15 | Begränsade återförsök | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 16 | Sann Android-status | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 17 | Direktlänk till körning | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 1 | Händelsestyrd arbetsmotor | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 2 | Lokal Gemma som arbetsmotor | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 3 | Flerstegsarbetsflöden | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 4 | Arbete utan aktivt gränssnitt | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 5 | Beständig arbetskö | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 6 | Säkra kontrollpunkter | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 7 | Pausa, återuppta och avbryt | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 8 | Säker verktygsexekvering | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 9 | Resurs- och körningsbegränsningar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 10 | Systemintegrerad arbetsnotifikation | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 11 | Dynamiska statusuppdateringar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 12 | Framstegsindikator | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 13 | Slutförd körning | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 14 | Felnotifikation | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 15 | Automatisk felåterhämtning | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 16 | Korrekt status vid Android-avbrott | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 17 | Tryckbar notifikation | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
 | 18 | Notifikationsåtgärder | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 19 | Gemensam notifikationsmotor | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 19 | Gemensamt notifikationssystem | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
 | 20 | Egen kontrollcentral | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 21 | Översikt över körningar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 22 | Aktiv körning | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 23 | Stegvis tidslinje | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 24 | Resultat från körning | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 25 | Körningshistorik | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 26 | Sök och filter | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 27 | Manuella kontroller | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 28 | Runtime-/modellstatus | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 29 | Paus och stopp från UI | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 30 | Detaljerade steg | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 31 | Modellinställningar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 32 | Modellimport | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 33 | Acceleratorinställningar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 34 | Promptparametrar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 35 | Runtime-diagnostik | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 36 | Resurspolicy | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 37 | Workflow- och stegdatamodell | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 38 | Beständiga tidsstämplar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 39 | Verktygs- och resultatspårning | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 40 | Gemensam sanningskälla | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 41 | GitHub-synk och konflikter | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 42 | Offline och lokal synkstatus | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 43 | Idempotens | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 44 | Felåterhämtning | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 45 | Gemma valfri för kodsteg | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 46 | Versionsbunden AI-output | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 47 | Begränsade modellbehörigheter | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 48 | Verifierad slutförandepolicy | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 49 | GitHub Actions-inspirerad informationsarkitektur | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 50 | Befintligt NexusHub-tema | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 51 | Diskret UX | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 52 | Aktivitet kontra resultat | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
-| 53 | Öppna resultat direkt | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 21 | Dynamisk systemöversikt | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 22 | Lista över arbetskörningar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 23 | Individuell körningssida | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 24 | Liveuppdaterade arbetssteg | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 25 | Detaljerad steghistorik | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 26 | Gemma-telemetri | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 27 | Senaste logghändelse | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 28 | Permanent körningshistorik | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 29 | Filtrering och sökning | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 30 | Körningsjämförelser | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 31 | Separat resultatregister | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 32 | Berörda objekt | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 33 | Föreslagna och genomförda ändringar | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 34 | Spårbara AI-beslut | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 35 | Väntande godkännanden | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 36 | Öppna frågor och nästa arbetsmoment | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 37 | Koppling till aktivitetsloggen | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 38 | Mönsteranalys av historiken | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 39 | Beständig körningsdatabas | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 40 | Gemensam statuskälla | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 41 | GitHub-integration | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 42 | Lokal lagring och synkronisering | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 43 | Idempotenta operationer | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 44 | Säker felhantering | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 45 | Gemma som valfri komponent | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 46 | AI-resultat med versionsinformation | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 47 | Begränsad AI-behörighet | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 48 | Verifierbar körningsstatus | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 49 | GitHub Actions-inspirerad struktur | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 50 | NexusHubs befintliga tema | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 51 | Diskret användarupplevelse | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 52 | Tydlig skillnad mellan aktivitet och resultat | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
+| 53 | Direktnavigering till resultat | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
 | 54 | Gemensam arbetscentral | Ej verifierad | Kräver implementation, kontraktstest och relevant Androidtest |
 
 ## Acceptanskriterier inför main
