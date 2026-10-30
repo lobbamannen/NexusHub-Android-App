@@ -99,7 +99,10 @@ object IntelligenceJobs {
         WorkManager.getInstance(context).enqueueUniqueWork(PREFIX+id,policy,request)
     }
     /** Dispatch one verified research item at a time; the rest remain durable in SQLite. */
-    fun drainInbox(context:Context) {
+    @Synchronized fun drainInbox(context:Context) {
+        // A waiting model/resource job holds the slot rather than draining
+        // the entire research inbox into simultaneous WorkManager requests.
+        if(IntelligenceRunStore(context).hasPendingDocument())return
         val index=IntelligenceIndexStore(context)
         val pending=index.nextPending() ?: return
         val path=pending.getString("path")
@@ -153,8 +156,7 @@ object IntelligenceJobs {
         check(store.saveLocalResult(id,result))
         check(store.transition(id,"running","local_completed"))
         // Persistent inbox backlog survives process death and analysis batch limits.
-        if(receipt.optString("previousCommit").matches(Regex("[a-f0-9]{40}")))
-            drainInbox(context)
+        drainInbox(context)
     }
     fun resume(context: Context,id: String): Boolean {
         val store=IntelligenceRunStore(context)
