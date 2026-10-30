@@ -14,7 +14,7 @@ import org.json.JSONObject
  */
 class IntelligenceIndexStore(context: Context) {
     private class Helper(context: Context):SQLiteOpenHelper(context.applicationContext,
-        "nexus_intelligence_index_v1.db",null,2) {
+        "nexus_intelligence_index_v1.db",null,3) {
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)")
             db.execSQL("""CREATE TABLE documents(
@@ -27,15 +27,26 @@ class IntelligenceIndexStore(context: Context) {
                 path TEXT PRIMARY KEY,blob_sha TEXT NOT NULL,repo_commit TEXT NOT NULL,
                 title TEXT NOT NULL,body TEXT NOT NULL
             )""")
+            db.execSQL("""CREATE TABLE pending_analysis(
+                path TEXT PRIMARY KEY,blob_sha TEXT NOT NULL,
+                failures INTEGER NOT NULL DEFAULT 0
+            )""")
         }
         override fun onUpgrade(db:SQLiteDatabase,old:Int,new:Int) {
-            if(old==1 && new==2) {
+            if(old==1 && new>=2) {
                 db.execSQL("""CREATE TABLE staging_documents(
                     path TEXT PRIMARY KEY,blob_sha TEXT NOT NULL,repo_commit TEXT NOT NULL,
                     title TEXT NOT NULL,body TEXT NOT NULL
                 )""")
                 db.execSQL("DELETE FROM meta WHERE key='working'")
-            } else error("Unsupported index schema migration")
+            }
+            if(old<3 && new>=3) {
+                db.execSQL("""CREATE TABLE pending_analysis(
+                    path TEXT PRIMARY KEY,blob_sha TEXT NOT NULL,
+                    failures INTEGER NOT NULL DEFAULT 0
+                )""")
+            }
+            require(new==3 && old in 1..2) { "Unsupported index schema migration" }
         }
     }
     companion object {
@@ -45,6 +56,12 @@ class IntelligenceIndexStore(context: Context) {
         fun eligible(path:String):Boolean =
             Regex("(?i)\\.(md|txt|json|csv)$").containsMatchIn(path) &&
             !path.split('/').any {it==".."||it=="."||it.isEmpty()}
+        fun researchDocument(path:String):Boolean =
+            eligible(path) && (path.startsWith("NexusHub inkorg/") ||
+                path.startsWith("Research/")) &&
+            !path.substringAfterLast('/').lowercase().let {
+                it=="metadata.json" || it=="delad-text.txt" || it==".gitkeep"
+            }
     }
     private val helper=Helper(context)
     private fun meta(db:SQLiteDatabase,key:String):String?=db.rawQuery(
@@ -102,7 +119,24 @@ class IntelligenceIndexStore(context: Context) {
                 JOIN documents o ON o.path=n.path WHERE n.blob_sha<>o.blob_sha""")
             val deleted=count("""SELECT count(*) FROM documents o
                 LEFT JOIN staging_documents n ON o.path=n.path WHERE n.path IS NULL""")
-            // Bounded change events; initial import never auto-runs hundreds of model tasks.
+            // Durable work queue: a bounded notification receipt must never cause
+            // documents beyond the receipt cap to disappear from proactive analysis.
+            db.execSQL("""DELETE FROM pending_analysis
+                WHERE path NOT IN (SELECT path FROM staging_documents)
+                OR blob_sha != (SELECT blob_sha FROM staging_documents n
+                    WHERE n.path=pending_analysis.path)""")
+            if(previousCommit.isNotBlank()) {
+                db.execSQL("""INSERT OR REPLACE INTO pending_analysis(path,blob_sha,failures)
+                    SELECT n.path,n.blob_sha,0 FROM staging_documents n
+                    LEFT JOIN documents o ON o.path=n.path
+                    WHERE (o.path IS NULL OR o.blob_sha<>n.blob_sha)
+                    AND (n.path LIKE 'NexusHub inkorg/%' OR n.path LIKE 'Research/%')
+                    AND (lower(n.path) LIKE '%.md' OR lower(n.path) LIKE '%.txt'
+                        OR lower(n.path) LIKE '%.json' OR lower(n.path) LIKE '%.csv')
+                    AND lower(n.path) NOT LIKE '%/metadata.json'
+                    AND lower(n.path) NOT LIKE '%/delad-text.txt'""")
+            }
+            // Bounded UI receipt only; the complete queue persists in SQLite.
             db.rawQuery("""SELECT n.path FROM staging_documents n
                 LEFT JOIN documents o ON o.path=n.path
                 WHERE o.path IS NULL OR n.blob_sha<>o.blob_sha
@@ -137,6 +171,24 @@ class IntelligenceIndexStore(context: Context) {
             .put("indexedFiles",rows).put("indexing",meta(db,"working").orEmpty().isNotBlank())
             .put("added",added).put("modified",modified).put("deleted",deleted)
             .put("changeCount",added+modified+deleted)
+            .put("pendingAnalysis",db.rawQuery("SELECT count(*) FROM pending_analysis",null)
+                .use{it.moveToFirst();it.getInt(0)})
+    }
+    /** Oldest eligible document awaiting a durable analysis run. */
+    fun nextPending():JSONObject?=synchronized(lock) {
+        val db=helper.readableDatabase
+        db.rawQuery("""SELECT p.path,p.blob_sha FROM pending_analysis p
+            WHERE p.failures<3 ORDER BY p.failures ASC,p.path ASC LIMIT 1""",null).use {c->
+            if(!c.moveToFirst())null else JSONObject()
+                .put("path",c.getString(0)).put("sha",c.getString(1))
+        }
+    }
+    fun acknowledgePending(path:String,sha:String) {
+        write{db->db.delete("pending_analysis","path=? AND blob_sha=?",arrayOf(path,sha))}
+    }
+    fun failPending(path:String,sha:String) {
+        write{db->db.execSQL("""UPDATE pending_analysis SET failures=failures+1
+            WHERE path=? AND blob_sha=?""",arrayOf(path,sha))}
     }
     fun document(path:String):JSONObject=synchronized(lock) {
         require(path.length in 1..1000 && eligible(path) && !path.startsWith('/') &&
