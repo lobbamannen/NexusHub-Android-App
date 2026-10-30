@@ -37,7 +37,7 @@ jobs:
           java com.sun.tools.javac.Main -d /tmp/battery-policy-test tests/java/BatteryQuietHoursTest.java shared/src/main/java/se/lobbamannen/nexushub/battery/BatteryQuietHours.java
           java -cp /tmp/battery-policy-test BatteryQuietHoursTest
           npm run check:design
-          node --test tests/shared-incoming.test.mjs tests/incoming-sync.test.mjs tests/home-sync-status.test.mjs tests/home-groups.test.mjs tests/personal-capture.test.mjs tests/todos-controller.test.mjs tests/telemetry.test.mjs tests/local-first-recent.test.mjs tests/calendar-*.test.mjs tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs tests/weather-*.test.mjs tests/widget-activity.test.mjs tests/pulse-motion.test.mjs tests/pulse-surface.test.mjs tests/navigation-motion.test.mjs tests/pasted-text.test.mjs
+          node --test tests/shared-incoming.test.mjs tests/incoming-sync.test.mjs tests/home-sync-status.test.mjs tests/home-groups.test.mjs tests/personal-capture.test.mjs tests/todos-controller.test.mjs tests/telemetry.test.mjs tests/local-first-recent.test.mjs tests/calendar-*.test.mjs tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs tests/weather-*.test.mjs tests/widget-activity.test.mjs tests/pulse-motion.test.mjs tests/pulse-surface.test.mjs tests/navigation-motion.test.mjs tests/pasted-text.test.mjs tests/connected-library.test.mjs tests/connected-services.test.mjs
           npm run build
       - name: Verify weather UI at phone and desktop sizes
         id: weather_ui
@@ -71,8 +71,18 @@ jobs:
           name: paste-ui
           path: paste-ui/
           retention-days: 14
+      - name: Verify Connections, training, Guardian and Command UI
+        id: connected_ui
+        continue-on-error: true
+        run: CHROME_PATH="$(command -v google-chrome)" node scripts/connected-ui-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: connected-ui
+          path: connected-ui/
+          retention-days: 14
       - name: Stop before signing when UI verification fails
-        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success' || steps.paste_ui.outcome != 'success'
+        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success' || steps.paste_ui.outcome != 'success' || steps.connected_ui.outcome != 'success'
         run: exit 1
       - name: Restore stable private signing identity
         env:
@@ -113,7 +123,7 @@ jobs:
           path: apk/
           retention-days: 30
       - name: Require successful feature UI verification
-        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success' || steps.paste_ui.outcome != 'success'
+        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success' || steps.paste_ui.outcome != 'success' || steps.connected_ui.outcome != 'success'
         run: exit 1
       - name: Publish installable APK
         if: github.ref == 'refs/heads/main'

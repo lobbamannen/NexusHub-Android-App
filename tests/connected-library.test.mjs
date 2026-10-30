@@ -23,6 +23,10 @@ test('multi-format content chooses readable Markdown and includes news records',
  const nodes=connectionNodes([{path:'Research/A.docx',title:'A'},{path:'Research/A.md',title:'Rätt titel',category:'Forskning'},{path:'Nyhetsradarn/records/event-a.json',title:'Nyhet',technical:true}]);
  assert.equal(nodes.length,2);assert.equal(nodes[0].path,'Research/A.md');assert.equal(nodes[0].title,'Rätt titel');assert.equal(nodes[1].kind,'Nyhet');
 });
+test('catalog IDs do not replace stable relation identity when merging formats',()=>{
+ const nodes=connectionNodes([{id:'Research/A.docx',path:'Research/A.docx',title:'A'},{id:'Research/A.md',path:'Research/A.md',title:'A'}]);
+ assert.equal(nodes[0].id,'databas:Research/A');assert.equal(nodes[0].repoKey,'databas');
+});
 test('relations label references, suggestions and approved links without inventing causality',()=>{
  const n=connectionNodes([{path:'Research/A.md',title:'Gemma lokal',category:'AI'},{path:'Kunskap/B.md',title:'Gemma mobil',category:'AI'},{path:'Ideer/a.json',title:'Idé'}]);
  const refs=extractReferences('[Läs](../Kunskap/B.md)\nhttps://example.com/paper','Research/A.md');assert.ok(refs.paths.includes('Kunskap/B.md'));
@@ -34,6 +38,16 @@ test('relations label references, suggestions and approved links without inventi
 test('relation register preserves unknown metadata and revokes without erasing history',()=>{
  const data={schemaVersion:1,custom:'keep',relations:[]};const change={id:'r1',from:'a',to:'b',type:'related',note:'Min koppling'};
  const a=applyConnectionChange(data,{action:'add',relation:change},'now');assert.equal(a.custom,'keep');const b=applyConnectionChange(a,{action:'revoke',id:'r1'},'later');assert.equal(b.relations.length,1);assert.equal(b.relations[0].status,'revoked');assert.throws(()=>applyConnectionChange(data,{action:'add',relation:{...change,to:'a'}},'now'));
+});
+test('invalid relation records cannot crash an otherwise valid index',()=>{
+ const nodes=connectionNodes([{path:'Research/A.md'},{path:'Research/B.md'}]);assert.doesNotThrow(()=>connectionEdges(nodes,[null,{},42],{}));
+});
+test('distinct saved relation identities remain independently removable',()=>{
+ const nodes=connectionNodes([{path:'Research/A.md'},{path:'Research/B.md'}]);const a={id:'one',from:nodes[0].id,to:nodes[1].id,type:'related',note:'samma',status:'active'},b={...a,id:'two'};
+ const edges=connectionEdges(nodes,[a,b],{});assert.equal(edges.length,2);assert.deepEqual(edges.map(e=>e.recordId),['one','two']);
+});
+test('a previous audit version never implies current database integrity',()=>{
+ const findings=guardianFindings({replica:{},audit:{exists:true,done:true,allIssueTotal:0,commit:'old'},expectedCommit:'new',links:{complete:false}});assert.equal(findings.find(x=>x.id==='audit').state,'unknown');
 });
 test('commands are explicit Swedish navigation and search; unknown phrases remain search',()=>{
  assert.equal(parseCommand('Öppna träningsarkivet').view,'traning');assert.equal(parseCommand('visa kopplingar').view,'connections');assert.equal(parseCommand('guardian').view,'guardian');assert.equal(parseCommand('sök kunskap om Gemma').query,'Gemma');assert.equal(parseCommand('ta bort alla filmer').kind,'search');assert.equal(parseCommand('Star Wars').query,'Star Wars');

@@ -9,7 +9,7 @@ export async function trainingArchive(month?:string){
  if(!month)return {state:'ready',months,commit:snapshot.commit,verifiedAt:snapshot.fetchedAt};
  const path=monthPath(month),file=snapshot.files.find((f:any)=>f.path===path);
  if(!file)return {state:'empty',months,entries:[],warnings:[],commit:snapshot.commit,path};
- const cacheKey='training:projection:v1:'+file.sha;
+ const cacheKey='training:projection:v2:'+file.sha+':'+month;
  let result=await durableGet<any>(cacheKey);
  if(!result){const bytes=await replicaReader.file('databas',path);if(!bytes||bytes.sha!==file.sha||bytes.commit!==snapshot.commit)return {state:'unavailable',months,entries:[],warnings:[],message:'Månadens kopia kunde inte verifieras. Försök igen efter synk.'};
  result=normalizeTrainingMonth(JSON.parse(new TextDecoder().decode(bytes.bytes)),month,{path,blobSha:file.sha});await durableSet(cacheKey,result);}
