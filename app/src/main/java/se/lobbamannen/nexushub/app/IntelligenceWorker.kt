@@ -71,9 +71,9 @@ object IntelligenceJobs {
         val content=if(entire.length<=17500)entire else {
             // Representative bounded windows, never misrepresent them as the full document.
             val mid=(entire.length/2-1800).coerceAtLeast(0)
-            entire.take(6500)+"\\n[UTELÄMNAT AVSNITT — fulltext finns i indexet]\\n"+
+            entire.take(6500)+"\n[UTELÄMNAT AVSNITT — fulltext finns i indexet]\n"+
                 entire.substring(mid,(mid+3500).coerceAtMost(entire.length))+
-                "\\n[UTELÄMNAT AVSNITT]\\n"+entire.takeLast(6500)
+                "\n[UTELÄMNAT AVSNITT]\n"+entire.takeLast(6500)
         }
         require(content.length>=5) { "Dokumentet saknar analyserbar text" }
         val store=IntelligenceRunStore(context)
