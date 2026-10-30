@@ -227,6 +227,20 @@ Viktiga filer:
 
 Äldre Site-poster som enbart finns i Sites D1/R2 kopieras inte automatiskt till den här appen. GitHub-innehållet är gemensamt. Befintliga Site-data lämnas orörda. Gamla `copy:`-bokmärken kan därför sakna en lokal originalkopia i Android; appen ska inte låtsas att dessa bytes finns.
 
+
+
+### APK-byggen och native-cache
+
+GitHub Actions-workflowet `.github/workflows/android-apk.yml` bygger **produktions-React och signerade Android-/Wear-APK:er**. De tidigare enhetstesterna, designkontrollerna, lintjobben och sex fristående Playwright-verifieringarna körs **inte längre som obligatoriska steg vid varje APK-bygge**. Testkoden finns kvar för uttrycklig felsökning eller separat verklighetstest; koden har inte raderats. APK-signatur, native-bibliotek, tidigare signeringsidentitet och leveransfiler kontrolleras fortfarande.
+
+- Pinnad llama.cpp-källkod cachas separat per `llama-revision.txt`.
+- Snapdragon OpenCL-/Hexagon-bibliotek återanvänds via sin egen cache med versions- och patchkontroll.
+- **Cortex-mönster för native:** Vid cachemiss byggs CMake normalt och de faktiskt paketerade `libllama_android.so`, `libllama.so`, `libggml.so`, `libggml-base.so`, `libggml-cpu.so` extraheras ur release-APK:n. SHA-256-lista sparas i cache. Vid exakt cacheträff verifieras listan och `-PusePrebuiltNative=true` gör att Gradle paketerar förkompilerade bibliotek utan att köra CMake.
+- Cache-nyckeln inkluderar llama-revisionen, native-källor, CMake, CPU-auditpatch och Gradle-konfiguration. Ändringar där ger nytt native-bygge. Den native-kompilerade binärens inbyggda Git-SHA är kompileringsrevisionen; APK-versionen anges separat av GitHub Actions.
+- Ingen cacheträff får ersätta saknade bibliotek: pipeline avbryts vid bruten checksumma eller saknade `.so`. Installerad app och importerad GGUF påverkas inte av cacheändringarna.
+
+**Verifieringsgräns:** Ett grönt Actions-bygge betyder korrekt kompilering, paketering och signeringskontroller – inte att alla funktioner testats på telefon. Den första körningen som fyller en ny native-cache kan fortfarande vara långsam; tidsvinsten måste mätas på en senare cacheträff.
+
 ## Verifiering
 
 Se `docs/verification.md` för utförda kontroller och gränsen mellan lokal granskning, APK-bygge och faktisk användning på telefon.

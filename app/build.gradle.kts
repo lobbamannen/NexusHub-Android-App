@@ -2,6 +2,10 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+// A verified native .so cache can be packaged without re-running CMake.
+// On a cache miss, externalNativeBuild remains enabled as before.
+val usePrebuiltNative = providers.gradleProperty("usePrebuiltNative")
+    .map { it.toBoolean() }.getOrElse(false)
 android {
     sourceSets["main"].java.srcDir("../shared/src/main/java")
     namespace = "se.lobbamannen.nexushub.app"
@@ -14,13 +18,13 @@ android {
         buildConfigField("String", "POSTHOG_PROJECT_TOKEN", "\"" + (providers.environmentVariable("POSTHOG_PROJECT_TOKEN").orNull ?: "") + "\"")
         buildConfigField("String", "POSTHOG_HOST", "\"" + (providers.environmentVariable("POSTHOG_HOST").orNull ?: "") + "\"")
         ndk { abiFilters += listOf("arm64-v8a") }
-        externalNativeBuild { cmake { cppFlags += listOf("-O3", "-fPIC", "-std=c++17"); cFlags += listOf("-O3", "-fPIC"); arguments += listOf("-DANDROID_STL=c++_shared") } }
+        if (!usePrebuiltNative) externalNativeBuild { cmake { cppFlags += listOf("-O3", "-fPIC", "-std=c++17"); cFlags += listOf("-O3", "-fPIC"); arguments += listOf("-DANDROID_STL=c++_shared") } }
         minSdk = 26
         targetSdk = 35
         versionCode = providers.environmentVariable("ANDROID_VERSION_CODE").orNull?.toInt() ?: 1
         versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orNull ?: "1.0"
     }
-    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+    if (!usePrebuiltNative) externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
     packaging { jniLibs { useLegacyPackaging = true } }
     signingConfigs {
         create("release") {

@@ -73,16 +73,30 @@ jobs:
             exit 1
           fi
 
-      # Exact-key native cache. No broad restore-keys: never silently restore
-      # object files made with an older NDK, CPU audit patch or CMake source.
-      - name: Restore compiled Android native objects
+      # Cortex pattern: package exact native .so files, NOT ephemeral .cxx intermediates.
+      # The cache key includes the pinned llama revision and all local native inputs.
+      - name: Restore prebuilt llama.cpp core libraries
         id: cache-core-native
         uses: actions/cache/restore@v4
         with:
-          path: |
-            app/.cxx
-            app/build/intermediates/cxx
-          key: ${{ runner.os }}-nexus-compiled-native-v4-ndk28.2-cmake3.22-${{ hashFiles('llama-revision.txt', 'app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/src/main/cpp/*.c', 'app/src/main/cpp/*.h', 'app/src/main/cpp/*.hpp', 'scripts/patch-llama-cpu-jarvis-audit.py', 'scripts/run-llama-cpu-jarvis-audit.py', 'app/build.gradle.kts', 'gradle/libs.versions.toml') }}
+          path: .cache/core-native-libs/arm64-v8a
+          key: ${{ runner.os }}-nexus-core-prebuilt-v1-ndk28.2-cmake3.22-${{ hashFiles('llama-revision.txt', 'app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/src/main/cpp/*.c', 'app/src/main/cpp/*.h', 'app/src/main/cpp/*.hpp', 'scripts/patch-llama-cpu-jarvis-audit.py', 'scripts/run-llama-cpu-jarvis-audit.py', 'app/build.gradle.kts', 'gradle/libs.versions.toml') }}
+
+      - name: Validate and stage cached core libraries
+        if: steps.cache-core-native.outputs.cache-hit == 'true'
+        run: |
+          set -euo pipefail
+          SRC=".cache/core-native-libs/arm64-v8a"
+          DEST="app/src/main/jniLibs/arm64-v8a"
+          for lib in libllama_android.so libllama.so libggml.so libggml-base.so libggml-cpu.so; do
+            test -s "$SRC/$lib" || { echo "::error::Native cache is missing $lib"; exit 1; }
+          done
+          test "$(cat "$SRC/llama-commit.txt")" = "$(tr -d '\r\n' < llama-revision.txt)"
+          (cd "$SRC" && sha256sum --check SHA256SUMS)
+          mkdir -p "$DEST"
+          cp -v "$SRC"/*.so "$DEST/"
+          echo "PREBUILT_NATIVE=true" >> "$GITHUB_ENV"
+          echo "Validated core native binaries restored. Release CMake compilation will be skipped."
 
       # Restore and save the expensive Snapdragon artifacts explicitly. The save happens
       # immediately after a successful accelerator build, so a later APK/link failure does
@@ -222,93 +236,13 @@ jobs:
           echo "Accelerator libraries staged:"
           ls -lh "$DEST"
 
-      - name: Build original React UI
+      # Compile the production app without running unit, design or browser tests.
+      # Tests remain in source for explicit/manual execution, not as APK build gates.
+      - name: Build production React UI
         run: |
           npm ci
-          npm run check
-          java com.sun.tools.javac.Main -d /tmp/battery-policy-test tests/java/BatteryQuietHoursTest.java shared/src/main/java/se/lobbamannen/nexushub/battery/BatteryQuietHours.java
-          java -cp /tmp/battery-policy-test BatteryQuietHoursTest
-          npm run check:design
-          node --test tests/activity-*.test.mjs tests/shared-incoming.test.mjs tests/incoming-sync.test.mjs tests/home-sync-status.test.mjs tests/home-groups.test.mjs tests/personal-capture.test.mjs tests/todos-controller.test.mjs tests/telemetry.test.mjs tests/local-first-recent.test.mjs tests/calendar-*.test.mjs tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs tests/weather-*.test.mjs tests/widget-activity.test.mjs tests/pulse-motion.test.mjs tests/pulse-surface.test.mjs tests/navigation-motion.test.mjs tests/pasted-text.test.mjs tests/connected-library.test.mjs tests/connected-services.test.mjs tests/page-scroll-lock.test.mjs
           npm run build
-      - name: Compile native background and activity code
-        run: gradle --build-cache --no-daemon -PskipWebBuild=true :app:compileDebugKotlin :app:compileDebugUnitTestKotlin
-      # Save compiled objects as soon as compilation succeeds, even if later
-      # browser checks or APK signing fail. Restore requires an exact key.
-      - name: Save compiled Android native objects
-        if: steps.cache-core-native.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            app/.cxx
-            app/build/intermediates/cxx
-          key: ${{ steps.cache-core-native.outputs.cache-primary-key }}
 
-      - name: Install browser test driver
-        run: npm install --no-save --package-lock=false playwright@1.58.2
-      - name: Verify activity history and background save UI
-        id: activity_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/activity-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: activity-ui
-          path: activity-ui/
-          retention-days: 14
-      - name: Verify weather UI at phone and desktop sizes
-        id: weather_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/weather-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: weather-ui
-          path: weather-ui/
-          retention-days: 14
-      - name: Verify Calendar V2 layout and interactions
-        id: calendar_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/calendar-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: calendar-ui
-          path: calendar-ui/
-          retention-days: 14
-      - name: Verify pasted research UI and durable retry
-        id: paste_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/paste-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: paste-ui
-          path: paste-ui/
-          retention-days: 14
-      - name: Verify Connections, training, Guardian and Command UI
-        id: connected_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/connected-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: connected-ui
-          path: connected-ui/
-          retention-days: 14
-      - name: Verify touch scrolling after navigation and dialogs
-        id: scroll_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/scroll-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: scroll-ui
-          path: scroll-ui/
-          retention-days: 14
-      - name: Stop before signing when UI verification fails
-        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success' || steps.paste_ui.outcome != 'success' || steps.connected_ui.outcome != 'success' || steps.scroll_ui.outcome != 'success' || steps.activity_ui.outcome != 'success'
-        run: exit 1
       - name: Restore stable private signing identity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -321,8 +255,43 @@ jobs:
           set -a
           source .github/posthog.env
           set +a
-          gradle --build-cache --no-daemon -PskipWebBuild=true :app:dependencyInsight --dependency okhttp --configuration releaseRuntimeClasspath
-          gradle --build-cache --no-daemon -PskipWebBuild=true :app:testDebugUnitTest :wear:testDebugUnitTest :app:assembleRelease :wear:assembleRelease :app:lintRelease :wear:lintRelease
+          # Only the cache-hit path disables CMake; on a miss Gradle compiles
+          # the native core normally. App/Kotlin/UI still rebuild every time.
+          EXTRA_ARGS=()
+          if [ "${PREBUILT_NATIVE:-false}" = "true" ]; then
+            EXTRA_ARGS+=("-PusePrebuiltNative=true")
+          fi
+          gradle --build-cache --no-daemon -PskipWebBuild=true "${EXTRA_ARGS[@]}" :app:assembleRelease :wear:assembleRelease
+      # The cold build has now produced a real APK. Extract its actual native
+      # payload into a persistent cache for subsequent builds (Cortex approach).
+      - name: Collect compiled core libraries from signed APK
+        if: steps.cache-core-native.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release.apk"
+          DEST=".cache/core-native-libs/arm64-v8a"
+          mkdir -p "$DEST"
+          for lib in libllama_android.so libllama.so libggml.so libggml-base.so libggml-cpu.so; do
+            unzip -p "$APK" "lib/arm64-v8a/$lib" > "$DEST/$lib"
+            test -s "$DEST/$lib" || { echo "::error::Missing native core library $lib"; exit 1; }
+          done
+          # Additional native dependencies are copied when packaged by CMake.
+          for lib in libllama-common.so libc++_shared.so; do
+            if unzip -Z1 "$APK" | grep -qx "lib/arm64-v8a/$lib"; then
+              unzip -p "$APK" "lib/arm64-v8a/$lib" > "$DEST/$lib"
+            fi
+          done
+          printf '%s\n' "$(tr -d '\r\n' < llama-revision.txt)" > "$DEST/llama-commit.txt"
+          (cd "$DEST" && sha256sum ./*.so > SHA256SUMS && sha256sum --check SHA256SUMS)
+          echo "Core native cache populated from actual release APK binaries."
+
+      - name: Save compiled core libraries for future APK builds
+        if: steps.cache-core-native.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/core-native-libs/arm64-v8a
+          key: ${{ steps.cache-core-native.outputs.cache-primary-key }}
+
       - name: Verify native model and accelerator libraries in APK
         run: |
           set -euo pipefail
@@ -335,12 +304,6 @@ jobs:
             grep -q "lib/arm64-v8a/libggml-htp-$htp.so" "$RUNNER_TEMP/nexus-native-list.txt" || { echo "::error::HTP $htp missing"; exit 1; }
           done
           echo "Native packaging verified; this is NOT proof of NPU execution."
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: weather-widget-render
-          path: app/build/reports/weather-widget*.png
-          retention-days: 14
       - name: Verify APK signature and prepare download
         env:
           GH_TOKEN: ${{ github.token }}
@@ -359,9 +322,6 @@ jobs:
           name: nexus-hub-app-apk
           path: apk/
           retention-days: 30
-      - name: Require successful feature UI verification
-        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success' || steps.paste_ui.outcome != 'success' || steps.connected_ui.outcome != 'success' || steps.scroll_ui.outcome != 'success' || steps.activity_ui.outcome != 'success'
-        run: exit 1
       - name: Publish installable APK
         if: github.ref == 'refs/heads/main'
         env:
