@@ -35,63 +35,48 @@ class IntelligenceRuntime private constructor(private val app: Context) {
     @Volatile private var copied = 0L
     @Volatile private var total = -1L
 
-    private fun defaults() = JSONObject()
-        .put("backend","AUTO").put("threads",4).put("batchThreads",6)
-        .put("contextSize",8192).put("batch",512).put("microbatch",256)
-        .put("q8Kv",true).put("flashAttention",true).put("mlock",false)
-        .put("gpuLayers",999).put("temperature",0.2).put("topP",0.95)
-        .put("topK",64).put("minP",0.0).put("repeatPenalty",1.0)
-        .put("seed",-1).put("maxOutputTokens",512).put("thinking",false)
-        .put("audit",false).put("warmModel",true)
 
-    private fun config(): JSONObject = JSONObject(prefs.getString("config",null) ?: defaults().toString())
+    private fun config(): JSONObject =
+        GemmaConfig.load(prefs.getString("config", null))
     fun profile(): JSONObject = synchronized(mutex) { JSONObject(config().toString()) }
 
     fun saveProfile(input: JSONObject): JSONObject {
         check(!processing && !importing) { "Modellen arbetar. Vänta på säker gräns." }
         return synchronized(mutex) {
-        check(!processing && !importing) { "Inställningar kan inte ändras medan modellen arbetar." }
-        val current = defaults()
-        require(input.keys().asSequence().all { current.has(it) }) { "Okänd inställning" }
-        input.keys().forEach { key -> current.put(key,input.get(key)) }
-        require(current.getString("backend") in setOf("AUTO","CPU","GPU_OPENCL","NPU_HEXAGON"))
-        for((key,lo,hi) in listOf(
-            Triple("threads",1,12),Triple("batchThreads",1,12),
-            Triple("contextSize",1024,65536),Triple("batch",64,2048),
-            Triple("microbatch",32,1024),Triple("gpuLayers",0,999),
-            Triple("topK",1,256),Triple("maxOutputTokens",16,4096))) {
-            val value = current.getInt(key)
-            require(value in lo..hi) { "$key utanför tillåtet intervall" }
-        }
-        require(current.getInt("microbatch")<=current.getInt("batch"))
-        require(current.getInt("maxOutputTokens")+16<current.getInt("contextSize"))
-        for((key,lo,hi) in listOf(
-            Triple("temperature",0.0,2.0),Triple("topP",0.01,1.0),
-            Triple("minP",0.0,1.0),Triple("repeatPenalty",1.0,2.0))) {
-            val v = current.getDouble(key)
-            require(v.isFinite() && v>=lo && v<=hi) { "$key är ogiltig" }
-        }
-        for(key in listOf("q8Kv","flashAttention","mlock","thinking","audit","warmModel"))
-            require(current.get(key) is Boolean) { "$key måste vara boolean" }
-        prefs.edit().putString("config",current.toString()).commit().also { check(it) }
-        // Reload required for engine-affecting parameters. Inactive engines are released safely.
-        if(LlamaNative.isLoaded && LlamaNative.isEngineInitialized()) LlamaNative.releaseEngine()
-        loadedSignature = null
-        JSONObject(current.toString())
+            check(!processing && !importing) { "Inställningar kan inte ändras medan modellen arbetar." }
+            val next = GemmaConfig.updateAndValidate(config(), input)
+            val newEngineSignature = GemmaConfig.engineSignature(
+                next, prefs.getString("sha256", "").orEmpty())
+            check(prefs.edit().putString("config", next.toString()).commit()) {
+                "Inställningarna kunde inte sparas."
+            }
+            // Only native initialization changes force a cold reload.
+            // A disabled warm policy also unloads any currently active engine.
+            if (loadedSignature != null &&
+                (loadedSignature != newEngineSignature || !next.getBoolean("warmModel"))) {
+                if (LlamaNative.isLoaded && LlamaNative.isEngineInitialized()) LlamaNative.releaseEngine()
+                loadedSignature = null
+            }
+            JSONObject(next.toString())
         }
     }
 
-    fun status(): JSONObject =
-        JSONObject().put("nativeLoaded",LlamaNative.isLoaded)
-            .put("importing",importing).put("processing",processing)
-            .put("imported",model.isFile && model.length()>100L*1024*1024)
-            .put("fileBytes",if(model.isFile)model.length() else 0L)
-            .put("filename",prefs.getString("sourceName","") ?: "")
-            .put("sha256",prefs.getString("sha256","") ?: "")
-            .put("copyBytes",copied).put("copyTotal",total)
-            .put("warm",loadedSignature!=null && LlamaNative.isLoaded && !processing)
-            .put("config",config())
-            .put("lastTelemetry",JSONObject(prefs.getString("telemetry","{}") ?: "{}"))
+    fun status(): JSONObject {
+        val p = config()
+        return JSONObject().put("nativeLoaded", LlamaNative.isLoaded)
+            .put("importing", importing).put("processing", processing)
+            .put("imported", model.isFile && model.length() > 100L * 1024 * 1024)
+            .put("fileBytes", if (model.isFile) model.length() else 0L)
+            .put("filename", prefs.getString("sourceName", "") ?: "")
+            .put("sha256", prefs.getString("sha256", "") ?: "")
+            .put("copyBytes", copied).put("copyTotal", total)
+            .put("warm", loadedSignature != null && !processing &&
+                loadedSignature == GemmaConfig.engineSignature(
+                    p, prefs.getString("sha256", "").orEmpty()) &&
+                LlamaNative.isLoaded && LlamaNative.isEngineInitialized())
+            .put("config", p)
+            .put("lastTelemetry", JSONObject(prefs.getString("telemetry", "{}") ?: "{}"))
+    }
 
     /** Must run on a background thread. An interrupted import preserves the prior model. */
     fun import(uri: Uri): JSONObject {
@@ -180,8 +165,10 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         processing=true
         try {
             val p=config()
-            val signature=p.toString()+":"+prefs.getString("sha256","")
-            if(loadedSignature!=signature || !LlamaNative.isEngineInitialized()) {
+            val signature=GemmaConfig.engineSignature(p,prefs.getString("sha256","").orEmpty())
+            val warmAtStart=loadedSignature==signature && LlamaNative.isEngineInitialized()
+            val loadStart=android.os.SystemClock.elapsedRealtime()
+            if(!warmAtStart) {
                 val importedHash=prefs.getString("sha256","").orEmpty()
                 require(Regex("[a-f0-9]{64}").matches(importedHash)) { "Importen saknar giltig SHA-256-identitet." }
                 check(GgufInspector.sha256(model)==importedHash) { "Modellens bytes avviker från verifierad import. Importera igen." }
@@ -207,6 +194,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                 }
                 loadedSignature=signature
             }
+            val loadThisTurnMs=if(warmAtStart) 0L else android.os.SystemClock.elapsedRealtime()-loadStart
             // An explicitly selected accelerator is a strict precondition.
             // Verify freshly loaded and warm engines before generating any token.
             val selected=p.getString("backend")
@@ -259,7 +247,10 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                 .put("fallbackReason",telemetry.optString("fallback_reason",""))
                 .put("offloadedLayers",offloaded)
                 .put("npuExecutionVerified",false)
-                .put("telemetry",normalTelemetry(telemetry)).put("modelSha256",prefs.getString("sha256",""))
+                .put("telemetry",normalTelemetry(telemetry).apply {
+                    put("sessionStartState",if(warmAtStart)"WARM" else "COLD")
+                    put("modelLoadThisRequestMs",loadThisTurnMs)
+                }).put("modelSha256",prefs.getString("sha256",""))
             if(p.getBoolean("audit") && selected in setOf("AUTO","NPU_HEXAGON")) {
                 try {
                     val raw=LlamaNative.getHtpExecutionAuditJson(actual,
@@ -272,7 +263,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                     result.put("auditError",e.message?.take(180) ?: "Audit kunde inte läsas")
                 }
             }
-            prefs.edit().putString("telemetry",normalTelemetry(telemetry).toString()).apply()
+            prefs.edit().putString("telemetry",result.getJSONObject("telemetry").toString()).apply()
             if(!p.getBoolean("warmModel")) { LlamaNative.releaseEngine(); loadedSignature=null }
             result
         } catch(e:Exception) {

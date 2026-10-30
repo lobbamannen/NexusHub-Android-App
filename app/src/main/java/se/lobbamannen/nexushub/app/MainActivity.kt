@@ -225,8 +225,14 @@ class MainActivity : Activity() {
         pendingSeries = null
         webView.evaluateJavascript("location.hash=" + JSONObject.quote("serier?item=" + Uri.encode(target)) + ";", null)
     }
+    override fun onStart() { super.onStart(); GemmaRuntime.get(applicationContext).onForeground() }
     override fun onResume() { super.onResume(); NexusTelemetry.foreground(); if (::nexusMessages.isInitialized) nexusMessages.resume() }
-    override fun onStop() { NexusTelemetry.background(); if (::nexusMessages.isInitialized) nexusMessages.stop(); super.onStop() }
+    override fun onStop() {
+        GemmaRuntime.get(applicationContext).onBackground()
+        NexusTelemetry.background()
+        if (::nexusMessages.isInitialized) nexusMessages.stop()
+        super.onStop()
+    }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (::nexusMessages.isInitialized) nexusMessages.permissions(requestCode)
@@ -269,13 +275,13 @@ class MainActivity : Activity() {
 
         // Local model only. No job queue, document analysis or GitHub writes.
         @JavascriptInterface fun gemmaStatus():String =
-            if(trustedDocument)try{IntelligenceRuntime.get(applicationContext).status().toString()}
+            if(trustedDocument)try{GemmaRuntime.get(applicationContext).status().toString()}
             catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
 
         @JavascriptInterface fun gemmaSaveProfile(raw:String):String =
             if(trustedDocument)try{
                 require(raw.length<=16000)
-                IntelligenceRuntime.get(applicationContext).saveProfile(JSONObject(raw)).toString()
+                GemmaRuntime.get(applicationContext).saveProfile(JSONObject(raw)).toString()
             }catch(e:Exception){JSONObject().put("error",e.message?:"Felaktiga modellinställningar").toString()} else "{}"
 
         @JavascriptInterface fun gemmaImportModel():Boolean {
@@ -292,11 +298,11 @@ class MainActivity : Activity() {
             return true
         }
         @JavascriptInterface fun gemmaDeleteModel():Boolean =
-            trustedDocument && try{IntelligenceRuntime.get(applicationContext).delete();true}catch(_:Exception){false}
+            trustedDocument && try{GemmaRuntime.get(applicationContext).deleteModel();true}catch(_:Exception){false}
         @JavascriptInterface fun gemmaUnloadModel():Boolean =
-            trustedDocument && try{IntelligenceRuntime.get(applicationContext).unload();true}catch(_:Exception){false}
+            trustedDocument && try{GemmaRuntime.get(applicationContext).unload();true}catch(_:Exception){false}
         @JavascriptInterface fun gemmaCancel():Boolean =
-            trustedDocument && try{IntelligenceRuntime.get(applicationContext).cancel();true}catch(_:Exception){false}
+            trustedDocument && try{GemmaRuntime.get(applicationContext).cancel();true}catch(_:Exception){false}
 
         /** Only this explicit chat can invoke Gemma. It runs away from the UI thread. */
         @JavascriptInterface fun gemmaChatSend(raw:String,requestId:String):Boolean {
@@ -304,7 +310,7 @@ class MainActivity : Activity() {
                 !Regex("[a-fA-F0-9-]{36}").matches(requestId))return false
             io.execute {
                 val answer=try {
-                    val result=IntelligenceRuntime.get(applicationContext).chat(org.json.JSONArray(raw))
+                    val result=GemmaClient.get(applicationContext).chat(org.json.JSONArray(raw))
                     JSONObject().put("requestId",requestId).put("ok",true).put("result",result)
                 }catch(e:Exception){
                     JSONObject().put("requestId",requestId).put("ok",false)
@@ -470,7 +476,7 @@ class MainActivity : Activity() {
             val uri=if(resultCode==RESULT_OK)data?.data else null
             if(uri!=null)io.execute {
                 try {
-                    IntelligenceRuntime.get(applicationContext).import(uri)
+                    GemmaRuntime.get(applicationContext).importModel(uri)
                     activityEvent("intelligence_model_imported","succeeded","Gemma 4 E2B importerad")
                     notifyUser("Modellen har importerats och verifierats.")
                 }catch(e:Exception){
