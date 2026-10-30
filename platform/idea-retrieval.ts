@@ -123,7 +123,7 @@ export async function buildIdeaCorpus(progress:(message:string,done:number,total
  }
  return {commit:snapshot.commit,docs,changed,skipped,semanticReady,semanticTotal,profile,incomplete:semanticReady<semanticTotal,unsupportedFiles};
 }
-export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=>boolean):Promise<{hits:Hit[];mode:string;embeddingMs:number;scanMs:number;fallback:string}>{
+export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=>boolean,hitLimit=32):Promise<{hits:Hit[];mode:string;embeddingMs:number;scanMs:number;fallback:string}>{
  const start=performance.now(),terms=tokenize(query),all=corpus.docs.flatMap(d=>d.chunks).filter(c=>!filter||filter(c));
  if(!query.trim())return {hits:[],mode:'none',embeddingMs:0,scanMs:0,fallback:'Tom fråga'};
  const df=new Map<string,number>();for(const c of all){const tokens=new Set(tokenize(c.text+' '+c.title));for(const t of terms)if(tokens.has(t))df.set(t,(df.get(t)||0)+1)}
@@ -164,14 +164,14 @@ export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=
   const l=lRanks.get(c.id)||null,s=sRanks.get(c.id)||null;
   return {chunk:c,lexicalRank:l,semanticRank:s,cosine:sScores.get(c.id)??null,
    score:(l?0.5/(60+l):0)+(s?0.5/(60+s):0),reason:l&&s?'hybrid':s?'semantic':'lexical'} as Hit;
- }).sort((a,b)=>b.score-a.score||a.chunk.id.localeCompare(b.chunk.id)).slice(0,32);
+ }).sort((a,b)=>b.score-a.score||a.chunk.id.localeCompare(b.chunk.id)).slice(0,hitLimit);
  return {hits,mode:semantic.length?'HYBRID':'LEXICAL_FALLBACK',embeddingMs,scanMs:performance.now()-start-embeddingMs,fallback};
 }
 export async function relatedReportCandidates(corpus:Corpus,idea:{id:string;text:string},limit=6):Promise<RelationCandidate[]>{
  const probes=ideaProbes(idea.text);
  const results:Hit[][]=[];
  for(const probe of probes){
-  const found=await searchCorpus(corpus,probe,c=>c.kind!=='idea'&&c.path!=='Ideer/'+idea.id+'.json');
+  const found=await searchCorpus(corpus,probe,c=>c.kind!=='idea'&&c.path!=='Ideer/'+idea.id+'.json',96);
   results.push(found.hits);
  }
  return rankIdeaRelations(idea.text,results,limit);
