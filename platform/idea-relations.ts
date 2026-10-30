@@ -22,17 +22,23 @@ export function ideaProbes(text:string):string[]{
 }
 export function rankIdeaRelations(ideaText:string,searches:Hit[][],limit=6):RelationCandidate[]{
  const terms=new Set(distinctiveTerms(ideaText));
- const byDocument=new Map<string,{best:Hit;scores:number[];probes:Set<number>;windows:Set<string>;matches:Set<string>}>();
+ const shortIdea=terms.size<=3;
+ const byDocument=new Map<string,{best:Hit;scores:number[];probes:Set<number>;windows:Set<string>;matches:Set<string>;titleMatches:Set<string>;focusedWindows:number}>();
  searches.forEach((hits,probe)=>{
   for(const hit of hits){
    const path=hit.chunk.path;
    let candidate=byDocument.get(path);
-   if(!candidate){candidate={best:hit,scores:[],probes:new Set(),windows:new Set(),matches:new Set()};byDocument.set(path,candidate);}
-   if(!candidate.windows.has(hit.chunk.id)){candidate.windows.add(hit.chunk.id);candidate.scores.push(hit.score);}
+   if(!candidate){candidate={best:hit,scores:[],probes:new Set(),windows:new Set(),matches:new Set(),titleMatches:new Set(),focusedWindows:0};byDocument.set(path,candidate);}
+   if(!candidate.windows.has(hit.chunk.id)){
+    candidate.windows.add(hit.chunk.id);candidate.scores.push(hit.score);
+    const bodyTerms=new Set(distinctiveTerms(hit.chunk.text));
+    if([...terms].some(t=>bodyTerms.has(t)))candidate.focusedWindows++;
+   }
    if(hit.score>candidate.best.score)candidate.best=hit;
    candidate.probes.add(probe);
    const source=new Set(distinctiveTerms(hit.chunk.title+' '+hit.chunk.heading+' '+hit.chunk.text));
-   for(const term of terms)if(source.has(term))candidate.matches.add(term);
+   const titleTerms=new Set(distinctiveTerms(hit.chunk.title.replace(/^[0-9a-f-]{36}-/i,'')+' '+hit.chunk.heading));
+   for(const term of terms){if(source.has(term))candidate.matches.add(term);if(titleTerms.has(term))candidate.titleMatches.add(term);}
   }
  });
  const output:RelationCandidate[]=[];
@@ -44,11 +50,16 @@ export function rankIdeaRelations(ideaText:string,searches:Hit[][],limit=6):Rela
   // Reject lexical-only matches and generic semantic proximity unless supported by
   // distinctive vocabulary or independent probes; confidence is NOT proof of relation.
   const independent=entry.probes.size>=2;
-  const strong=semantic>=0.76&&(distinct>=2||independent)&&coverage>=0.04;
-  const possible=semantic>=0.72&&(distinct>=2||independent)||semantic>=0.80&&distinct>=1;
+  const titleFocused=entry.titleMatches.size>0;
+  const strong=shortIdea
+   ? semantic>=0.73&&distinct>=1&&titleFocused&&entry.focusedWindows>=1
+   : semantic>=0.76&&(distinct>=2||independent)&&coverage>=0.04;
+  const possible=shortIdea
+   ? semantic>=0.70&&distinct>=1&&(titleFocused||entry.focusedWindows>=2)
+   : semantic>=0.72&&(distinct>=2||independent)||semantic>=0.80&&distinct>=1;
   if(!strong&&!possible)continue;
-  const score=semantic*0.7+Math.min(distinct,6)*0.035+Math.min(entry.probes.size,3)*0.025+Math.min(entry.windows.size,3)*0.01;
-  output.push({hit:best,confidence:strong?'strong':'possible',evidenceCount:entry.windows.size,matchedProbes:entry.probes.size,score,reason:strong?'Semantiskt samband med särskiljande stöd':'Möjligt samband – behöver granskas'});
+  const score=semantic*0.7+Math.min(distinct,6)*0.035+Math.min(entry.probes.size,3)*0.025+Math.min(entry.windows.size,3)*0.01+Math.min(entry.titleMatches.size,2)*0.13+Math.min(entry.focusedWindows,4)*0.025;
+  output.push({hit:best,confidence:strong?'strong':'possible',evidenceCount:entry.windows.size,matchedProbes:entry.probes.size,score,reason:titleFocused?'Ämnet finns i dokumentets titel eller avsnitt och stöds av innehållet':strong?'Semantiskt samband med särskiljande stöd':'Möjligt samband – behöver granskas'});
  }
  return output.sort((a,b)=>Number(b.confidence==='strong')-Number(a.confidence==='strong')||b.score-a.score||a.hit.chunk.path.localeCompare(b.hit.chunk.path)).slice(0,limit);
 }
