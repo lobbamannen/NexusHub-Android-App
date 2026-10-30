@@ -238,12 +238,13 @@ ${source}
     private fun execute(id:String):Result {
         val store=IntelligenceRunStore(app)
         val initial=store.get(id)?:return Result.failure()
-        val state=initial.getString("state")
+        var state=initial.getString("state")
         if(state in setOf("completed","cancelled","local_completed"))return Result.success()
         if(state=="waiting_resource") {
             val current=IntelligenceResourcePolicy.snapshot(app)
             if(!current.getBoolean("allowed"))return Result.retry()
             if(!store.transition(id,"waiting_resource","queued"))return Result.success()
+            state="queued"
         }
         if(state=="cancelling") {store.transition(id,"cancelling","cancelled");IntelligenceNotifications.terminal(app,id,"cancelled");return Result.success()}
         if(state=="running") {
