@@ -127,6 +127,28 @@ object IntelligenceJobs {
     /** Reattach orphaned queued/running work after process death without replacing live work. */
     fun reconcile(context:Context) {
         val store=IntelligenceRunStore(context)
+        // Drain a state-specific batch to avoid offset skipping when timestamps
+        // change during recovery; a cancelled worker must end terminally.
+        var rounds=0
+        while(rounds++<500){
+            val rows=store.listByState("cancelling")
+            if(rows.length()==0)break
+            var repaired=0
+            for(i in 0 until rows.length()){
+                val id=rows.getJSONObject(i).getString("id")
+                if(store.transition(id,"cancelling","cancelled")){
+                    IntelligenceNotifications.terminal(context,id,"cancelled")
+                    repaired++
+                }
+            }
+            if(repaired==0)break
+        }
+        // Recheck after process death between the atomic index switch and
+        // cross-database evidence invalidation.
+        val indexState=IntelligenceIndexStore(context).status()
+        if(indexState.optBoolean("ready")){
+            try{store.invalidateOlderEvidence(indexState.getString("commit"))}catch(_:Exception){}
+        }
         var offset=0
         do {
             val runs=store.list(200,offset)
@@ -134,10 +156,6 @@ object IntelligenceJobs {
                 val row=runs.getJSONObject(i)
                 when(row.optString("state")) {
                     "running","queued" -> schedule(context,row.getString("id"),ExistingWorkPolicy.KEEP)
-                    "cancelling" -> {
-                        if(store.transition(row.getString("id"),"cancelling","cancelled"))
-                            IntelligenceNotifications.terminal(context,row.getString("id"),"cancelled")
-                    }
                 }
             }
             offset+=runs.length()
