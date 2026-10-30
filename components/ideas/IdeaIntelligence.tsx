@@ -1,7 +1,8 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {BrainCircuit,RefreshCw,CheckCircle2,AlertTriangle,Copy,ExternalLink,Search} from 'lucide-react';
-import {buildIdeaCorpus,relatedReports,sourceLink,type Corpus,type Hit} from '@/platform/idea-retrieval';
+import {buildIdeaCorpus,relatedReportCandidates,sourceLink,type Corpus,type Hit} from '@/platform/idea-retrieval';
 import {durableGet,durableSet} from '@/platform/local-store';
+import type {RelationCandidate} from '@/platform/idea-relations';
 import {embeddingStatus,importEmbeddingModel} from '@/platform/embedding-bridge';
 
 type Idea={id:string;text:string};
@@ -10,7 +11,7 @@ const key=(id:string,path:string)=>'nexus-idea-decision:v1:'+id+':'+path;
 export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
  const [corpus,setCorpus]=useState<Corpus|null>(null),[status,setStatus]=useState(embeddingStatus);
  const [running,setRunning]=useState(false),[message,setMessage]=useState(''),[progress,setProgress]=useState({done:0,total:0});
- const [error,setError]=useState(''),[matches,setMatches]=useState<Record<string,Hit[]>>({});
+ const [error,setError]=useState(''),[matches,setMatches]=useState<Record<string,RelationCandidate[]>>({});
  const [decisions,setDecisions]=useState<Record<string,Decision>>({});
  const [selected,setSelected]=useState(''),abort=useRef<AbortController|null>(null),seq=useRef(0);
  const ideasKey=JSON.stringify(ideas.map(i=>[i.id,i.text]));
@@ -23,10 +24,10 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
   try{
    const found=await buildIdeaCorpus((m,done,total)=>{if(token===seq.current){setMessage(m);setProgress({done,total})}},controller.signal);
    if(token!==seq.current)return;
-   setCorpus(found);const next:Record<string,Hit[]>={};const states:Record<string,Decision>={};
+   setCorpus(found);const next:Record<string,RelationCandidate[]>={};const states:Record<string,Decision>={};
    for(const idea of list){if(controller.signal.aborted)break;
-    next[idea.id]=await relatedReports(found,idea);
-    for(const hit of next[idea.id]){const d=await durableGet<Decision>(key(idea.id,hit.chunk.path));if(d)states[key(idea.id,hit.chunk.path)]=d;}
+    next[idea.id]=await relatedReportCandidates(found,idea);
+    for(const candidate of next[idea.id]){const hit=candidate.hit;const d=await durableGet<Decision>(key(idea.id,hit.chunk.path));if(d)states[key(idea.id,hit.chunk.path)]=d;}
     if(token===seq.current)setMatches({...next});
    }
    setDecisions(states);setMessage(found.incomplete?'Delvis indexerat – fortsätt för att indexera resterande fönster.':'Indexet är uppdaterat.');
@@ -45,9 +46,9 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
  const chosen=matches[current?.id||'']||[];
  const handoff=async()=>{
   if(!current||!corpus)return;
-  const accepted=chosen.filter(h=>decisions[key(current.id,h.chunk.path)]?.state!=='dismissed');
+  const accepted=chosen.filter(c=>decisions[key(current.id,c.hit.chunk.path)]?.state!=='dismissed');
   const text=['NexusHub – versionsbunden idéöverlämning','Databas commit: '+corpus.commit,'Idé-ID: '+current.id,'Idétext:\n'+current.text,'','Föreslagna forskningsunderlag (ej verifierade relationer):',
-   ...accepted.map((hit,i)=>'\n'+(i+1)+'. '+hit.chunk.path+'\nSHA: '+hit.chunk.sha+'\nKälla: '+sourceLink(hit.chunk.path,corpus.commit)+'\nRelevant utdrag: '+hit.chunk.text.slice(0,850))].join('\n');
+   ...accepted.map(({hit},i)=>'\n'+(i+1)+'. '+hit.chunk.path+'\nSHA: '+hit.chunk.sha+'\nKälla: '+sourceLink(hit.chunk.path,corpus.commit)+'\nRelevant utdrag: '+hit.chunk.text.slice(0,850))].join('\n');
   try{await navigator.clipboard.writeText(text);setMessage('Versionsbundet underlag kopierat till urklipp.')}catch{setError('Kopiering blockerad av Android/WebView.')}
  };
  return <section className="panel nh-idea-intelligence" aria-label="Intelligent idéinkorg">
@@ -60,11 +61,11 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
   {error&&<p className="error-banner" role="alert"><AlertTriangle size={16}/>{error}</p>}
   {corpus&&<p className="nh-source-caption">{corpus.docs.length} dokument · {corpus.semanticReady}/{corpus.semanticTotal} semantiska textfönster · {corpus.unsupportedFiles?corpus.unsupportedFiles+' PDF/DOCX väntar på textextraktion · ':''}{corpus.incomplete?'Ofullständigt index':'Aktuellt index'} · Git {corpus.commit.slice(0,9)}</p>}
   {!!list.length&&<><label className="field">Välj idé<select value={current?.id||''} onChange={e=>setSelected(e.target.value)}>{list.map(i=><option key={i.id} value={i.id}>{i.text.replace(/\s+/g,' ').slice(0,85)}</option>)}</select></label>
-   {!running&&!chosen.length&&<p className="muted small">Inga relevanta underlag hittades i det aktuella sökindexet.</p>}
-   {chosen.map(hit=>{const d=decisions[key(current.id,hit.chunk.path)],suppressed=d?.state==='dismissed'&&d.sha===hit.chunk.sha;
+   {!running&&!chosen.length&&<p className="muted small">Inga tillräckligt starka relationskandidater hittades. Det betyder inte att samband saknas.</p>}
+   {chosen.map(candidate=>{const hit=candidate.hit;const d=decisions[key(current.id,hit.chunk.path)],suppressed=d?.state==='dismissed'&&d.sha===hit.chunk.sha;
     return <article key={hit.chunk.path} className="nh-idea-match" style={{opacity:suppressed ? 0.55 : 1}}>
-     <div className="nh-gemma-row"><strong>{hit.chunk.title}</strong><small>{hit.reason==='hybrid'?'Hybridträff':hit.reason==='semantic'?'Semantisk träff':'Textträff'}</small></div>
-     <p>{hit.chunk.text.slice(0,460)}{hit.chunk.text.length>460?'…':''}</p>
+     <div className="nh-gemma-row"><strong>{hit.chunk.title}</strong><small>{candidate.confidence==='strong'?'Stark kandidat':'Möjlig kandidat'} · {hit.reason==='hybrid'?'Hybridträff':hit.reason==='semantic'?'Semantisk träff':'Textträff'}</small></div>
+     <p className="nh-source-caption">{candidate.reason} · {candidate.matchedProbes} idéavsnitt · {candidate.evidenceCount} textfönster. Förslag, inte verifierad relation.</p><p>{hit.chunk.text.slice(0,460)}{hit.chunk.text.length>460?'…':''}</p>
      <p className="nh-source-caption">Dokument: {hit.chunk.path} · SHA: {hit.chunk.sha.slice(0,12)} · Avsnitt #{hit.chunk.index+1} · Semantisk rang: {hit.semanticRank??'–'} · Lexikal rang: {hit.lexicalRank??'–'}{hit.cosine!=null?' · Cosine: '+hit.cosine.toFixed(3):''}</p>
      <div className="nh-gemma-actions"><a href={sourceLink(hit.chunk.path,corpus?.commit||'main')} target="_blank" rel="noopener noreferrer">Visa original <ExternalLink size={14}/></a>
       <button className="secondary" type="button" onClick={()=>void decision(current.id,hit,'reviewed')}><CheckCircle2 size={14}/> {d?.state==='reviewed'?'Granskad':'Markera granskad'}</button>
