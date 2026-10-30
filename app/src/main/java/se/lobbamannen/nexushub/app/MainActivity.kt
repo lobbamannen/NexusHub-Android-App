@@ -32,6 +32,7 @@ class MainActivity : Activity() {
         private const val HOST = "appassets.androidplatform.net"
         private const val HOME = "https://appassets.androidplatform.net/index.html"
         private const val PICK_MODEL = 1003
+        private const val PICK_EMBEDDING_MODEL = 1004
         private const val PICK_FILE = 1001
         private const val SAVE_FILE = 1002
         private const val MAX_FILE_BYTES = 64 * 1024 * 1024
@@ -304,6 +305,45 @@ class MainActivity : Activity() {
         @JavascriptInterface fun gemmaCancel():Boolean =
             trustedDocument && try{GemmaRuntime.get(applicationContext).cancel();true}catch(_:Exception){false}
 
+        /** EmbeddingGemma 2 is explicitly imported; the existing GGUF is untouched. */
+        @JavascriptInterface fun embeddingStatus():String =
+            if(trustedDocument) EmbeddingGemmaRuntime.get(applicationContext).status().toString() else "{}"
+
+        @JavascriptInterface fun embeddingImportModel():Boolean {
+            if(!trustedDocument)return false
+            runOnUiThread {
+                try {
+                    startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        type="*/*"
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                    }, PICK_EMBEDDING_MODEL)
+                }catch(e:Exception){notifyUser("Kunde inte öppna modellväljaren: "+e.message)}
+            }
+            return true
+        }
+
+        @JavascriptInterface fun embeddingRun(raw:String,requestId:String):Boolean {
+            if(!trustedDocument || raw.length !in 2..35000 ||
+                !Regex("[a-fA-F0-9-]{36}").matches(requestId))return false
+            io.execute {
+                val result=try {
+                    // Sequential model lifecycle: never keep both engines loaded.
+                    GemmaRuntime.get(applicationContext).unload()
+                    JSONObject().put("ok",true)
+                        .put("result",EmbeddingGemmaRuntime.get(applicationContext).embed(JSONObject(raw)))
+                }catch(e:Exception) {
+                    JSONObject().put("ok",false).put("error",(e.message?:"Embedding misslyckades").take(500))
+                }.put("requestId",requestId)
+                val literal=JSONObject.quote(result.toString())
+                runOnUiThread {
+                    if(trustedDocument && !isFinishing && !isDestroyed)
+                        webView.evaluateJavascript(
+                            "window.dispatchEvent(new CustomEvent('nexus-embedding-result',{detail:JSON.parse("+literal+")}));",null)
+                }
+            }
+            return true
+        }
+
         /** Only this explicit chat can invoke Gemma. It runs away from the UI thread. */
         @JavascriptInterface fun gemmaChatSend(raw:String,requestId:String):Boolean {
             if(!trustedDocument || raw.length !in 2..36000 ||
@@ -482,6 +522,17 @@ class MainActivity : Activity() {
                 }catch(e:Exception){
                     activityEvent("intelligence_model_import_failed","failed","Gemma-import misslyckades")
                     notifyUser("Modellimport: "+(e.message?:"okänt fel").take(200))
+                }
+            }
+        } else if(requestCode == PICK_EMBEDDING_MODEL) {
+            val uri=if(resultCode==RESULT_OK)data?.data else null
+            if(uri!=null)io.execute {
+                try {
+                    GemmaRuntime.get(applicationContext).unload()
+                    EmbeddingGemmaRuntime.get(applicationContext).importModel(uri)
+                    notifyUser("EmbeddingGemma 2 installerad och testad.")
+                }catch(e:Exception) {
+                    notifyUser("EmbeddingGemma 2: "+(e.message?:"Importfel").take(220))
                 }
             }
         } else if (requestCode == PICK_FILE) {
