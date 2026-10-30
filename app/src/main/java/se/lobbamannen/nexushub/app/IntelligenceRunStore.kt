@@ -191,6 +191,38 @@ class IntelligenceRunStore(context: Context) {
     }
 
     /** Global counters, independent of how many history pages the UI has loaded. */
+    /** Keep the original result but make prior index-bound evidence non-authoritative. */
+    fun invalidateOlderEvidence(currentIndexCommit:String):Int {
+        require(Regex("[a-f0-9]{40}").matches(currentIndexCommit))
+        val outdated=ArrayList<Pair<String,JSONObject>>()
+        synchronized(helper) {
+            helper.readableDatabase.rawQuery("""SELECT id,result_json FROM runs
+                WHERE workflow IN ('idea_analysis','document_analysis','manual_check')
+                AND state IN ('local_completed','completed')
+                AND sync_state<>'stale'""",null).use{c->
+                while(c.moveToNext())try{
+                    val result=JSONObject(c.getString(1))
+                    val origin=result.optString("indexCommit")
+                    if(origin.isNotBlank() && origin!=currentIndexCommit)
+                        outdated.add(c.getString(0) to result)
+                }catch(_:Exception){}
+            }
+        }
+        if(outdated.isEmpty())return 0
+        transaction{db->
+            for((id,result) in outdated) {
+                result.put("evidenceStale",true)
+                    .put("staleReason","Sökindexet har ändrats; verifiera källorna och analysera om.")
+                    .put("replacedByIndexCommit",currentIndexCommit)
+                db.execSQL("""UPDATE runs SET sync_state='stale',result_json=?,
+                    updated_at=?,revision=revision+1
+                    WHERE id=? AND sync_state<>'stale'""",
+                    arrayOf(result.toString(),now(),id))
+            }
+        }
+        return outdated.size
+    }
+
     fun counts():JSONObject=synchronized(helper) {
         val result=JSONObject().put("active",0).put("waiting",0)
             .put("complete",0).put("failed",0)
