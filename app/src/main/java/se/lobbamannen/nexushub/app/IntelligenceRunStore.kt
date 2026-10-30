@@ -206,6 +206,7 @@ class IntelligenceRunStore(context: Context) {
     /** Keep the original result but make prior index-bound evidence non-authoritative. */
     fun invalidateOlderEvidence(currentIndexCommit:String):Int {
         require(Regex("[a-f0-9]{40}").matches(currentIndexCommit))
+        val index=IntelligenceIndexStore(journalContext)
         val outdated=ArrayList<Pair<String,JSONObject>>()
         synchronized(helper) {
             helper.readableDatabase.rawQuery("""SELECT id,result_json FROM runs
@@ -215,8 +216,26 @@ class IntelligenceRunStore(context: Context) {
                 while(c.moveToNext())try{
                     val result=JSONObject(c.getString(1))
                     val origin=result.optString("indexCommit")
-                    if(origin.isNotBlank() && origin!=currentIndexCommit)
-                        outdated.add(c.getString(0) to result)
+                    if(origin.isNotBlank() && origin!=currentIndexCommit) {
+                        val proposals=result.optJSONArray("proposals") ?: JSONArray()
+                        val sourcePath=result.optString("sourcePath")
+                        val sourceSha=result.optString("sourceSha")
+                        // Keep still-valid, unchanged evidence when an unrelated
+                        // GitHub commit advances the index; invalidate deleted or
+                        // changed source blobs and previous empty search results.
+                        var changed=proposals.length()==0 ||
+                            (sourcePath.isNotBlank() &&
+                                !index.hasVerifiedSource(sourcePath,sourceSha))
+                        for(i in 0 until proposals.length()){
+                            val item=proposals.getJSONObject(i)
+                            if(!index.hasVerifiedSource(item.optString("path"),
+                                    item.optString("blobSha"))){
+                                changed=true
+                                break
+                            }
+                        }
+                        if(changed)outdated.add(c.getString(0) to result)
+                    }
                 }catch(_:Exception){}
             }
         }
@@ -224,7 +243,7 @@ class IntelligenceRunStore(context: Context) {
         transaction{db->
             for((id,result) in outdated) {
                 result.put("evidenceStale",true)
-                    .put("staleReason","Sökindexet har ändrats; verifiera källorna och analysera om.")
+                    .put("staleReason","En källa har ändrats eller tidigare sökresultat behöver omvärderas.")
                     .put("replacedByIndexCommit",currentIndexCommit)
                 db.execSQL("""UPDATE runs SET sync_state='stale',result_json=?,
                     updated_at=?,revision=revision+1
