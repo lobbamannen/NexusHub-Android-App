@@ -91,3 +91,8 @@ Statusarna nedan avser HELA kravpunkten. Delimplementering utan sluttest får in
 
 ## Känd leveransstatus
 Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actions 41057247594 (commit `da70520b1df4c0755eaacd65ed79591610827df4`). Den nya 64K-kodvägen kräver ytterligare CI och telefonprov. Idé 33 kvarstår som `new`. Fortsätt endast med verifierade commits; publicera inte på main förrän acceptanskriterierna är uppfyllda.
+
+## Lokala relationsbeslut
+- Ett separat SQLite-register sparar godkännande eller avvisning per källbunden proposal och revision. Identiteten binds till Git-blob, repo-commit, ordagrant citat och SHA-256 av det lokala förslaget. Beslut loggas separat i aktivitetsjournalen och kan exporteras tillsammans med analysen.
+- **Godkänn lokalt** är medvetet inte en GitHub-skrivning eller bevis för att AI-slutsatsen är sann. Publicering av relationer behöver ett separat användargodkänt GitHub-kontrakt med versionskontroll.
+- Vid modellimport återköas väntande `waiting_model`-körningar.

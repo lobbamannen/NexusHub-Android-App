@@ -287,6 +287,12 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceRuns():String =
             if(trustedDocument)try{IntelligenceRunStore(applicationContext).list().toString()}
             catch(_:Exception){"[]"} else "[]"
+        @JavascriptInterface fun intelligenceReviews(id:String):String =
+            if(trustedDocument)try{IntelligenceReviewStore(applicationContext).list(id).toString()}
+            catch(e:Exception){JSONObject().put("error",e.message?:"Beslut kunde inte läsas").toString()} else "[]"
+        @JavascriptInterface fun intelligenceReview(id:String,index:Int,decision:String):String =
+            if(trustedDocument)try{IntelligenceReviewStore(applicationContext).decide(id,index,decision).toString()}
+            catch(e:Exception){JSONObject().put("error",e.message?:"Beslutet kunde inte sparas").toString()} else "{}"
         @JavascriptInterface fun intelligenceStart(text:String):String =
             if(trustedDocument)try{
                 require(text.length in 5..20000)
@@ -474,6 +480,7 @@ class MainActivity : Activity() {
             if(uri!=null)io.execute {
                 try {
                     IntelligenceRuntime.get(applicationContext).import(uri)
+                    IntelligenceJobs.resumeModelWaiters(applicationContext)
                     activityEvent("intelligence_model_imported","succeeded","Gemma 4 E2B importerad")
                     notifyUser("Modellen har importerats och verifierats.")
                 }catch(e:Exception){

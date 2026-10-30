@@ -74,6 +74,15 @@ object IntelligenceJobs {
         schedule(context,id)
         return true
     }
+    /** Imported model becomes usable without manually reopening queued tasks. */
+    fun resumeModelWaiters(context:Context) {
+        val store=IntelligenceRunStore(context)
+        val runs=store.list(200)
+        for(i in 0 until runs.length()){
+            val row=runs.getJSONObject(i)
+            if(row.optString("state")=="waiting_model")resume(context,row.getString("id"))
+        }
+    }
     fun resumeIndexWaiters(context:Context) {
         val store=IntelligenceRunStore(context)
         val runs=store.list(200)
