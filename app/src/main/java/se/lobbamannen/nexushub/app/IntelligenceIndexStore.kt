@@ -194,6 +194,14 @@ class IntelligenceIndexStore(context: Context) {
         write{db->db.execSQL("""UPDATE pending_analysis SET failures=failures+1
             WHERE path=? AND blob_sha=?""",arrayOf(path,sha))}
     }
+    fun hasVerifiedSource(path:String,sha:String):Boolean=synchronized(lock) {
+        if(!eligible(path)||!commitPattern.matches(sha)||path.startsWith('/'))return@synchronized false
+        val db=helper.readableDatabase
+        if(meta(db,"ready")!="true")return@synchronized false
+        db.rawQuery("SELECT 1 FROM documents WHERE path=? AND blob_sha=? AND repo_commit=? LIMIT 1",
+            arrayOf(path,sha,meta(db,"completed").orEmpty())).use{it.moveToFirst()}
+    }
+
     fun document(path:String):JSONObject=synchronized(lock) {
         require(path.length in 1..1000 && eligible(path) && !path.startsWith('/') &&
             !path.contains('\\') && !path.split('/').any { it in setOf("",".","..") })
