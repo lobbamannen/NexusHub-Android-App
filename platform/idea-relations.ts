@@ -10,6 +10,7 @@ export function ideaProbes(text:string):string[]{
  const cleaned=text.replace(/\r/g,'').trim();
  if(!cleaned)return [];
  const segments=cleaned.split(/(?<=[.!?])\s+|\n{2,}/).map(s=>s.trim()).filter(Boolean);
+ if(segments.length>1&&cleaned.length<=850)return segments.slice(0,4);
  const probes:string[]=[];let current='';
  for(const segment of segments){
   if(current&&current.length+segment.length+1>850){probes.push(current);current='';}
