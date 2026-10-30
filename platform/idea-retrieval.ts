@@ -2,9 +2,9 @@ import {replicaReader} from './mirror-access';
 import {durableGet,durableSet} from './local-store';
 import {embedBatch,embeddingStatus,type EmbedItem} from './embedding-bridge';
 
-export type Chunk={id:string;path:string;sha:string;title:string;kind:'idea'|'report'|'attachment';text:string;index:number;heading:string;vector?:number[];profile?:string};
+export type Chunk={id:string;path:string;sha:string;title:string;kind:'idea'|'report'|'attachment';text:string;index:number;heading:string;sourceHash?:string;vector?:number[];profile?:string};
 export type Doc={path:string;sha:string;kind:Chunk['kind'];title:string;chunks:Chunk[];indexedAt:string};
-export type Corpus={commit:string;docs:Doc[];changed:number;skipped:number;semanticReady:number;semanticTotal:number;profile:string;incomplete:boolean};
+export type Corpus={commit:string;docs:Doc[];changed:number;skipped:number;semanticReady:number;semanticTotal:number;profile:string;incomplete:boolean;unsupportedFiles:number};
 export type Hit={chunk:Chunk;score:number;lexicalRank:number|null;semanticRank:number|null;cosine:number|null;reason:'hybrid'|'lexical'|'semantic'};
 const PREFIX='nexus-idea-retrieval:v2:';
 const sleep=()=>new Promise<void>(r=>setTimeout(r,0));
@@ -42,15 +42,25 @@ export async function buildIdeaCorpus(progress:(message:string,done:number,total
  if(!snapshot)throw Error('Vänta tills den verifierade GitHub-replikan av Databas har hämtats helt.');
  const status=embeddingStatus(),profile=profileOf(status),files=(snapshot.files as any[])
   .filter(f=>kindOf(f.path)&&f.size<=2*1024*1024).sort((a,b)=>a.path.localeCompare(b.path,'sv'));
+ const unsupportedFiles=(snapshot.files as any[]).filter(f=>/^(Ideer\/Bilagor\/|NexusHub inkorg\/).*\.(pdf|docx)$/i.test(f.path)).length;
  const docs:Doc[]=[];let changed=0,skipped=0,done=0,semanticReady=0,semanticTotal=0;
  for(const file of files){
   if(signal?.aborted)throw new DOMException('Avbruten','AbortError');
   let doc=await durableGet<Doc>(PREFIX+'doc:'+file.path);
   if(!doc||doc.sha!==file.sha){
+   const previous=doc;
    const source=await replicaReader.file('databas',file.path);
    if(!source||source.commit!==snapshot.commit)throw Error('Dokumentversionen ändrades under indexeringen: '+file.path);
    const value=sourceText(file.path,new TextDecoder('utf-8',{fatal:true}).decode(source.bytes));
    doc={path:file.path,sha:file.sha,kind:kindOf(file.path)!,title:value.title,chunks:chunks(file.path,file.sha,kindOf(file.path)!,value.title,value.text),indexedAt:new Date().toISOString()};
+   const old=new Map((previous?.chunks||[]).filter(c=>c.sourceHash).map(c=>[c.sourceHash!,c]));
+   for(const chunk of doc.chunks){
+    const source='title='+chunk.title+(chunk.heading?' – '+chunk.heading:'')+'\ntext='+chunk.text;
+    const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(source)));
+    chunk.sourceHash=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+    const found=old.get(chunk.sourceHash);
+    if(found?.vector?.length===256&&found.profile){chunk.vector=found.vector;chunk.profile=found.profile;}
+   }
    await durableSet(PREFIX+'doc:'+file.path,doc);changed++;
   }else skipped++;
   docs.push(doc);done++;progress('Läser och kontrollerar dokument',done,files.length);
@@ -85,7 +95,7 @@ export async function buildIdeaCorpus(progress:(message:string,done:number,total
   semanticTotal=docs.reduce((sum,d)=>sum+d.chunks.length,0);
   semanticReady=docs.reduce((sum,d)=>sum+d.chunks.filter(c=>profile&&c.profile===profile&&c.vector?.length===256).length,0);
  }
- return {commit:snapshot.commit,docs,changed,skipped,semanticReady,semanticTotal,profile,incomplete:semanticReady<semanticTotal};
+ return {commit:snapshot.commit,docs,changed,skipped,semanticReady,semanticTotal,profile,incomplete:semanticReady<semanticTotal,unsupportedFiles};
 }
 export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=>boolean):Promise<{hits:Hit[];mode:string;embeddingMs:number;scanMs:number;fallback:string}>{
  const start=performance.now(),terms=tokenize(query),all=corpus.docs.flatMap(d=>d.chunks).filter(c=>!filter||filter(c));
@@ -115,9 +125,9 @@ export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=
    semantic.sort((a,b)=>b.score-a.score||a.c.id.localeCompare(b.c.id));
   }catch(e:any){fallback=e.message||'Semantisk sökning misslyckades'}
  }else fallback=corpus.profile?'Semantiskt index är inte klart':'EmbeddingGemma 2 saknas; lexikal fallback';
- const lRanks=new Map(lexical.map((x,i)=>[x.c.id,i+1])),sRanks=new Map(semantic.slice(0,160).map((x,i)=>[x.c.id,i+1]));
- const sScores=new Map(semantic.slice(0,160).map(x=>[x.c.id,x.score]));
- const candidates=new Map(all.filter(c=>lRanks.has(c.id)||sRanks.has(c.id)).map(c=>[c.id,c]));
+ const lRanks=new Map<string,number>(lexical.map((x,i):[string,number]=>[x.c.id,i+1])),sRanks=new Map<string,number>(semantic.slice(0,160).map((x,i):[string,number]=>[x.c.id,i+1]));
+ const sScores=new Map<string,number>(semantic.slice(0,160).map(x=>[x.c.id,x.score]));
+ const candidates=new Map<string,Chunk>(all.filter(c=>lRanks.has(c.id)||sRanks.has(c.id)).map(c=>[c.id,c]));
  const hits=[...candidates.values()].map(c=>{
   const l=lRanks.get(c.id)||null,s=sRanks.get(c.id)||null;
   return {chunk:c,lexicalRank:l,semanticRank:s,cosine:sScores.get(c.id)??null,

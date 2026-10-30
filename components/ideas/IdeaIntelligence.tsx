@@ -13,7 +13,8 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
  const [error,setError]=useState(''),[matches,setMatches]=useState<Record<string,Hit[]>>({});
  const [decisions,setDecisions]=useState<Record<string,Decision>>({});
  const [selected,setSelected]=useState(''),abort=useRef<AbortController|null>(null),seq=useRef(0);
- const list=useMemo(()=>ideas.filter(i=>i.text?.trim()),[ideas]);
+ const ideasKey=JSON.stringify(ideas.map(i=>[i.id,i.text]));
+ const list=useMemo(()=>ideas.filter(i=>i.text?.trim()),[ideasKey]);
  const current=list.find(i=>i.id===selected)||list[0];
  const update=useCallback(async()=> {
   if(abort.current)abort.current.abort();
@@ -57,11 +58,11 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
    <a href="https://huggingface.co/litert-community/embeddinggemma-2-text-270m-litert-lm/blob/main/embeddinggemma-2-text-270m.litertlm" target="_blank" rel="noopener noreferrer">Officiell modellfil <ExternalLink size={13}/></a></div>}
   {running&&<div role="status"><p>{message} · {progress.done}/{progress.total}</p><progress value={progress.done} max={progress.total||1}/><button className="secondary" type="button" onClick={()=>abort.current?.abort()}>Avbryt säkert</button></div>}
   {error&&<p className="error-banner" role="alert"><AlertTriangle size={16}/>{error}</p>}
-  {corpus&&<p className="nh-source-caption">{corpus.docs.length} dokument · {corpus.semanticReady}/{corpus.semanticTotal} semantiska textfönster · {corpus.incomplete?'Ofullständigt index':'Aktuellt index'} · Git {corpus.commit.slice(0,9)}</p>}
+  {corpus&&<p className="nh-source-caption">{corpus.docs.length} dokument · {corpus.semanticReady}/{corpus.semanticTotal} semantiska textfönster · {corpus.unsupportedFiles?corpus.unsupportedFiles+' PDF/DOCX väntar på textextraktion · ':''}{corpus.incomplete?'Ofullständigt index':'Aktuellt index'} · Git {corpus.commit.slice(0,9)}</p>}
   {!!list.length&&<><label className="field">Välj idé<select value={current?.id||''} onChange={e=>setSelected(e.target.value)}>{list.map(i=><option key={i.id} value={i.id}>{i.text.replace(/\s+/g,' ').slice(0,85)}</option>)}</select></label>
    {!running&&!chosen.length&&<p className="muted small">Inga relevanta underlag hittades i det aktuella sökindexet.</p>}
    {chosen.map(hit=>{const d=decisions[key(current.id,hit.chunk.path)],suppressed=d?.state==='dismissed'&&d.sha===hit.chunk.sha;
-    return <article key={hit.chunk.path} className="nh-idea-match" style={{opacity:suppressed?.55:1}}>
+    return <article key={hit.chunk.path} className="nh-idea-match" style={{opacity:suppressed ? 0.55 : 1}}>
      <div className="nh-gemma-row"><strong>{hit.chunk.title}</strong><small>{hit.reason==='hybrid'?'Hybridträff':hit.reason==='semantic'?'Semantisk träff':'Textträff'}</small></div>
      <p>{hit.chunk.text.slice(0,460)}{hit.chunk.text.length>460?'…':''}</p>
      <p className="nh-source-caption">Dokument: {hit.chunk.path} · SHA: {hit.chunk.sha.slice(0,12)} · Avsnitt #{hit.chunk.index+1} · Semantisk rang: {hit.semanticRank??'–'} · Lexikal rang: {hit.lexicalRank??'–'}{hit.cosine!=null?' · Cosine: '+hit.cosine.toFixed(3):''}</p>
