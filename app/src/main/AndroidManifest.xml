@@ -17,12 +17,11 @@
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
         <uses-native-library android:name="libcdsprpc.so" android:required="false" />
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
-        <receiver android:name=".IntelligenceControlReceiver" android:exported="false" />
         <service android:name=".ActiveSyncService" android:exported="false" android:foregroundServiceType="dataSync" />
         <service android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync|specialUse" tools:node="merge">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="User-started on-device Gemma document classification; finite workload with persistent WorkManager state" />
+                android:value="User-started finite background data synchronization" />
         </service>
         <activity android:name=".MainActivity" android:launchMode="singleTask" android:enableOnBackInvokedCallback="true"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode"

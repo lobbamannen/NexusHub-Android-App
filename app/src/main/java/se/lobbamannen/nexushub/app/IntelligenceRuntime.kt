@@ -9,6 +9,7 @@ import com.example.ai.runtime.LlamaNative
 import com.example.ai.runtime.TokenCallback
 import com.example.gemma.GemmaModelId
 import com.example.gemma.GgufInspector
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -153,12 +154,29 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         status()
     }
 
-    /** Refuses silent fallback for explicit NPU tests. Native telemetry is mandatory. */
-    fun infer(task: String, maxTokens: Int? = null): JSONObject = synchronized(mutex) {
+    fun infer(task:String,maxTokens:Int?=null):JSONObject =
+        generate(JSONArray().put(JSONObject().put("role","user").put("content",task)),maxTokens)
+    fun chat(messages:JSONArray):JSONObject = generate(messages,null)
+
+    /** Strict multi-turn conversation with the same global model profile. */
+    private fun generate(messages:JSONArray,maxTokens:Int?):JSONObject = synchronized(mutex) {
+        require(messages.length() in 1..13) { "För lång chatthistorik." }
+        val roles=ArrayList<String>()
+        val contents=ArrayList<String>()
+        var totalChars=0
+        for(i in 0 until messages.length()) {
+            val item=messages.getJSONObject(i)
+            require(item.length()==2 && item.has("role") && item.has("content")) { "Ogiltigt chattmeddelande." }
+            val role=item.getString("role")
+            require(role==(if(i%2==0)"user" else "assistant")) { "Fel turordning i chatten." }
+            val body=item.getString("content").trim()
+            require(body.isNotEmpty() && body.length<=12000) { "Meddelandet är för långt eller tomt." }
+            roles.add(role);contents.add(body);totalChars+=body.length
+        }
+        require(roles.last()=="user" && totalChars<=30000) { "Chattunderlaget är för stort." }
         check(!processing && !importing) { "Gemma arbetar redan" }
         check(model.isFile && model.length()>100L*1024*1024) { "Importera Gemma 4 E2B först." }
         check(LlamaNative.isLoaded) { "Native llama.cpp saknas i APK:n" }
-        require(task.length in 1..25000)
         processing=true
         try {
             val p=config()
@@ -210,7 +228,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             verifyBackend(JSONObject(LlamaNative.getLatestTelemetryJson()))
             LlamaNative.resetStop()
             LlamaNative.resetTurnTelemetry()
-            val formatted=LlamaNative.applyChatTemplateExt(arrayOf("user"),arrayOf(task),
+            val formatted=LlamaNative.applyChatTemplateExt(roles.toTypedArray(),contents.toTypedArray(),
                 true,p.getBoolean("thinking"))
                 ?.takeIf { it.isNotBlank() } ?: error("Modellens chattemplate kunde inte användas.")
             val requested=maxTokens ?: p.getInt("maxOutputTokens")
@@ -241,7 +259,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                 .put("fallbackReason",telemetry.optString("fallback_reason",""))
                 .put("offloadedLayers",offloaded)
                 .put("npuExecutionVerified",false)
-                .put("telemetry",telemetry).put("modelSha256",prefs.getString("sha256",""))
+                .put("telemetry",normalTelemetry(telemetry)).put("modelSha256",prefs.getString("sha256",""))
             if(p.getBoolean("audit") && selected in setOf("AUTO","NPU_HEXAGON")) {
                 try {
                     val raw=LlamaNative.getHtpExecutionAuditJson(actual,
@@ -254,7 +272,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                     result.put("auditError",e.message?.take(180) ?: "Audit kunde inte läsas")
                 }
             }
-            prefs.edit().putString("telemetry",telemetry.toString()).apply()
+            prefs.edit().putString("telemetry",normalTelemetry(telemetry).toString()).apply()
             if(!p.getBoolean("warmModel")) { LlamaNative.releaseEngine(); loadedSignature=null }
             result
         } catch(e:Exception) {
@@ -263,6 +281,22 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             loadedSignature=null
             throw e
         } finally { processing=false }
+    }
+
+    /** Jarvis-style summary; deep HTP audit and raw token/node lists stay internal. */
+    private fun normalTelemetry(raw:JSONObject):JSONObject {
+        val keys=listOf("llama_commit","backend_requested","backend_active","device_active",
+            "backend_evidence","requested_gpu_layers","actual_gpu_layers","total_offloadable_layers",
+            "fallback_occurred","fallback_reason","opencl_load_error","hexagon_load_error",
+            "active_ctx_size","active_threads","active_batch_threads","model_load_time_ms",
+            "prefill_time_ms","decode_time_ms","ttft_ms","total_time_ms","prompt_tokens",
+            "output_tokens","prefill_evaluated_tokens","decode_evaluated_tokens",
+            "prefill_tok_per_sec","decode_tok_per_sec","total_tok_per_sec","finish_reason",
+            "error","sampler_temperature","sampler_top_p","sampler_top_k","sampler_min_p",
+            "sampler_repeat_penalty","sampler_seed","sampler_mode")
+        val result=JSONObject()
+        for(key in keys)if(raw.has(key))result.put(key,raw.get(key))
+        return result
     }
 
     fun cancel() {

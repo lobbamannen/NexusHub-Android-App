@@ -58,7 +58,6 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         credentials = GithubCredentialStore(applicationContext)
-        io.execute { try { IntelligenceJobs.reconcile(applicationContext) } catch (_: Exception) { } }
         incomingShares = IncomingShareStore(applicationContext)
         pendingSave = restorePendingSave(savedInstanceState)
         val root = FrameLayout(this)
@@ -267,113 +266,60 @@ class MainActivity : Activity() {
         @JavascriptInterface fun readIncomingFile(id: String, fileId: String): String = if (trustedDocument) incomingShares.read(id, fileId) else ""
         @JavascriptInterface fun removeIncoming(id: String): Boolean = trustedDocument && incomingShares.remove(id)
 
-        @JavascriptInterface fun intelligenceResourceStatus():String =
-            if(trustedDocument)try{IntelligenceResourcePolicy.snapshot(applicationContext).toString()}
-            catch(e:Exception){JSONObject().put("error",e.message?:"Sensorer saknas").toString()} else "{}"
-        @JavascriptInterface fun intelligenceStatus():String =
+
+        // Local model only. No job queue, document analysis or GitHub writes.
+        @JavascriptInterface fun gemmaStatus():String =
             if(trustedDocument)try{IntelligenceRuntime.get(applicationContext).status().toString()}
             catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
-        @JavascriptInterface fun intelligenceIndexStatus():String =
-            if(trustedDocument)try{
-                val state=IntelligenceIndexStore(applicationContext).status()
-                val queue=IntelligenceJobs.queueStatus(applicationContext)
-                state.put("automaticSuspended",queue.optBoolean("automaticSuspended"))
-                    .put("suspensionReason",queue.optString("suspensionReason")).toString()
-            }catch(_:Exception){"{}"} else "{}"
-        @JavascriptInterface fun intelligenceIndexBegin(commit:String):String =
-            if(trustedDocument)try{IntelligenceIndexStore(applicationContext).begin(commit).toString()}
-            catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
-        @JavascriptInterface fun intelligenceIndexUpsert(raw:String):Boolean =
-            trustedDocument && try {
-                require(raw.length<=200000)
-                val x=JSONObject(raw)
-                IntelligenceIndexStore(applicationContext).upsert(x.getString("commit"),
-                    x.getString("path"),x.getString("sha"),x.getString("title"),x.getString("body"))
-            } catch(_:Exception){false}
-        @JavascriptInterface fun intelligenceIndexFinish(commit:String,count:Int):String =
-            if(trustedDocument)try{
-                val result=IntelligenceIndexStore(applicationContext).finish(commit,count)
-                try {
-                    IntelligenceRunStore(applicationContext).invalidateOlderEvidence(commit)
-                    IntelligenceJobs.indexCompleted(applicationContext,commit,result)
-                } catch (_:Exception) { }
-                IntelligenceJobs.resumeIndexWaiters(applicationContext)
-                result.toString()
-            }
-            catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
-        @JavascriptInterface fun intelligenceRunsPage(offset:Int,limit:Int):String =
-            if(trustedDocument)try{IntelligenceRunStore(applicationContext).list(limit,offset).toString()}
-            catch(e:Exception){JSONObject().put("error",e.message?:"Historik kunde inte läsas").toString()} else "[]"
-        @JavascriptInterface fun intelligenceRunCounts():String =
-            if(trustedDocument)try{IntelligenceRunStore(applicationContext).counts().toString()}
-            catch(_:Exception){"{}"} else "{}"
-        @JavascriptInterface fun intelligenceRuns():String =
-            if(trustedDocument)try{IntelligenceRunStore(applicationContext).list().toString()}
-            catch(_:Exception){"[]"} else "[]"
-        @JavascriptInterface fun intelligenceSearchDocuments(query:String):String =
-            if(trustedDocument)try{
-                require(query.length in 2..120)
-                val terms=query.split(Regex("\\s+")).filter{it.isNotBlank()}.take(8)
-                IntelligenceIndexStore(applicationContext).search(terms,12).toString()
-            }catch(e:Exception){JSONObject().put("error",e.message?:"Sökningen misslyckades").toString()} else "[]"
-        @JavascriptInterface fun intelligenceAnalyzeDocument(path:String):String =
-            if(trustedDocument)try{IntelligenceJobs.document(applicationContext,path).toString()}
-            catch(e:Exception){JSONObject().put("error",e.message?:"Dokumentanalysen kunde inte starta").toString()} else "{}"
-        @JavascriptInterface fun intelligencePendingReviews():String =
-            if(trustedDocument)try{IntelligenceReviewStore(applicationContext).pending().toString()}
-            catch(e:Exception){JSONObject().put("error",e.message?:"Kön kunde inte läsas").toString()} else "[]"
-        @JavascriptInterface fun intelligenceReviews(id:String):String =
-            if(trustedDocument)try{IntelligenceReviewStore(applicationContext).list(id).toString()}
-            catch(e:Exception){JSONObject().put("error",e.message?:"Beslut kunde inte läsas").toString()} else "[]"
-        @JavascriptInterface fun intelligenceReview(id:String,index:Int,decision:String):String =
-            if(trustedDocument)try{IntelligenceReviewStore(applicationContext).decide(id,index,decision).toString()}
-            catch(e:Exception){JSONObject().put("error",e.message?:"Beslutet kunde inte sparas").toString()} else "{}"
-        @JavascriptInterface fun intelligenceRecordPublication(raw:String):String =
-            if(trustedDocument)try{
-                require(raw.length<=4096)
-                val x=JSONObject(raw)
-                IntelligenceReviewStore(applicationContext).recordPublication(
-                    x.getString("runId"),x.getInt("proposalIndex"),x.getString("proposalHash"),
-                    x.getString("registrySha"),x.getString("registryCommit")).toString()
-            }catch(e:Exception){JSONObject().put("error",e.message?:"Publiceringskvittensen kunde inte sparas").toString()} else "{}"
-        @JavascriptInterface fun intelligenceStart(text:String):String =
-            if(trustedDocument)try{
-                require(text.length in 5..20000)
-                IntelligenceJobs.request(applicationContext,text).toString()
-            }catch(e:Exception){JSONObject().put("error",e.message?: "Kunde inte starta").toString()} else "{}"
-        @JavascriptInterface fun intelligenceQueueIdea(id:String,sha:String,text:String):String =
-            if(trustedDocument)try{IntelligenceJobs.idea(applicationContext,id,sha,text).toString()}
-            catch(e:Exception){JSONObject().put("error",e.message?:"Analys kunde inte köas").toString()} else "{}"
-        @JavascriptInterface fun intelligencePause(id:String):Boolean =
-            trustedDocument && try{IntelligenceJobs.pause(applicationContext,id)}catch(_:Exception){false}
-        @JavascriptInterface fun intelligenceResume(id:String):Boolean =
-            trustedDocument && try{IntelligenceJobs.resume(applicationContext,id)}catch(_:Exception){false}
-        @JavascriptInterface fun intelligenceCancel(id:String):Boolean =
-            trustedDocument && try{IntelligenceJobs.cancel(applicationContext,id)}catch(_:Exception){false}
-        @JavascriptInterface fun intelligenceSaveProfile(raw:String):String =
+
+        @JavascriptInterface fun gemmaSaveProfile(raw:String):String =
             if(trustedDocument)try{
                 require(raw.length<=16000)
-                val result=IntelligenceRuntime.get(applicationContext).saveProfile(JSONObject(raw))
-                IntelligenceJobs.recoverBackendGuard(applicationContext)
-                result.toString()
-            }catch(e:Exception){JSONObject().put("error",e.message?: "Felaktiga inställningar").toString()} else "{}"
-        @JavascriptInterface fun intelligenceImportModel():Boolean {
+                IntelligenceRuntime.get(applicationContext).saveProfile(JSONObject(raw)).toString()
+            }catch(e:Exception){JSONObject().put("error",e.message?:"Felaktiga modellinställningar").toString()} else "{}"
+
+        @JavascriptInterface fun gemmaImportModel():Boolean {
             if(!trustedDocument)return false
             runOnUiThread {
                 try {
                     startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        type="*/*"
                         addCategory(Intent.CATEGORY_OPENABLE)
-                        type="application/octet-stream"
                         putExtra(Intent.EXTRA_MIME_TYPES,arrayOf("application/octet-stream","application/x-gguf","*/*"))
                     },PICK_MODEL)
-                } catch(e:ActivityNotFoundException){notifyUser("Androids dokumentväljare saknas")}
+                }catch(e:ActivityNotFoundException){notifyUser("Androids dokumentväljare saknas")}
             }
             return true
         }
-        @JavascriptInterface fun intelligenceDeleteModel():Boolean =
+        @JavascriptInterface fun gemmaDeleteModel():Boolean =
             trustedDocument && try{IntelligenceRuntime.get(applicationContext).delete();true}catch(_:Exception){false}
-        @JavascriptInterface fun intelligenceUnloadModel():Boolean =
+        @JavascriptInterface fun gemmaUnloadModel():Boolean =
             trustedDocument && try{IntelligenceRuntime.get(applicationContext).unload();true}catch(_:Exception){false}
+        @JavascriptInterface fun gemmaCancel():Boolean =
+            trustedDocument && try{IntelligenceRuntime.get(applicationContext).cancel();true}catch(_:Exception){false}
+
+        /** Only this explicit chat can invoke Gemma. It runs away from the UI thread. */
+        @JavascriptInterface fun gemmaChatSend(raw:String,requestId:String):Boolean {
+            if(!trustedDocument || raw.length !in 2..36000 ||
+                !Regex("[a-fA-F0-9-]{36}").matches(requestId))return false
+            io.execute {
+                val answer=try {
+                    val result=IntelligenceRuntime.get(applicationContext).chat(org.json.JSONArray(raw))
+                    JSONObject().put("requestId",requestId).put("ok",true).put("result",result)
+                }catch(e:Exception){
+                    JSONObject().put("requestId",requestId).put("ok",false)
+                        .put("error",(e.message?:"Gemma kunde inte slutföra svaret").take(500))
+                }
+                val literal=JSONObject.quote(answer.toString())
+                runOnUiThread {
+                    if(trustedDocument && !isFinishing && !isDestroyed)
+                        webView.evaluateJavascript(
+                            "window.dispatchEvent(new CustomEvent('nexus-gemma-chat',{detail:JSON.parse("+literal+")}));",null)
+                }
+            }
+            return true
+        }
+
         @JavascriptInterface fun getGithubToken(): String = if (trustedDocument) credentials.get() else ""
         @JavascriptInterface fun setGithubToken(token: String): Boolean {
             if(!trustedDocument)return false
@@ -525,7 +471,6 @@ class MainActivity : Activity() {
             if(uri!=null)io.execute {
                 try {
                     IntelligenceRuntime.get(applicationContext).import(uri)
-                    IntelligenceJobs.resumeModelWaiters(applicationContext)
                     activityEvent("intelligence_model_imported","succeeded","Gemma 4 E2B importerad")
                     notifyUser("Modellen har importerats och verifierats.")
                 }catch(e:Exception){

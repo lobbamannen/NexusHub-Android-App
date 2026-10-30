@@ -99,18 +99,6 @@ export function useIdeas() {
             setConfirmedIds(current => [...current.filter(value => value !== id), id]);
             setRows(current => [data, ...current.filter(row => row.idea.id !== id)]);
             const next = { ...draftsRef.current }; delete next[id]; await commitDrafts(next); setRemote(null);
-            // A confirmed GitHub version is the only automatic Intelligence trigger.
-            // Native work is independent of this React view. A failed optional trigger
-            // never rolls back a confirmed idea save or exposes the GitHub credential.
-            if (!response.headers.get('X-Nexus-Offline') &&
-                !response.headers.get('X-Nexus-Local') &&
-                /^[a-f0-9]{40}$/.test(data.sha || '') &&
-                draft.idea.text.length <= 20000) {
-                try {
-                    const native=(window as any).Android;
-                    native?.intelligenceQueueIdea?.(id,data.sha,draft.idea.text);
-                } catch { /* Saved original remains authoritative. */ }
-            }
             // Do not let a GET started before this PUT replace the just-confirmed row.
             sequence.current++; setLoading(false);
             return true;
