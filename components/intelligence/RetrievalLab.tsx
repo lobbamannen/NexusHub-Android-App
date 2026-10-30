@@ -1,9 +1,11 @@
 import React,{useEffect,useRef,useState} from 'react';
+import {selectRagEvidence,formatRagEvidence,ragAnswerGuidance} from '@/platform/rag-evidence';
 import {Search,Activity,BookOpen,RefreshCw,AlertTriangle,Send} from 'lucide-react';
 import {buildIdeaCorpus,searchCorpus,sourceLink,type Corpus,type Hit} from '@/platform/idea-retrieval';
 import {embeddingStatus,importEmbeddingModel,gemmaRag} from '@/platform/embedding-bridge';
 export default function RetrievalLab(){
  const [corpus,setCorpus]=useState<Corpus|null>(null),[status,setStatus]=useState(embeddingStatus),[running,setRunning]=useState(false);
+ const [selectionMode,setSelectionMode]=useState<'baseline'|'diverse'>('diverse');
  const [progress,setProgress]=useState(''),[error,setError]=useState(''),[query,setQuery]=useState(''),[scope,setScope]=useState('all');
  const [hits,setHits]=useState<Hit[]>([]),[reply,setReply]=useState(''),[metrics,setMetrics]=useState<Record<string,any>>({});
  const abort=useRef<AbortController|null>(null);
@@ -15,16 +17,20 @@ export default function RetrievalLab(){
   try{
    const filtered=scope==='all'?undefined:(c:any)=>c.path===scope;
    const result=await searchCorpus(corpus,query,filtered);
-   const selected=result.hits.slice(0,6);setHits(selected);
-   const stats:any={mode:result.mode,fallback:result.fallback||'–',queryEmbeddingMs:Math.round(result.embeddingMs),vectorScanFusionMs:Math.round(result.scanMs),candidateCount:result.hits.length,selectedCount:selected.length,indexReady:corpus.semanticReady+'/'+corpus.semanticTotal,profile:corpus.profile||'Lexikal',commit:corpus.commit};
+   const baseline=result.hits.slice(0,6);
+   const selected=selectRagEvidence(result.hits,selectionMode,6);setHits(selected);
+   const stats:any={mode:result.mode,fallback:result.fallback||'–',queryEmbeddingMs:Math.round(result.embeddingMs),vectorScanFusionMs:Math.round(result.scanMs),candidateCount:result.hits.length,selectedCount:selected.length,selectionMode,baselineChunkIds:baseline.map(h=>h.chunk.id).join(' | '),selectedChunkIds:selected.map(h=>h.chunk.id).join(' | '),selectedDocumentCount:new Set(selected.map(h=>h.chunk.path)).size,coverage:'Ej mätt – dokumentdiversitet är inte faktatäckning',indexReady:corpus.semanticReady+'/'+corpus.semanticTotal,profile:corpus.profile||'Lexikal',commit:corpus.commit};
    setMetrics(stats);
    if(!selected.length){setReply('Inget relevant dokumentstöd hittades. Gemma har inte anropats.');return;}
-   const excerpt=selected.map((h,i)=>'[D'+(i+1)+' | '+h.chunk.path+' | chunk '+h.chunk.index+' | '+h.chunk.sha.slice(0,12)+']\n'+h.chunk.text.slice(0,1400)).join('\n\n');
-   const prompt='Du är NexusHubs faktabundna RAG-assistent. Besvara frågan på svenska ENDAST med fakta från utdragen nedan. Ange källor [D1], [D2] etc. Om underlaget inte räcker, säg tydligt att svaret saknas; gissa aldrig.\n\nFRÅGA: '+query.slice(0,1000)+'\n\nKÄLLUTDRAG:\n'+excerpt;
+   // Chunks are 900-character embedding windows: keep their entire matched text.
+   const excerpt=formatRagEvidence(selected);
+   const prompt='Du är NexusHubs faktabundna RAG-assistent. Besvara frågan på svenska ENDAST med fakta från utdragen nedan. Ange källor [D1], [D2] etc. Om underlaget inte räcker, säg tydligt att svaret saknas; gissa aldrig. '+ragAnswerGuidance(query)+'\\n\\nFRÅGA: '+query.slice(0,1000)+'\\n\\nKÄLLUTDRAG:\\n'+excerpt;
+   if(prompt.length>11500)throw Error('Källunderlaget överskrider promptbudgeten. Ingen tyst kapning görs.');
+   setMetrics({...stats,promptCharacters:prompt.length,sourceWindows:selected.map(h=>h.chunk.path+'#'+h.chunk.index+' (0–'+h.chunk.text.length+')').join(' | ')});
    const started=performance.now();
-   const out=await gemmaRag(prompt.slice(0,11500));
+   const out=await gemmaRag(prompt);
    setReply(out.text||'Gemma lämnade inget svar.');
-   setMetrics({...stats,gemmaDurationMs:Math.round(performance.now()-started),gemmaTelemetry:out.telemetry||{},finishReason:out.finishReason});
+   setMetrics({...stats,promptCharacters:prompt.length,sourceWindows:selected.map(h=>h.chunk.path+'#'+h.chunk.index).join(' | '),gemmaDurationMs:Math.round(performance.now()-started),gemmaTelemetry:out.telemetry||{},finishReason:out.finishReason});
   }catch(e:any){setError(e.message||'RAG misslyckades.')}finally{setRunning(false)}};
  return <section className="panel nh-retrieval-lab" aria-label="Retrieval Lab">
   <div className="nh-gemma-row"><h2><BookOpen size={19}/> Retrieval Lab · RAG</h2><button className="secondary" onClick={()=>void load()} disabled={running}><RefreshCw size={16}/> {corpus?'Synka index':'Indexera dokument'}</button></div>
@@ -35,10 +41,11 @@ export default function RetrievalLab(){
   {error&&<p className="error-banner" role="alert"><AlertTriangle size={15}/>{error}</p>}
   {corpus&&<p className="nh-source-caption">{corpus.docs.length} dokument · {corpus.semanticReady}/{corpus.semanticTotal} embeddingfönster · {corpus.incomplete?'Delvis klart':'Komplett'} · {corpus.unsupportedFiles?corpus.unsupportedFiles+' PDF/DOCX utan textextraktion · ':''}Commit {corpus.commit.slice(0,12)}</p>}
   <label className="field">Dokumentomfång<select value={scope} onChange={e=>setScope(e.target.value)}><option value="all">Alla idéer och forskningsrapporter</option>{corpus?.docs.map(d=><option key={d.path} value={d.path}>{d.title.slice(0,70)} ({d.kind})</option>)}</select></label>
+  <label className="field">Källurval<select value={selectionMode} onChange={e=>setSelectionMode(e.target.value as 'baseline'|'diverse')}><option value="baseline">Referens: sex högst rankade</option><option value="diverse">Försiktig dokumentdiversifiering</option></select></label>
   <label className="field">Fråga<textarea rows={3} maxLength={3000} placeholder="Vad säger dokumentet om …?" value={query} onChange={e=>setQuery(e.target.value)}/></label>
   <button className="primary" onClick={()=>void ask()} disabled={running||!corpus||!query.trim()}><Send size={15}/> Hämta källor och fråga Gemma</button>
   {Object.keys(metrics).length>0&&<details open className="nh-retrieval-metrics"><summary>Retrievaldiagnostik</summary><div className="nh-gemma-metrics">{Object.entries(metrics).filter(([k])=>k!=='gemmaTelemetry').map(([k,v])=><div className="nh-gemma-stat" key={k}><small>{k}</small><strong>{String(v)}</strong></div>)}</div>{metrics.gemmaTelemetry&&<pre style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere',fontSize:12}}>{JSON.stringify(metrics.gemmaTelemetry,null,2)}</pre>}</details>}
-  {!!hits.length&&<details open><summary>Hämtade källor ({hits.length})</summary>{hits.map((h,i)=><article key={h.chunk.id} className="nh-idea-match"><p><strong>[D{i+1}] {h.chunk.title}</strong> · {h.reason}</p><p>{h.chunk.text.slice(0,1200)}</p><p className="nh-source-caption">Chunk {h.chunk.index} · Lexikal {h.lexicalRank??'–'} · Semantisk {h.semanticRank??'–'} · Cosine {h.cosine?.toFixed(3)??'–'} · SHA {h.chunk.sha.slice(0,12)}</p><a href={sourceLink(h.chunk.path,corpus!.commit)} target="_blank" rel="noopener noreferrer">Visa verifierat dokument</a></article>)}</details>}
+  {!!hits.length&&<details open><summary>Hämtade källor ({hits.length})</summary>{hits.map((h,i)=><article key={h.chunk.id} className="nh-idea-match"><p><strong>[D{i+1}] {h.chunk.title}</strong> · {h.reason}</p><p>{h.chunk.text.slice(0,1200)}</p><p className="nh-source-caption">Chunk {h.chunk.index} · Matchat fönster: hela chunkens {h.chunk.text.length} tecken · Lexikal {h.lexicalRank??'–'} · Semantisk {h.semanticRank??'–'} · Cosine {h.cosine?.toFixed(3)??'–'} · SHA {h.chunk.sha.slice(0,12)}</p><a href={sourceLink(h.chunk.path,corpus!.commit)} target="_blank" rel="noopener noreferrer">Visa verifierat dokument</a></article>)}</details>}
   {reply&&<article className="nh-gemma-message assistant" role="status"><strong>Gemma 4 · dokumentbundet svar</strong><div style={{whiteSpace:'pre-wrap'}}>{reply}</div></article>}
  </section>;
 }
