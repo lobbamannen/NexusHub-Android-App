@@ -277,7 +277,7 @@ export default function Portal() {
     const renderMediaConnections=(kind:'Film'|'Serie',item:any)=>{const key=item.imdbId||item.title+'|'+(item.startYear??item.year??'');return <ConnectionsPanel model={connectionModel} node={{id:'databas:media:'+kind+':'+key}} onOpen={openConnectionNode} onGraph={id=>void openConnectionGraph(id)}/>;};
     const renderStoryConnections=(story:any)=><ConnectionsPanel model={connectionModel} node={story} onOpen={openConnectionNode} onGraph={id=>void openConnectionGraph(id)}/>;
     const openConnectionGraph=async(id:string)=>{await go('connections');setConnectionFocus(id);};
-    const guardianAction=(action:string)=>{if(action==='connections')void go('connections');else{void go('installningar').then(()=>requestAnimationFrame(()=>openSettingsPanel(action==='audit'?'nh-audit-section':'nh-android-settings')));}};
+    const guardianAction=(action:string)=>{if(action==='connections')void go('connections');else if(action==='intelligence')void go('intelligence');else{void go('installningar').then(()=>requestAnimationFrame(()=>openSettingsPanel(action==='audit'?'nh-audit-section':'nh-android-settings')));}};
 
     useEffect(() => { if (view !== 'favoriter')
         return; void documentBookmarks.reload(); let active = true; setGitSavedLoading(true); setGitSavedError(''); fetch('/api/story-status', { cache: 'no-store' }).then(async (r) => { const d: any = await r.json(); if (!r.ok)

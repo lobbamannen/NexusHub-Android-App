@@ -114,8 +114,12 @@ object IntelligenceJobs {
                     index.acknowledgePending(path,sha)
                     continue
                 }
-                document(context,path) // Durable run and work request precede ack.
+                val run=document(context,path) // Durable work request precedes ack.
                 index.acknowledgePending(path,sha)
+                // An already completed idempotent run must not block the rest
+                // of a recovered queue after process death or schema migration.
+                if(run.optString("state") in setOf("local_completed","completed","cancelled"))
+                    continue
                 return
             } catch(_:Exception) {
                 // Retain the entry, increasing its failure count so other

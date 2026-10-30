@@ -18,8 +18,16 @@ class IntelligenceReviewStoreTest {
     @Before fun clean(){
         context.deleteDatabase("nexus_intelligence_reviews_v1.db")
         context.deleteDatabase("nexus_intelligence_v1.db")
+        context.deleteDatabase("nexus_intelligence_index_v1.db")
     }
     private fun run():String {
+        // The existing review contract now uses a real hash-bound index entry,
+        // just as the production approval path requires.
+        val index=IntelligenceIndexStore(context)
+        index.begin(commit)
+        index.upsert(commit,"Research/sample.md",sha,"Verifierat källdokument",
+            "Exakt ett långt citerat avsnitt. Detta källmaterial är lokalt indexerat.")
+        index.finish(commit,1)
         val store=IntelligenceRunStore(context)
         val id=store.enqueue("idea_analysis","test:"+UUID.randomUUID(),
             UUID.randomUUID().toString(),sha).getString("id")

@@ -110,6 +110,7 @@ class IntelligenceReviewStore(private val context: Context) {
     fun pending(limit:Int=30):JSONArray = synchronized(lock) {
         val out=JSONArray()
         val runStore=IntelligenceRunStore(context)
+        val indexStore=IntelligenceIndexStore(context)
         var offset=0
         while(out.length()<limit.coerceIn(1,100)&&offset<=100000) {
           val runs=runStore.list(200,offset)
@@ -129,6 +130,11 @@ class IntelligenceReviewStore(private val context: Context) {
                 if(j in decided)continue
                 val p=proposals.getJSONObject(j)
                 if(p.optString("status")!="proposal")continue
+                if(!indexStore.hasVerifiedSource(p.optString("path"),p.optString("blobSha")))continue
+                val originalPath=run.optJSONObject("result")?.optString("sourcePath").orEmpty()
+                if(originalPath.isNotEmpty() &&
+                    !indexStore.hasVerifiedSource(originalPath,
+                        run.getJSONObject("result").optString("sourceSha")))continue
                 out.put(JSONObject()
                     .put("runId",run.getString("id"))
                     .put("workflow",run.getString("workflow"))
