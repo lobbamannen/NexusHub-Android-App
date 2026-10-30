@@ -8,15 +8,20 @@ android {
     buildFeatures { buildConfig = true }
     testOptions {unitTests.isIncludeAndroidResources = true}
     compileSdk = 35
+    ndkVersion = "28.2.13676358"
     defaultConfig {
         applicationId = "se.lobbamannen.nexushub.app"
         buildConfigField("String", "POSTHOG_PROJECT_TOKEN", "\"" + (providers.environmentVariable("POSTHOG_PROJECT_TOKEN").orNull ?: "") + "\"")
         buildConfigField("String", "POSTHOG_HOST", "\"" + (providers.environmentVariable("POSTHOG_HOST").orNull ?: "") + "\"")
+        ndk { abiFilters += listOf("arm64-v8a") }
+        externalNativeBuild { cmake { cppFlags += listOf("-O3", "-fPIC", "-std=c++17"); cFlags += listOf("-O3", "-fPIC"); arguments += listOf("-DANDROID_STL=c++_shared") } }
         minSdk = 26
         targetSdk = 35
         versionCode = providers.environmentVariable("ANDROID_VERSION_CODE").orNull?.toInt() ?: 1
         versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orNull ?: "1.0"
     }
+    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+    packaging { jniLibs { useLegacyPackaging = true } }
     signingConfigs {
         create("release") {
             val keyPath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
