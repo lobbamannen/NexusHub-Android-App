@@ -159,17 +159,57 @@ class IntelligenceIndexStore(context: Context) {
             .filter{cleanTerm.matches(it)}.distinct().take(8)
         if(selected.isEmpty())return@synchronized JSONArray()
         val expression=selected.joinToString(" OR "){"\"$it\""}
-        val rows=JSONArray()
-        val sql="""SELECT d.path,d.blob_sha,d.repo_commit,d.title,substr(d.body,1,4000)
+        // Rank FTS4 matches by corpus-adjusted term frequency, with a substantial
+        // title boost. A match in a long document must outrank unrelated short files.
+        val ranked=ArrayList<Pair<Double,JSONObject>>()
+        val sql="""SELECT d.path,d.blob_sha,d.repo_commit,d.title,d.body,
+                matchinfo(documents_fts,'pcx'),offsets(documents_fts)
             FROM documents_fts f JOIN documents d ON d.docid=f.docid
-            WHERE documents_fts MATCH ? AND d.repo_commit=?
-            ORDER BY length(d.body) ASC LIMIT ${limit.coerceIn(1,20)}"""
+            WHERE documents_fts MATCH ? AND d.repo_commit=? LIMIT 3000"""
         db.rawQuery(sql,arrayOf(expression,meta(db,"completed").orEmpty())).use{c->
-            while(c.moveToNext())rows.put(JSONObject()
-                .put("path",c.getString(0)).put("sha",c.getString(1))
-                .put("commit",c.getString(2)).put("title",c.getString(3))
-                .put("excerpt",c.getString(4)))
+            while(c.moveToNext()){
+                val body=c.getString(4)
+                val stats=java.nio.ByteBuffer.wrap(c.getBlob(5))
+                    .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                val phrases=stats.int
+                val columns=stats.int
+                var score=0.0
+                for(phrase in 0 until phrases)for(col in 0 until columns){
+                    val hits=stats.int
+                    stats.int // total corpus hits
+                    val documentsWithHits=stats.int
+                    if(hits>0)score+=(if(col==0)8.0 else 1.0) *
+                        (1.0+kotlin.math.ln(1.0+hits.toDouble())) /
+                        (1.0+kotlin.math.ln(1.0+documentsWithHits.toDouble()))
+                }
+                // SQLite offsets are UTF-8 byte positions; the excerpt is the
+                // contiguous original body text around the first body match.
+                val offsets=c.getString(6).trim().split(Regex("\\s+"))
+                var matchByte=-1
+                var n=0
+                while(n+3<offsets.size){
+                    if(offsets[n]=="1"){
+                        val at=offsets[n+2].toIntOrNull()?:-1
+                        if(at>=0&&(matchByte<0||at<matchByte))matchByte=at
+                    }
+                    n+=4
+                }
+                val prefixChars=if(matchByte>=0){
+                    val bytes=body.toByteArray(Charsets.UTF_8)
+                    String(bytes,0,matchByte.coerceAtMost(bytes.size),Charsets.UTF_8).length
+                } else 0
+                val start=(prefixChars-150).coerceAtLeast(0)
+                val end=(start+700).coerceAtMost(body.length)
+                ranked.add(score to JSONObject()
+                    .put("path",c.getString(0)).put("sha",c.getString(1))
+                    .put("commit",c.getString(2)).put("title",c.getString(3))
+                    .put("excerpt",body.substring(start,end)))
+            }
         }
+        val rows=JSONArray()
+        ranked.sortedWith(compareByDescending<Pair<Double,JSONObject>>{it.first}
+            .thenBy{it.second.getString("path")}).take(limit.coerceIn(1,20))
+            .forEach{rows.put(it.second)}
         rows
     }
 }
