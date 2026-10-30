@@ -145,7 +145,7 @@ class EmbeddingGemmaRuntime private constructor(private val context: Context) {
                     val id = item.getString("id")
                     val text = item.getString("text").trim()
                     val task = item.getString("task")
-                    require(id.length in 1..120 && text.length in 1..3500 && task in listOf("query", "document")) {
+                    require(id.length in 1..1024 && text.length in 1..3500 && task in listOf("query", "document")) {
                         "Felaktig eller för lång embeddingindata."
                     }
                     val formatted = if (task == "query") {
