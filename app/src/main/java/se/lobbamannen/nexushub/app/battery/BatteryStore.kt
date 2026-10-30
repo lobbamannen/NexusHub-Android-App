@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class BatteryStore(c:Context) {
+ private val app=c.applicationContext
  companion object {private val lock=Any()}
  val prefs=c.getSharedPreferences("nexus_battery_phone_v1",Context.MODE_PRIVATE)
  fun snapshot()=BatterySnapshot.decode(prefs.getString("snapshot","") ?: "",System.currentTimeMillis())
@@ -22,7 +23,7 @@ class BatteryStore(c:Context) {
   check(prefs.edit().putString("snapshot",s.encode()).putLong("receivedAt",System.currentTimeMillis()).putString("error","").apply{if(s.requestId.isNotBlank() && s.requestId==prefs.getString("requestId","")){putLong("requestAt",0);putString("requestId","")}}.commit());true
  }
  fun select(node:String)=synchronized(lock){if(node!=node())check(prefs.edit().putString("node",node).remove("configurationAck").remove("configurationAckNode").remove("snapshot").putLong("requestAt",0).putString("requestId","").putString("error","").commit())}
- fun log(stage:String,message:String)=synchronized(lock){val old=journal();val next=JSONArray();for(i in maxOf(0,old.length()-19) until old.length())next.put(old.getJSONObject(i));next.put(JSONObject().put("at",System.currentTimeMillis()).put("stage",stage).put("message",message.take(120)));check(prefs.edit().putString("journal",next.toString()).commit())}
+ fun log(stage:String,message:String)=synchronized(lock){val old=journal();val next=JSONArray();for(i in maxOf(0,old.length()-19) until old.length())next.put(old.getJSONObject(i));next.put(JSONObject().put("at",System.currentTimeMillis()).put("stage",stage).put("message",message.take(120)));check(prefs.edit().putString("journal",next.toString()).commit());se.lobbamannen.nexushub.app.recordNativeActivity(app,"system","battery_"+stage,if(stage in setOf("failure","timeout"))"failed" else if(stage=="request")"pending" else "succeeded",message.take(120))}
  fun beginRequest(node:String):String=synchronized(lock){
   if(node!=node())return@synchronized ""
   val id=UUID.randomUUID().toString();check(prefs.edit().putString("requestId",id).putLong("requestAt",System.currentTimeMillis()).putString("error","").commit());id

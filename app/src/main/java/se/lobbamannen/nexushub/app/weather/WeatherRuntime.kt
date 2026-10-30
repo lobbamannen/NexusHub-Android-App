@@ -59,5 +59,11 @@ object WeatherRuntime {
  }
 }
 class WeatherRefreshWorker(context:Context,params:WorkerParameters):Worker(context,params) {
- override fun doWork():Result {try {WeatherRuntime.perform(applicationContext,inputData.getBoolean("manual",false))}catch(_:Exception){};return Result.success()}
+ override fun doWork():Result {
+  val before=WeatherRuntime.state(applicationContext)
+  try {WeatherRuntime.perform(applicationContext,inputData.getBoolean("manual",false))}catch(e:Exception){se.lobbamannen.nexushub.app.recordNativeActivity(applicationContext,"sync","weather_refresh","failed","Väderhämtning misslyckades",JSONObject().put("error",e.message));return Result.success()}
+  val after=WeatherRuntime.state(applicationContext)
+  if(before.optString("fetchedAt")!=after.optString("fetchedAt") || before.optString("error")!=after.optString("error"))se.lobbamannen.nexushub.app.recordNativeActivity(applicationContext,"sync","weather_refresh",if(after.isNull("error"))"succeeded" else "failed","Väderhämtning",JSONObject().put("provider",after.opt("provider")).put("fetchedAt",after.opt("fetchedAt")).put("forecastStatus",after.optString("status")).put("error",after.opt("error")))
+  return Result.success()
+ }
 }

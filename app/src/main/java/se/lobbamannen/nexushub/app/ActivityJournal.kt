@@ -92,3 +92,8 @@ class ActivityJournal(context:Context) {
   return JSONObject().put("schemaVersion",1).put("exportedAt",Instant.now().toString()).put("items",items).toString()
  }
 }
+
+/** Logging never changes the outcome of the operation it describes. */
+fun recordNativeActivity(context:Context,category:String,action:String,status:String,title:String,details:JSONObject=JSONObject()) {
+ try {ActivityJournal(context).append(JSONObject().put("id",java.util.UUID.randomUUID().toString()).put("at",Instant.now().toString()).put("category",category).put("action",action).put("status",status).put("source","native").put("title",title).put("details",details))}catch(_:Exception){}
+}

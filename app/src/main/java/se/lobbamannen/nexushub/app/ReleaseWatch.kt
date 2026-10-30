@@ -295,7 +295,11 @@ class ReleaseWorker(context:Context,params:WorkerParameters):Worker(context,para
   val daily=inputData.getBoolean("daily",false)
   return try {
    val watch=ReleaseWatch(applicationContext)
-   if(if(daily)watch.runDaily() else watch.run())Result.success() else Result.retry()
+   val before=watch.state().optString("lastAttemptAt")
+   val successful=if(daily)watch.runDaily() else watch.run()
+   val after=watch.state()
+   if(after.optString("lastAttemptAt")!=before)recordNativeActivity(applicationContext,"media","release_check",if(successful && after.optString("error").isBlank())"succeeded" else "failed","Seriebevakning kontrollerad",JSONObject().put("lastAttemptAt",after.optString("lastAttemptAt")).put("partial",after.optBoolean("partial")).put("error",after.optString("error")).put("events",after.optJSONArray("events")?.length()?:0))
+   if(successful)Result.success() else Result.retry()
   } finally { if(daily)ReleaseWatch.schedule(applicationContext) }
  }
 }

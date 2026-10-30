@@ -8,6 +8,7 @@ import './activity-log.css';
 
 const categories=activityCategories as Record<string,string>,statuses=activityStatuses as Record<string,string>;
 const actions:Record<string,string>={
+ release_check:'Seriebevakning kontrollerad',weather_refresh:'Väderhämtning',battery_receive:'Batterimätning mottagen',battery_request:'Batterimätning begärd',battery_failure:'Batterisynk misslyckades',battery_timeout:'Batterimätning uteblev',watch_markRead:'Bevakningsfynd markerade som lästa',watch_checkNow:'Seriekontroll beställd',weather_setLocation:'Väderplats ändrad',weather_pinWidget:'Väderwidget begärd',
  added:'Tillagt',updated:'Uppdaterat',deleted:'Raderat',status_changed:'Status ändrad',saved:'Sparat',uploaded:'Uppladdat',transferred:'Vidareöverfört',attachment_added:'Bilaga tillagd',bookmark_changed:'Sparmarkering ändrad',incoming_upload:'Uppladdning från inkorgen',replica_completed:'GitHub-hämtning klar',replica_failed:'GitHub-hämtning misslyckades',save_failed:'Sparning misslyckades',update:'Uppdaterat','set-watchlist':'Vill se ändrat','set-release-watch':'Bevakning ändrad',upsert:'Sparat',remove:'Borttaget',revoke:'Koppling återkallad',
 
  'document.added':'Dokument tillagt','document.updated':'Dokument uppdaterat','document.deleted':'Dokument raderat',
