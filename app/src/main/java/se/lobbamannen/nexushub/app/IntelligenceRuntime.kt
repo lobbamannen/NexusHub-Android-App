@@ -46,7 +46,9 @@ class IntelligenceRuntime private constructor(private val app: Context) {
     private fun config(): JSONObject = JSONObject(prefs.getString("config",null) ?: defaults().toString())
     fun profile(): JSONObject = synchronized(mutex) { JSONObject(config().toString()) }
 
-    fun saveProfile(input: JSONObject): JSONObject {\n        check(!processing && !importing) { "Modellen arbetar. Vänta på säker gräns." }\n        return synchronized(mutex) {
+    fun saveProfile(input: JSONObject): JSONObject {
+        check(!processing && !importing) { "Modellen arbetar. Vänta på säker gräns." }
+        return synchronized(mutex) {
         check(!processing && !importing) { "Inställningar kan inte ändras medan modellen arbetar." }
         val current = defaults()
         require(input.keys().asSequence().all { current.has(it) }) { "Okänd inställning" }
@@ -78,7 +80,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         }
     }
 
-    fun status(): JSONObject {
+    fun status(): JSONObject =
         JSONObject().put("nativeLoaded",LlamaNative.isLoaded)
             .put("importing",importing).put("processing",processing)
             .put("imported",model.isFile && model.length()>100L*1024*1024)
@@ -89,7 +91,6 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             .put("warm",loadedSignature!=null && LlamaNative.isLoaded && !processing)
             .put("config",config())
             .put("lastTelemetry",JSONObject(prefs.getString("telemetry","{}") ?: "{}"))
-    }
 
     /** Must run on a background thread. An interrupted import preserves the prior model. */
     fun import(uri: Uri): JSONObject {
