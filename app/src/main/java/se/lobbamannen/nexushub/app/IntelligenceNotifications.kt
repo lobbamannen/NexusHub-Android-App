@@ -102,6 +102,7 @@ internal object IntelligenceNotifications {
                 state=="waiting_model"->"Väntar på importerad modell"
                 state=="waiting_index"->"Väntar på färdigt sökindex"
                 state=="paused"->"Körningen pausad"
+                state=="waiting_resource"->"Väntar på batteri, temperatur eller RAM"
                 else->"Körningen kräver uppmärksamhet: $state"
             }
             val b=NotificationCompat.Builder(context,CHANNEL)
@@ -112,7 +113,7 @@ internal object IntelligenceNotifications {
                 .setContentIntent(open(context,id))
                 .setOnlyAlertOnce(true).setSilent(true)
                 .setOngoing(false).setAutoCancel(true)
-            if(state in setOf("paused","failed","waiting_model","waiting_index","waiting_network")){
+            if(state in setOf("paused","failed","waiting_model","waiting_index","waiting_network","waiting_resource")){
                 b.addAction(0,"Återuppta",control(context,id,
                     IntelligenceControlReceiver.RESUME,6000))
             }

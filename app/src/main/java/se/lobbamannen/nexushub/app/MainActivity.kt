@@ -267,6 +267,9 @@ class MainActivity : Activity() {
         @JavascriptInterface fun readIncomingFile(id: String, fileId: String): String = if (trustedDocument) incomingShares.read(id, fileId) else ""
         @JavascriptInterface fun removeIncoming(id: String): Boolean = trustedDocument && incomingShares.remove(id)
 
+        @JavascriptInterface fun intelligenceResourceStatus():String =
+            if(trustedDocument)try{IntelligenceResourcePolicy.snapshot(applicationContext).toString()}
+            catch(e:Exception){JSONObject().put("error",e.message?:"Sensorer saknas").toString()} else "{}"
         @JavascriptInterface fun intelligenceStatus():String =
             if(trustedDocument)try{IntelligenceRuntime.get(applicationContext).status().toString()}
             catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
