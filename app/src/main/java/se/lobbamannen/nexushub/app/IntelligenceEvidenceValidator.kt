@@ -15,9 +15,21 @@ internal object IntelligenceEvidenceValidator {
     private val sha = Regex("[a-f0-9]{40}")
     private val allowedKeyword = Regex("[\\p{L}\\p{N}][\\p{L}\\p{N} _+.-]{1,79}")
 
+    /** Accept only a complete JSON object, optionally enclosed by one Markdown JSON fence. */
+    private fun parseObject(raw: String): JSONObject {
+        val trimmed = raw.trim()
+        val json = if (trimmed.startsWith("```")) {
+            val match = Regex("^\x60{3}(?:json)?[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n\x60{3}$", RegexOption.IGNORE_CASE)
+                .matchEntire(trimmed) ?: throw IllegalArgumentException("Ogiltigt JSON-kodblock")
+            match.groupValues[1].trim()
+        } else trimmed
+        require(json.startsWith("{") && json.endsWith("}")) { "Förväntade ett fullständigt JSON-objekt" }
+        return JSONObject(json)
+    }
+
     fun parseClassification(raw: String): JSONObject {
         require(raw.length in 4..8000) { "Modellens klassificering är tom eller för lång" }
-        val value = JSONObject(raw.trim())
+        val value = parseObject(raw)
         require(value.length() == 2 && value.has("topic") && value.has("keywords")) {
             "Klassificeringen innehåller oväntade eller saknade fält"
         }
@@ -41,7 +53,7 @@ internal object IntelligenceEvidenceValidator {
         require(raw.length in 2..32000)
         require(maxExcerptChars in 100..4000)
         require(candidates.length() in 0..20)
-        val parsed = JSONObject(raw.trim())
+        val parsed = parseObject(raw)
         require(parsed.length() == 1 && parsed.has("matches")) {
             "Matchning måste bara innehålla fältet matches"
         }
