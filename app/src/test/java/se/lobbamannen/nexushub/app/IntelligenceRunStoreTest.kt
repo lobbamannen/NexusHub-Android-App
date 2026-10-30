@@ -1,6 +1,5 @@
 package se.lobbamannen.nexushub.app
 
-import androidx.test.core.app.ApplicationProvider
 import android.content.Context
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -11,7 +10,7 @@ import java.util.UUID
 
 @RunWith(RobolectricTestRunner::class)
 class IntelligenceRunStoreTest {
-    private val context: Context get() = ApplicationProvider.getApplicationContext()
+    private val context: Context get() = org.robolectric.RuntimeEnvironment.getApplication()
     private fun unique() = UUID.randomUUID().toString()
 
     @Test fun duplicateTriggerUsesSameRun() {
