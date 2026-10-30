@@ -2,6 +2,7 @@ package se.lobbamannen.nexushub.app
 
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 
 /**
  * An explicit, pure validation boundary between local Gemma output and saved evidence.
@@ -15,16 +16,24 @@ internal object IntelligenceEvidenceValidator {
     private val sha = Regex("[a-f0-9]{40}")
     private val allowedKeyword = Regex("[\\p{L}\\p{N}][\\p{L}\\p{N} _+.-]{1,79}")
 
-    /** Accept only a complete JSON object, optionally enclosed by one Markdown JSON fence. */
+    /** Accept one entire JSON object, optionally in a single Markdown JSON fence. */
     private fun parseObject(raw: String): JSONObject {
-        val trimmed = raw.trim()
-        val json = if (trimmed.startsWith("```")) {
-            val match = Regex("^\x60{3}(?:json)?[ \\t]*\\r?\\n([\\s\\S]*?)\\r?\\n\x60{3}$", RegexOption.IGNORE_CASE)
-                .matchEntire(trimmed) ?: throw IllegalArgumentException("Ogiltigt JSON-kodblock")
-            match.groupValues[1].trim()
+        val trimmed=raw.trim()
+        val payload=if(trimmed.startsWith("```")) {
+            val fence=Regex("""^`{3}(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n`{3}$""",
+                RegexOption.IGNORE_CASE)
+            fence.matchEntire(trimmed)?.groupValues?.get(1)?.trim()
+                ?: throw IllegalArgumentException("Ogiltigt JSON-kodblock")
         } else trimmed
-        require(json.startsWith("{") && json.endsWith("}")) { "Förväntade ett fullständigt JSON-objekt" }
-        return JSONObject(json)
+        require(payload.startsWith("{") && payload.endsWith("}")) {
+            "Förväntade ett fullständigt JSON-objekt"
+        }
+        val tokenizer=JSONTokener(payload)
+        val parsed=tokenizer.nextValue()
+        require(parsed is JSONObject && tokenizer.nextClean()=='\u0000') {
+            "Modellen lämnade extra text eller ofullständig JSON"
+        }
+        return parsed
     }
 
     fun parseClassification(raw: String): JSONObject {
