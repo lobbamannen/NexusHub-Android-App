@@ -71,6 +71,7 @@ internal object IntelligenceEvidenceValidator {
         val verified = JSONArray()
         val used = HashSet<Int>()
         for (i in 0 until matches.length()) {
+            try {
             val match = matches.getJSONObject(i)
             require(match.length() == 4 &&
                 match.has("candidateIndex") && match.has("quote") &&
@@ -100,6 +101,11 @@ internal object IntelligenceEvidenceValidator {
                 .put("path", path).put("blobSha", blob).put("repoCommit", commit)
                 .put("quote", quote).put("reason", reason)
                 .put("confidence", confidence).put("status", "proposal"))
+            } catch (_: org.json.JSONException) {
+                // Reject this individual malformed proposal.
+            } catch (_: IllegalArgumentException) {
+                // Reject this individual unverified proposal.
+            }
         }
         return verified
     }
