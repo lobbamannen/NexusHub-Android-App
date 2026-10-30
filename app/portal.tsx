@@ -1,5 +1,6 @@
 import ActivityLog from '@/components/activity/ActivityLog';
 import NexusIntelligence from '@/components/intelligence/NexusIntelligence';
+import {syncIntelligenceIndex} from '@/platform/intelligence-index';
 import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 import TrainingArchive from '@/components/training/TrainingArchive';
 import Connections, {ConnectionsPanel} from '@/components/connections/Connections';
@@ -82,6 +83,14 @@ catch {
     return [];
 } }
 export default function Portal() {
+    useEffect(()=>{
+        if(!(window as any).Android?.intelligenceIndexStatus)return;
+        const sync=()=>{void syncIntelligenceIndex()};
+        const t=window.setTimeout(sync,1000);
+        window.addEventListener('nexus-replica-status',sync);
+        window.addEventListener('nexus-github-changed',sync);
+        return()=>{window.clearTimeout(t);window.removeEventListener('nexus-replica-status',sync);window.removeEventListener('nexus-github-changed',sync)};
+    },[]);
     const ideas = useIdeas(), todos=useTodos();
     const [taskEditor,setTaskEditor]=useState(false);
     const [addMenu, setAddMenu,addMenuClosing] = usePanelPresence(false);
