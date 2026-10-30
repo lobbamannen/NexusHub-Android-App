@@ -462,11 +462,11 @@ Java_com_example_ai_runtime_LlamaNative_initEngineExt(
         const bool request_hexagon = useNpu == JNI_TRUE;
         const bool request_opencl = gpuLayers > 0;
         ensure_requested_backends(request_opencl, request_hexagon);
-        g_engine.context_size = std::clamp((int)contextSize, 1024, 8192);
+        g_engine.context_size = std::clamp((int)contextSize, 1024, 32768);
         g_engine.threads = std::clamp((int)threads, 1, 12);
         g_engine.threads_batch = std::clamp((int)threadsBatch, 1, 12);
-        g_engine.n_batch = std::clamp((int)nBatch, 64, 1024);
-        g_engine.n_ubatch = std::min(std::clamp((int)nUbatch, 32, 512), g_engine.n_batch);
+        g_engine.n_batch = std::clamp((int)nBatch, 64, 2048);
+        g_engine.n_ubatch = std::min(std::clamp((int)nUbatch, 32, 1024), g_engine.n_batch);
         g_engine.use_q8_kv = useQ80Kv == JNI_TRUE;
         g_engine.flash_attention = flashAttention == JNI_TRUE;
         g_engine.use_mlock = useMlock == JNI_TRUE;
@@ -640,7 +640,7 @@ Java_com_example_ai_runtime_LlamaNative_generateCompletionExt(
         auto tokens = tokenize(prompt);
         t.prompt_tokens = tokens.size();
         const int n_ctx = llama_n_ctx(g_engine.ctx);
-        const int max_generation = std::clamp((int)maxGenTokens, 1, 2048);
+        const int max_generation = std::clamp((int)maxGenTokens, 1, 4096);
         if (tokens.empty() || (int)tokens.size() + max_generation + 16 > n_ctx)
             throw std::runtime_error("Prompt exceeds native context budget");
         // Shared-KV/SWA rollback cannot be inferred from a matching token prefix. Re-evaluate
@@ -677,7 +677,7 @@ Java_com_example_ai_runtime_LlamaNative_generateCompletionExt(
                 t.sampler_top_p = 1; t.sampler_top_k = 1; t.sampler_min_p = 0; t.sampler_seed = -1;
             } else {
                 t.sampler_temperature = temperature; t.sampler_top_k = std::max(0, (int)topK);
-                t.sampler_top_p = std::clamp((float)topP, 0.05f, 1.0f); t.sampler_min_p = std::clamp((float)minP, 0.0f, 0.5f);
+                t.sampler_top_p = std::clamp((float)topP, 0.05f, 1.0f); t.sampler_min_p = std::clamp((float)minP, 0.0f, 1.0f);
                 const uint32_t actual_seed = seed >= 0 ? (uint32_t)seed : (uint32_t)std::chrono::high_resolution_clock::now().time_since_epoch().count();
                 t.sampler_seed = actual_seed;
                 if (t.sampler_top_k) llama_sampler_chain_add(sampler, llama_sampler_init_top_k(t.sampler_top_k));
