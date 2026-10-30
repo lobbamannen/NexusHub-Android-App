@@ -56,8 +56,8 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         require(current.getString("backend") in setOf("AUTO","CPU","GPU_OPENCL","NPU_HEXAGON"))
         for((key,lo,hi) in listOf(
             Triple("threads",1,12),Triple("batchThreads",1,12),
-            Triple("contextSize",1024,32768),Triple("batch",32,2048),
-            Triple("microbatch",16,1024),Triple("gpuLayers",0,999),
+            Triple("contextSize",1024,32768),Triple("batch",64,2048),
+            Triple("microbatch",32,1024),Triple("gpuLayers",0,999),
             Triple("topK",1,256),Triple("maxOutputTokens",16,4096))) {
             val value = current.getInt(key)
             require(value in lo..hi) { "$key utanför tillåtet intervall" }
@@ -66,7 +66,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         require(current.getInt("maxOutputTokens")+16<current.getInt("contextSize"))
         for((key,lo,hi) in listOf(
             Triple("temperature",0.0,2.0),Triple("topP",0.01,1.0),
-            Triple("minP",0.0,1.0),Triple("repeatPenalty",0.5,2.0))) {
+            Triple("minP",0.0,1.0),Triple("repeatPenalty",1.0,2.0))) {
             val v = current.getDouble(key)
             require(v.isFinite() && v>=lo && v<=hi) { "$key är ogiltig" }
         }
@@ -164,6 +164,9 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             val p=config()
             val signature=p.toString()+":"+prefs.getString("sha256","")
             if(loadedSignature!=signature || !LlamaNative.isEngineInitialized()) {
+                val importedHash=prefs.getString("sha256","").orEmpty()
+                require(Regex("[a-f0-9]{64}").matches(importedHash)) { "Importen saknar giltig SHA-256-identitet." }
+                check(GgufInspector.sha256(model)==importedHash) { "Modellens bytes avviker från verifierad import. Importera igen." }
                 if(LlamaNative.isEngineInitialized()) LlamaNative.releaseEngine()
                 LlamaNative.resetStop()
                 val nativeDir=app.applicationInfo.nativeLibraryDir
@@ -201,15 +204,41 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             val telemetry=JSONObject(LlamaNative.getLatestTelemetryJson())
             val actual=telemetry.optString("backend_active")
             require(actual.isNotBlank()) { "Native runtime rapporterade ingen backend." }
-            if(p.getString("backend")=="NPU_HEXAGON")require(actual.contains("HTP",true)||actual.contains("Hexagon",true)){
-                "NPU-only misslyckades: aktiv backend är $actual."
+            val selected=p.getString("backend")
+            val fallback=telemetry.optBoolean("fallback_occurred",false)
+            val offloaded=telemetry.optInt("actual_gpu_layers",-1)
+            if(selected=="NPU_HEXAGON")require(!fallback && offloaded>0 &&
+                (actual.contains("HTP",true)||actual.contains("Hexagon",true))) {
+                "NPU-only misslyckades: aktiv=$actual, offload=$offloaded, fallback="+
+                    telemetry.optString("fallback_reason","okänd orsak")
+            }
+            if(selected=="GPU_OPENCL")require(!fallback && offloaded>0 &&
+                actual.contains("OpenCL",true)) {
+                "GPU-only misslyckades: aktiv=$actual, offload=$offloaded, fallback="+
+                    telemetry.optString("fallback_reason","okänd orsak")
             }
             val reason=telemetry.optString("finish_reason","unknown")
             check(reason !in setOf("error","cancelled","in_progress")) { "Generering avslutades inte normalt: $reason" }
             val result=JSONObject().put("text",parser.finalAnswer())
                 .put("finishReason",reason).put("promptTokens",promptTokens)
                 .put("backend",actual).put("requestedBackend",p.getString("backend"))
+                .put("fallbackOccurred",fallback)
+                .put("fallbackReason",telemetry.optString("fallback_reason",""))
+                .put("offloadedLayers",offloaded)
+                .put("npuExecutionVerified",false)
                 .put("telemetry",telemetry).put("modelSha256",prefs.getString("sha256",""))
+            if(p.getBoolean("audit") && selected in setOf("AUTO","NPU_HEXAGON")) {
+                try {
+                    val raw=LlamaNative.getHtpExecutionAuditJson(actual,
+                        telemetry.optInt("requested_gpu_layers",0),offloaded,
+                        telemetry.optInt("total_offloadable_layers",0),
+                        telemetry.optInt("output_tokens",0),reason)
+                    if(raw.length<=262144)result.put("htpExecutionAudit",JSONObject(raw))
+                    else result.put("auditError","Audit överskrider 256 KiB. Exportera separat.")
+                } catch(e:Exception) {
+                    result.put("auditError",e.message?.take(180) ?: "Audit kunde inte läsas")
+                }
+            }
             prefs.edit().putString("telemetry",telemetry.toString()).apply()
             if(!p.getBoolean("warmModel")) { LlamaNative.releaseEngine(); loadedSignature=null }
             result
