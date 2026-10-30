@@ -11,7 +11,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,6 +30,172 @@ jobs:
           gradle-version: '8.11.1'
       - name: Install Android platform
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Restore Core Native Build Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/src/main/cpp/llama.cpp
+            app/.cxx
+          key: ${{ runner.os }}-nexus-native-v3-${{ hashFiles('llama-revision.txt', 'app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/src/main/cpp/*.h', 'app/src/main/cpp/*.hpp', 'app/build.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-nexus-native-v3-
+            ${{ runner.os }}-nexus-native-v2-
+            ${{ runner.os }}-nexus-native-v1-
+
+      - name: Verify pinned llama source after cache restore
+        run: |
+          set -euo pipefail
+          PINNED_SHA=$(tr -d '\r\n' < llama-revision.txt)
+          SRC="app/src/main/cpp/llama.cpp"
+          if [ ! -d "$SRC/.git" ]; then
+            git clone https://github.com/ggml-org/llama.cpp.git "$SRC"
+          fi
+          if [ -n "$(git -C "$SRC" status --porcelain --untracked-files=no)" ]; then
+            echo "::error::Cached llama source has tracked modifications"
+            exit 1
+          fi
+          git -C "$SRC" fetch origin "$PINNED_SHA"
+          git -C "$SRC" checkout --detach "$PINNED_SHA"
+          test "$(git -C "$SRC" rev-parse HEAD)" = "$PINNED_SHA"
+
+      # Restore and save the expensive Snapdragon artifacts explicitly. The save happens
+      # immediately after a successful accelerator build, so a later APK/link failure does
+      # not throw away completed work. The Jarvis audit patch is part of the cache identity.
+      - name: Restore Snapdragon OpenCL and Hexagon Libraries
+        id: cache-snapdragon-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/snapdragon-libs/arm64-v8a
+          key: nexus-snapdragon-libs-v1-v0.7-${{ hashFiles('llama-revision.txt', 'scripts/patch-llama-hexagon-jarvis-audit.py') }}
+
+
+      - name: Ensure Android Native Toolchain
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "::error::ANDROID_SDK_ROOT/ANDROID_HOME is not configured on the runner."
+            exit 1
+          fi
+          SDKMANAGER=""
+          for candidate in \
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK_ROOT/cmdline-tools/bin/sdkmanager" \
+            "$SDK_ROOT/tools/bin/sdkmanager"; do
+            if [ -x "$candidate" ]; then SDKMANAGER="$candidate"; break; fi
+          done
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -perm -111 2>/dev/null | head -n 1 || true)
+          fi
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::Could not locate sdkmanager under Android SDK root: $SDK_ROOT"
+            exit 1
+          fi
+          NEED_INSTALL=()
+          if [ ! -d "$SDK_ROOT/ndk/28.2.13676358" ]; then NEED_INSTALL+=("ndk;28.2.13676358"); fi
+          if [ ! -d "$SDK_ROOT/cmake/3.22.1" ]; then NEED_INSTALL+=("cmake;3.22.1"); fi
+          if [ ${#NEED_INSTALL[@]} -gt 0 ]; then
+            yes | "$SDKMANAGER" --licenses >/dev/null || true
+            "$SDKMANAGER" --install "${NEED_INSTALL[@]}"
+          fi
+
+      - name: Build Snapdragon Accelerator Libraries
+        if: steps.cache-snapdragon-libs.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          PINNED_SHA=$(tr -d '\r\n' < llama-revision.txt)
+          TOOLCHAIN_IMAGE="ghcr.io/snapdragon-toolchain/arm64-android:v0.7"
+          LLAMA_SRC="${RUNNER_TEMP:-/tmp}/jarvis-llama-snapdragon-src"
+          DEST=".cache/snapdragon-libs/arm64-v8a"
+
+          rm -rf "$LLAMA_SRC"
+          mkdir -p "$LLAMA_SRC" "$DEST"
+
+          if [ -d "app/src/main/cpp/llama.cpp/.git" ]; then
+            cp -r app/src/main/cpp/llama.cpp/. "$LLAMA_SRC/"
+          else
+            git clone https://github.com/ggml-org/llama.cpp.git "$LLAMA_SRC"
+            git -C "$LLAMA_SRC" checkout "$PINNED_SHA"
+          fi
+
+          test "$(git -C "$LLAMA_SRC" rev-parse HEAD)" = "$PINNED_SHA"
+          if [ ! -f "$LLAMA_SRC/docs/backend/snapdragon/CMakeUserPresets.json" ]; then
+            echo "::error::Snapdragon CMake preset missing from pinned llama.cpp commit."
+            exit 1
+          fi
+          cp "$LLAMA_SRC/docs/backend/snapdragon/CMakeUserPresets.json" "$LLAMA_SRC/"
+
+          # The canonical checkout stays pristine. Only this disposable accelerator source copy
+          # receives a tiny diagnostic export that toggles already-existing Hexagon profile knobs.
+          python3 "${GITHUB_WORKSPACE}/scripts/patch-llama-hexagon-jarvis-audit.py" "$LLAMA_SRC"
+          sha256sum "${GITHUB_WORKSPACE}/scripts/patch-llama-hexagon-jarvis-audit.py" | awk '{print $1}' > "$DEST/hexagon-audit-patch-sha256.txt"
+
+          docker pull "$TOOLCHAIN_IMAGE"
+          docker image inspect "$TOOLCHAIN_IMAGE" --format '{{index .RepoDigests 0}}' > "$DEST/toolchain-digest.txt"
+          printf '%s\n' "$PINNED_SHA" > "$DEST/llama-commit.txt"
+          docker run --rm \
+            -v "${LLAMA_SRC}:/workspace" \
+            -w /workspace \
+            --platform linux/amd64 \
+            "$TOOLCHAIN_IMAGE" \
+            bash -c "
+              set -e
+              git config --global --add safe.directory /workspace
+              cmake --preset arm64-android-snapdragon-release -B build-snapdragon
+              cmake --build build-snapdragon --parallel \$(nproc) --target ggml-opencl ggml-hexagon htp-v73 htp-v75 htp-v79 htp-v81
+            "
+
+          find "$LLAMA_SRC/build-snapdragon" -type f -name "libggml-opencl.so" -exec cp -v {} "$DEST/" \;
+          find "$LLAMA_SRC/build-snapdragon" -type f -name "libggml-hexagon.so" -exec cp -v {} "$DEST/" \;
+          find "$LLAMA_SRC/build-snapdragon" -type f -name "libggml-htp-*.so" -exec cp -v {} "$DEST/" \;
+          sudo chown -R "$(id -u):$(id -g)" "$DEST" || true
+          chmod 755 "$DEST"/*.so || true
+
+          if [ ! -f "$DEST/libggml-opencl.so" ] || [ ! -f "$DEST/libggml-hexagon.so" ]; then
+            echo "::error::Required Snapdragon OpenCL/Hexagon libraries were not produced."
+            exit 1
+          fi
+          for htp in v73 v75 v79 v81; do
+            if [ ! -f "$DEST/libggml-htp-${htp}.so" ]; then
+              echo "::error::Required libggml-htp-${htp}.so was not produced."
+              exit 1
+            fi
+          done
+
+      - name: Save Snapdragon OpenCL and Hexagon Libraries
+        if: steps.cache-snapdragon-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/snapdragon-libs/arm64-v8a
+          key: nexus-snapdragon-libs-v1-v0.7-${{ hashFiles('llama-revision.txt', 'scripts/patch-llama-hexagon-jarvis-audit.py') }}
+
+      - name: Stage Snapdragon Accelerator Libraries
+        run: |
+          set -euo pipefail
+          SRC=".cache/snapdragon-libs/arm64-v8a"
+          DEST="app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$DEST"
+          if [ ! -d "$SRC" ]; then
+            echo "::error::Snapdragon library cache directory is missing."
+            exit 1
+          fi
+          test "$(cat "$SRC/llama-commit.txt")" = "$(tr -d '\r\n' < llama-revision.txt)"
+          test -s "$SRC/hexagon-audit-patch-sha256.txt"
+          cp -v "$SRC"/*.so "$DEST/"
+          mkdir -p app/src/main/assets
+          python3 - <<'PYCODE'
+          import hashlib, json, pathlib
+          source = pathlib.Path('.cache/snapdragon-libs/arm64-v8a')
+          data = {'llama_commit': (source/'llama-commit.txt').read_text().strip(),
+                  'toolchain_digest': (source/'toolchain-digest.txt').read_text().strip(),
+                  'hexagon_audit_patch_sha256': (source/'hexagon-audit-patch-sha256.txt').read_text().strip(),
+                  'accelerator_sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(source.glob('*.so'))}}
+          pathlib.Path('app/src/main/assets/gemma-native-build.json').write_text(json.dumps(data, indent=2))
+          PYCODE
+          chmod 755 "$DEST"/*.so || true
+          echo "Accelerator libraries staged:"
+          ls -lh "$DEST"
+
       - name: Build original React UI
         run: |
           npm ci
@@ -120,6 +286,18 @@ jobs:
           set +a
           gradle --no-daemon -PskipWebBuild=true :app:dependencyInsight --dependency okhttp --configuration releaseRuntimeClasspath
           gradle --no-daemon -PskipWebBuild=true :app:testDebugUnitTest :wear:testDebugUnitTest :app:assembleRelease :wear:assembleRelease :app:lintRelease :wear:lintRelease
+      - name: Verify native model and accelerator libraries in APK
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release.apk"
+          unzip -l "$APK" > "$RUNNER_TEMP/nexus-native-list.txt"
+          for lib in libllama_android.so libllama.so libggml.so libggml-base.so libggml-cpu.so libggml-opencl.so libggml-hexagon.so; do
+            grep -q "lib/arm64-v8a/$lib" "$RUNNER_TEMP/nexus-native-list.txt" || { echo "::error::$lib not packaged"; exit 1; }
+          done
+          for htp in v73 v75 v79 v81; do
+            grep -q "lib/arm64-v8a/libggml-htp-$htp.so" "$RUNNER_TEMP/nexus-native-list.txt" || { echo "::error::HTP $htp missing"; exit 1; }
+          done
+          echo "Native packaging verified; this is NOT proof of NPU execution."
       - uses: actions/upload-artifact@v4
         if: always()
         with:
