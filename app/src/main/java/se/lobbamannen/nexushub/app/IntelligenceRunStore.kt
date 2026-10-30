@@ -190,6 +190,18 @@ class IntelligenceRunStore(context: Context) {
         array
     }
 
+    /** Hold the next inbox item while an existing document analysis awaits resources,
+     * model import, user action or a worker. This is a single-flight work queue.
+     */
+    fun hasPendingDocument():Boolean=synchronized(helper) {
+        helper.readableDatabase.rawQuery("""SELECT 1 FROM runs
+            WHERE workflow='document_analysis'
+            AND state IN ('queued','running','cancelling','waiting_model',
+                'waiting_resource','waiting_index','paused','waiting_network',
+                'waiting_approval','sync_pending')
+            LIMIT 1""",null).use{it.moveToFirst()}
+    }
+
     /** Global counters, independent of how many history pages the UI has loaded. */
     /** Keep the original result but make prior index-bound evidence non-authoritative. */
     fun invalidateOlderEvidence(currentIndexCommit:String):Int {
