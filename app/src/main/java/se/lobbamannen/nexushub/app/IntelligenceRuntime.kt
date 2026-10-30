@@ -189,6 +189,25 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                 }
                 loadedSignature=signature
             }
+            // An explicitly selected accelerator is a strict precondition.
+            // Verify freshly loaded and warm engines before generating any token.
+            val selected=p.getString("backend")
+            fun verifyBackend(telemetry:JSONObject) {
+                val actual=telemetry.optString("backend_active")
+                val fallback=telemetry.optBoolean("fallback_occurred",false)
+                val offloaded=telemetry.optInt("actual_gpu_layers",-1)
+                if(selected=="NPU_HEXAGON")require(!fallback && offloaded>0 &&
+                    (actual.contains("HTP",true)||actual.contains("Hexagon",true))) {
+                    "NPU-only nekades: aktiv=$actual, offload=$offloaded, fallback="+
+                        telemetry.optString("fallback_reason","okänd orsak")
+                }
+                if(selected=="GPU_OPENCL")require(!fallback && offloaded>0 &&
+                    actual.contains("OpenCL",true)) {
+                    "GPU-only nekades: aktiv=$actual, offload=$offloaded, fallback="+
+                        telemetry.optString("fallback_reason","okänd orsak")
+                }
+            }
+            verifyBackend(JSONObject(LlamaNative.getLatestTelemetryJson()))
             LlamaNative.resetStop()
             LlamaNative.resetTurnTelemetry()
             val formatted=LlamaNative.applyChatTemplateExt(arrayOf("user"),arrayOf(task),
@@ -209,19 +228,10 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             val telemetry=JSONObject(LlamaNative.getLatestTelemetryJson())
             val actual=telemetry.optString("backend_active")
             require(actual.isNotBlank()) { "Native runtime rapporterade ingen backend." }
-            val selected=p.getString("backend")
             val fallback=telemetry.optBoolean("fallback_occurred",false)
             val offloaded=telemetry.optInt("actual_gpu_layers",-1)
-            if(selected=="NPU_HEXAGON")require(!fallback && offloaded>0 &&
-                (actual.contains("HTP",true)||actual.contains("Hexagon",true))) {
-                "NPU-only misslyckades: aktiv=$actual, offload=$offloaded, fallback="+
-                    telemetry.optString("fallback_reason","okänd orsak")
-            }
-            if(selected=="GPU_OPENCL")require(!fallback && offloaded>0 &&
-                actual.contains("OpenCL",true)) {
-                "GPU-only misslyckades: aktiv=$actual, offload=$offloaded, fallback="+
-                    telemetry.optString("fallback_reason","okänd orsak")
-            }
+            // Preserve the post-generation gate for a backend lost mid-turn.
+            verifyBackend(telemetry)
             val reason=telemetry.optString("finish_reason","unknown")
             check(reason !in setOf("error","cancelled","in_progress")) { "Generering avslutades inte normalt: $reason" }
             val result=JSONObject().put("text",parser.finalAnswer())
