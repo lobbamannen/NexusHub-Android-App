@@ -21,7 +21,7 @@ test('generic technology overlap is insufficient for a relationship',()=>{
 });
 test('complementary evidence across separate idea probes is eligible',()=>{
  const idea='Händelsestyrda flöden ska bearbeta ändringar. Automatisk förändringsbevakning ska skicka notifieringar.';
- const evidence=hit('event','En händelsestyrd lösning bearbetar ändringar från en bevakning och notifierar vid behov.',0.82);
+ const evidence=hit('händelsestyrda flöden','En händelsestyrd lösning bearbetar ändringar från en bevakning och notifierar vid behov.',0.82);
  const candidates=rankIdeaRelations(idea,[[evidence],[evidence]]);
  assert.equal(candidates.length,1);
  assert.equal(candidates[0].confidence,'strong');
@@ -34,4 +34,14 @@ test('different chunks of same document count as one candidate',()=>{
  const candidates=rankIdeaRelations(idea,[[a,b]]);
  assert.equal(candidates.length,1);
  assert.equal(candidates[0].evidenceCount,2);
+});
+
+test('short EmbeddingGemma idea prefers focused research over incidental mentions',()=>{
+ const idea='Lägga till EmbeddingGemma till NexusHub';
+ const focused=hit('EmbeddingGemma 2 research','EmbeddingGemma används för semantiska sökningar och embeddings.',0.75);
+ const incidental=hit('AI overview','Android AI databaser och EmbeddingGemma nämns som ett exempel.',0.79);
+ const result=rankIdeaRelations(idea,[[incidental,focused]]);
+ assert.equal(result[0]?.hit.chunk.path,'EmbeddingGemma 2 research');
+ assert.equal(result[0]?.confidence,'strong');
+ assert.ok(!result.some(x=>x.hit.chunk.path==='AI overview'));
 });
