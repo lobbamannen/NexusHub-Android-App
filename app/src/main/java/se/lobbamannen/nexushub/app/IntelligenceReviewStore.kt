@@ -93,8 +93,12 @@ class IntelligenceReviewStore(private val context: Context) {
     /** A cross-run inbox derived entirely from saved proposals and durable decisions. */
     fun pending(limit:Int=30):JSONArray = synchronized(lock) {
         val out=JSONArray()
-        val runs=IntelligenceRunStore(context).list(200)
-        for(i in 0 until runs.length()) {
+        val runStore=IntelligenceRunStore(context)
+        var offset=0
+        while(out.length()<limit.coerceIn(1,100)&&offset<=100000) {
+          val runs=runStore.list(200,offset)
+          if(runs.length()==0)break
+          for(i in 0 until runs.length()) {
             if(out.length()>=limit.coerceIn(1,100))break
             val run=runs.getJSONObject(i)
             if(run.optString("state") !in setOf("local_completed","completed"))continue
@@ -115,6 +119,9 @@ class IntelligenceReviewStore(private val context: Context) {
                     .put("quote",p.optString("quote").take(250))
                     .put("confidence",p.optDouble("confidence",0.0)))
             }
+          }
+          offset+=runs.length()
+          if(runs.length()<200)break
         }
         out
     }

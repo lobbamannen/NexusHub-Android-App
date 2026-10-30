@@ -22,7 +22,29 @@ const description:Record<string,string>={backend:'Begärd backend, inte bevis f�
 function download(value:any,name:string){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 export default function NexusIntelligence(){
  const [index,setIndex]=useState(intelligenceIndexProgress()),[status,setStatus]=useState<Status>({}),[runs,setRuns]=useState<Run[]>([]),[selected,setSelected]=useState<string>(''),[editing,setEditing]=useState(false),[draft,setDraft]=useState<Record<string,any>>({}),[task,setTask]=useState(''),[notice,setNotice]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState('all'),[reviews,setReviews]=useState<Review[]>([]),[compareId,setCompareId]=useState(''),[publishing,setPublishing]=useState(''),[documentQuery,setDocumentQuery]=useState(''),[foundDocuments,setFoundDocuments]=useState<any[]>([]),[resource,setResource]=useState<Record<string,any>>({}),[pendingReviews,setPendingReviews]=useState<any[]>([]);
- const refresh=()=>{setStatus(read<Status>('intelligenceStatus',{}));setRuns(read<Run[]>('intelligenceRuns',[]));setResource(read<Record<string,any>>('intelligenceResourceStatus',{}))};
+ const refresh=()=>{
+  setStatus(read<Status>('intelligenceStatus',{}));
+  const latest=read<Run[]>('intelligenceRuns',[]);
+  setRuns(previous=>{
+    const byId=new Map(previous.map(r=>[r.id,r]));
+    for(const item of latest)byId.set(item.id,item);
+    return [...byId.values()].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  });
+  setResource(read<Record<string,any>>('intelligenceResourceStatus',{}));
+ };
+ const loadOlder=()=>{
+  try{
+    const raw=native()?.intelligenceRunsPage?.(runs.length,50);
+    const page=JSON.parse(raw||'[]');
+    if(!Array.isArray(page))throw Error(page.error||'Historiksidan kunde inte läsas');
+    setRuns(old=>{
+      const unique=new Map(old.map(r=>[r.id,r]));
+      for(const r of page)unique.set(r.id,r);
+      return [...unique.values()].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+    });
+    if(page.length<50)setNotice('Hela den tillgängliga körningshistoriken är inläst.');
+  }catch(e:any){setNotice(e.message||'Kunde inte läsa äldre körningar')}
+ };
  useEffect(()=>{refresh();void syncIntelligenceIndex();const update=()=>setIndex(intelligenceIndexProgress());window.addEventListener('nexus-intelligence-index',update);const t=window.setInterval(refresh,2000);return()=>{window.clearInterval(t);window.removeEventListener('nexus-intelligence-index',update)}},[]);
  useEffect(()=>{const params=new URLSearchParams(location.hash.split('?')[1]||'');const id=params.get('run');if(id)setSelected(id)},[]);
  const pick=runs.find(r=>r.id===selected)||runs[0];
@@ -107,7 +129,7 @@ export default function NexusIntelligence(){
     <button className="secondary" onClick={()=>analyzeDocument(item.path)}>Analysera dokument</button>
    </div>)}
   </div>
-  <div className="nh-int-columns"><section className="panel"><h2><Activity size={19}/> Körningshistorik</h2><div className="nh-int-filters"><input type="search" placeholder="Sök körningar" aria-label="Sök körningar" value={search} onChange={e=>setSearch(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)} aria-label="Filtrera status"><option value="all">Alla</option>{Object.entries(labels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></div><div className="nh-int-runs">{visible.length?visible.map(r=><button type="button" className={'nh-int-run '+(pick?.id===r.id?'selected':'')} key={r.id} onClick={()=>setSelected(r.id)}><strong>{r.workflow==='manual_check'?'Lokal textanalys':r.workflow==='document_analysis'?'Dokumentanalys':r.workflow==='source_changed'?'Databasindex uppdaterat':r.workflow}</strong><span>{labels[r.state]||r.state}</span><small>{date(r.startedAt)} · {r.id.slice(0,8)}</small></button>):<p>Inga körningar i urvalet.</p>}</div></section>
+  <div className="nh-int-columns"><section className="panel"><h2><Activity size={19}/> Körningshistorik</h2><div className="nh-int-filters"><input type="search" placeholder="Sök körningar" aria-label="Sök körningar" value={search} onChange={e=>setSearch(e.target.value)}/><select value={filter} onChange={e=>setFilter(e.target.value)} aria-label="Filtrera status"><option value="all">Alla</option>{Object.entries(labels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></div><div className="nh-int-runs">{visible.length?visible.map(r=><button type="button" className={'nh-int-run '+(pick?.id===r.id?'selected':'')} key={r.id} onClick={()=>setSelected(r.id)}><strong>{r.workflow==='manual_check'?'Lokal textanalys':r.workflow==='document_analysis'?'Dokumentanalys':r.workflow==='source_changed'?'Databasindex uppdaterat':r.workflow}</strong><span>{labels[r.state]||r.state}</span><small>{date(r.startedAt)} · {r.id.slice(0,8)}</small></button>):<p>Inga körningar i urvalet.</p>}</div><button className="secondary" onClick={loadOlder}>Läs in äldre körningar</button></section>
   <section className="panel"><h2><Clock size={19}/> Körningsdetaljer</h2>{pick?<><div className="nh-int-metadata"><strong>{labels[pick.state]||pick.state}</strong><small>ID: {pick.id}</small><small>Senast ändrad: {date(pick.updatedAt)}</small>{pick.result?.sourcePath&&<small>Källfil: {pick.result.sourcePath}</small>}<small>Synkstatus: {pick.syncState||'lokal'}</small></div>{pick.error&&<div className="error-banner">{pick.error}</div>}
  <div className="nh-int-metadata"><small>Start: {date(pick.startedAt)}</small><small>Senaste steg: {pick.steps?.at(-1)?.kind||'Köad'}</small><small>Antal genomförda steg: {pick.steps?.filter(s=>s.state==='succeeded').length||0}</small><small>Berört objekt: {pick.workflow==='idea_analysis'?'Idé':'Databas eller lokal text'}</small></div>
  <label>Jämför med annan körning<select value={compareId} onChange={e=>setCompareId(e.target.value)}>

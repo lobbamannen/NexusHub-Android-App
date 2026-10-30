@@ -170,10 +170,11 @@ class IntelligenceRunStore(context: Context) {
         result.put("steps", steps)
     }
 
-    fun list(limit: Int = 50): JSONArray = synchronized(helper) {
+    fun list(limit: Int = 50, offset: Int = 0): JSONArray = synchronized(helper) {
+        require(offset in 0..100000) { "Ogiltig historikposition" }
         val array = JSONArray()
         helper.readableDatabase.rawQuery(
-            "SELECT id FROM runs ORDER BY updated_at DESC,id DESC LIMIT ${limit.coerceIn(1,200)}", null
+            "SELECT id FROM runs ORDER BY updated_at DESC,id DESC LIMIT ${limit.coerceIn(1,200)} OFFSET $offset", null
         ).use { cursor -> while(cursor.moveToNext()) get(cursor.getString(0))?.let(array::put) }
         array
     }

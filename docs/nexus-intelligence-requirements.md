@@ -123,3 +123,6 @@ Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actio
 - Alla lokalt validerade och ännu ej avgjorda källförslag samlas i en beständig granskningsinkorg. Status läses från samma SQLite-register som manuella beslut.
 - Forskningspaket exporteras som strukturerad JSON med Git-commit, Git-blob, direktcitat, AI-motivering, granskningsstatus, publiceringsstatus och öppna frågor. Förslag märks uttryckligen som icke-fakta.
 - Robolectric-tester kontrollerar persistens, idempotens och att en publicerad relation inte tyst kan avvisas lokalt.
+
+## Långvarig historik
+- Körningshistorik har SQLite-sidindelning och läs in äldre i UI. Automatisk omstart och återupptagning skannar flera sidor, inte bara de första 200 körningarna. Väntande granskningsbeslut söks även i äldre sidor.
