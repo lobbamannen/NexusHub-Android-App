@@ -184,15 +184,9 @@ class IntelligenceRunStore(context: Context) {
             val values = ContentValues().apply {
                 put("state", next); put("updated_at", now()); put("last_error", error)
             }
-            db.execSQL("UPDATE runs SET revision=revision+1 WHERE id=? AND state=?",
-                arrayOf(id, expected))
-            // Use the post-CAS state as guard to avoid a second accidental transition.
-            // Only one writer executes this transaction in this process.
-            val state = db.rawQuery("SELECT state FROM runs WHERE id=?", arrayOf(id)).use {
-                if(it.moveToFirst())it.getString(0) else null
-            }
-            if(state != expected)false else db.update("runs", values,
-                "id=? AND state=?", arrayOf(id,expected)) == 1
+            val updated = db.update("runs", values, "id=? AND state=?", arrayOf(id,expected)) == 1
+            if(updated) db.execSQL("UPDATE runs SET revision=revision+1 WHERE id=?",arrayOf(id))
+            updated
         }
         if(changed)event(id, "state",next)
         return changed
