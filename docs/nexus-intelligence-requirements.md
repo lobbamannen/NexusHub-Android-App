@@ -96,3 +96,8 @@ Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actio
 - Ett separat SQLite-register sparar godkännande eller avvisning per källbunden proposal och revision. Identiteten binds till Git-blob, repo-commit, ordagrant citat och SHA-256 av det lokala förslaget. Beslut loggas separat i aktivitetsjournalen och kan exporteras tillsammans med analysen.
 - **Godkänn lokalt** är medvetet inte en GitHub-skrivning eller bevis för att AI-slutsatsen är sann. Publicering av relationer behöver ett separat användargodkänt GitHub-kontrakt med versionskontroll.
 - Vid modellimport återköas väntande `waiting_model`-körningar.
+
+## Transaktionssäker indexering och återhämtning
+- Native-indexet har separat stagingtabell (databasversion 2). Vid avbruten indexering förblir senaste verifierade generationen sökbar. Slutkvittens sker först efter fullständig antalskontroll samt atomär ombyggnad av FTS och byte av käll-commit.
+- Added/modified/deleted beräknas deterministiskt på Git blob SHA och registreras som ett idempotent `source_changed`-arbete utan Gemma. Köade och avbrutna `running`-arbeten återansluts vid appstart genom WorkManager KEEP.
+- Jämförelse av sparade körningar finns i kontrollcentralen; telefonprov återstår.

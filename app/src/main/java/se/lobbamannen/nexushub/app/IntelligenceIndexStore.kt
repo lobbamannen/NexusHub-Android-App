@@ -8,13 +8,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Disposable, derived full-text index of the existing verified Databas replica.
- * The browser replica remains authoritative for file bytes; this index never syncs or writes GitHub.
- * Every indexed record is tied to an exact Git blob SHA and a completed inventory commit.
+ * Atomic, version-bound FTS4 index of NexusHub's already hash-verified offline replica.
+ * Staging is never searchable; interrupted syncs retain the previous completed generation.
+ * Commit switch, FTS rebuild and change accounting happen in one SQLite transaction.
  */
 class IntelligenceIndexStore(context: Context) {
     private class Helper(context: Context):SQLiteOpenHelper(context.applicationContext,
-        "nexus_intelligence_index_v1.db",null,1) {
+        "nexus_intelligence_index_v1.db",null,2) {
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)")
             db.execSQL("""CREATE TABLE documents(
@@ -23,16 +23,25 @@ class IntelligenceIndexStore(context: Context) {
                 title TEXT NOT NULL,body TEXT NOT NULL
             )""")
             db.execSQL("CREATE VIRTUAL TABLE documents_fts USING fts4(title,body,tokenize=unicode61)")
+            db.execSQL("""CREATE TABLE staging_documents(
+                path TEXT PRIMARY KEY,blob_sha TEXT NOT NULL,repo_commit TEXT NOT NULL,
+                title TEXT NOT NULL,body TEXT NOT NULL
+            )""")
         }
         override fun onUpgrade(db:SQLiteDatabase,old:Int,new:Int) {
-            error("Index migration must be explicit")
+            if(old==1 && new==2) {
+                db.execSQL("""CREATE TABLE staging_documents(
+                    path TEXT PRIMARY KEY,blob_sha TEXT NOT NULL,repo_commit TEXT NOT NULL,
+                    title TEXT NOT NULL,body TEXT NOT NULL
+                )""")
+                db.execSQL("DELETE FROM meta WHERE key='working'")
+            } else error("Unsupported index schema migration")
         }
     }
     companion object {
         private val lock=Any()
         private val commitPattern=Regex("[0-9a-f]{40}")
         private val cleanTerm=Regex("[\\p{L}\\p{N}]{2,40}")
-        private val validPath=Regex("[A-Za-z0-9_./ åäöÅÄÖ()&+,-]{1,1000}")
         fun eligible(path:String):Boolean =
             Regex("(?i)\\.(md|txt|json|csv)$").containsMatchIn(path) &&
             !path.split('/').any {it==".."||it=="."||it.isEmpty()}
@@ -52,35 +61,26 @@ class IntelligenceIndexStore(context: Context) {
     fun begin(commit:String):JSONObject {
         require(commitPattern.matches(commit))
         write {db ->
+            db.delete("staging_documents",null,null)
             setMeta(db,"working",commit)
-            setMeta(db,"ready","false")
+            // The previous completed generation stays searchable until finish succeeds.
         }
         return status()
     }
-    /** Never ingest unverified URLs; the source must come from replicaReader.file. */
+    /** Only the bridge, after replicaReader.file hash verification, may submit bytes. */
     fun upsert(commit:String,path:String,sha:String,title:String,body:String):Boolean {
         require(commitPattern.matches(commit)&&commitPattern.matches(sha))
         require(path.length in 1..1000&&!path.startsWith('/')&&!path.contains('\\')&&
             !path.split('/').any{it in setOf("","..",".")})
         require(eligible(path)&&title.length<=300 && body.length<=120000)
-        return write { db ->
-            require(meta(db,"working")==commit && meta(db,"ready")=="false") {
-                "Indexets inventering har ändrats"
-            }
-            val existing=db.rawQuery("SELECT docid FROM documents WHERE path=?",arrayOf(path)).use{
-                if(it.moveToFirst())it.getLong(0)else null
-            }
-            if(existing!=null)db.delete("documents_fts","docid=?",arrayOf(existing.toString()))
+        return write {db ->
+            require(meta(db,"working")==commit) { "Stagingen har bytt version" }
             val values=ContentValues().apply {
                 put("path",path);put("blob_sha",sha);put("repo_commit",commit)
                 put("title",title);put("body",body)
             }
-            val id=if(existing!=null){
-                check(db.update("documents",values,"docid=?",arrayOf(existing.toString()))==1)
-                existing
-            }else db.insertOrThrow("documents",null,values)
-            db.execSQL("INSERT INTO documents_fts(docid,title,body) VALUES(?,?,?)",
-                arrayOf(id,title,body))
+            check(db.insertWithOnConflict("staging_documents",null,values,
+                SQLiteDatabase.CONFLICT_REPLACE)!=-1L)
             true
         }
     }
@@ -88,20 +88,30 @@ class IntelligenceIndexStore(context: Context) {
         require(commitPattern.matches(commit)&&expected in 0..200000)
         write {db ->
             check(meta(db,"working")==commit)
-            val count=db.rawQuery("SELECT count(*) FROM documents WHERE repo_commit=?",arrayOf(commit))
+            val count=db.rawQuery(
+                "SELECT count(*) FROM staging_documents WHERE repo_commit=?",arrayOf(commit))
                 .use{it.moveToFirst();it.getInt(0)}
-            check(count==expected) { "Endast $count av $expected textfiler är indexerade." }
-            val obsolete=mutableListOf<Long>()
-            db.rawQuery("SELECT docid FROM documents WHERE repo_commit<>?",arrayOf(commit)).use{
-                while(it.moveToNext())obsolete.add(it.getLong(0))
-            }
-            for(id in obsolete) {
-                db.delete("documents_fts","docid=?",arrayOf(id.toString()))
-                db.delete("documents","docid=?",arrayOf(id.toString()))
-            }
+            check(count==expected) { "Endast $count av $expected textfiler är färdiga." }
+            fun count(sql:String):Int=db.rawQuery(sql,null).use{it.moveToFirst();it.getInt(0)}
+            val added=count("""SELECT count(*) FROM staging_documents n
+                LEFT JOIN documents o ON o.path=n.path WHERE o.path IS NULL""")
+            val modified=count("""SELECT count(*) FROM staging_documents n
+                JOIN documents o ON o.path=n.path WHERE n.blob_sha<>o.blob_sha""")
+            val deleted=count("""SELECT count(*) FROM documents o
+                LEFT JOIN staging_documents n ON o.path=n.path WHERE n.path IS NULL""")
+            db.delete("documents_fts",null,null)
+            db.delete("documents",null,null)
+            db.execSQL("""INSERT INTO documents(path,blob_sha,repo_commit,title,body)
+                SELECT path,blob_sha,repo_commit,title,body FROM staging_documents ORDER BY path""")
+            db.execSQL("""INSERT INTO documents_fts(docid,title,body)
+                SELECT docid,title,body FROM documents""")
+            db.delete("staging_documents",null,null)
             setMeta(db,"completed",commit)
             setMeta(db,"ready","true")
             setMeta(db,"working","")
+            setMeta(db,"lastAdded",added.toString())
+            setMeta(db,"lastModified",modified.toString())
+            setMeta(db,"lastDeleted",deleted.toString())
         }
         return status()
     }
@@ -110,8 +120,13 @@ class IntelligenceIndexStore(context: Context) {
         val completed=meta(db,"completed").orEmpty()
         val ready=meta(db,"ready")=="true"
         val rows=db.rawQuery("SELECT count(*) FROM documents",null).use{it.moveToFirst();it.getInt(0)}
+        val added=meta(db,"lastAdded")?.toIntOrNull()?:0
+        val modified=meta(db,"lastModified")?.toIntOrNull()?:0
+        val deleted=meta(db,"lastDeleted")?.toIntOrNull()?:0
         JSONObject().put("ready",ready).put("commit",if(ready)completed else "")
             .put("indexedFiles",rows).put("indexing",meta(db,"working").orEmpty().isNotBlank())
+            .put("added",added).put("modified",modified).put("deleted",deleted)
+            .put("changeCount",added+modified+deleted)
     }
     fun search(terms:List<String>,limit:Int=8):JSONArray=synchronized(lock) {
         val db=helper.readableDatabase

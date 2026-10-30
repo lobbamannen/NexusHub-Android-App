@@ -58,6 +58,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         credentials = GithubCredentialStore(applicationContext)
+        io.execute { try { IntelligenceJobs.reconcile(applicationContext) } catch (_: Exception) { } }
         incomingShares = IncomingShareStore(applicationContext)
         pendingSave = restorePendingSave(savedInstanceState)
         val root = FrameLayout(this)
@@ -282,7 +283,12 @@ class MainActivity : Activity() {
                     x.getString("path"),x.getString("sha"),x.getString("title"),x.getString("body"))
             } catch(_:Exception){false}
         @JavascriptInterface fun intelligenceIndexFinish(commit:String,count:Int):String =
-            if(trustedDocument)try{val result=IntelligenceIndexStore(applicationContext).finish(commit,count);IntelligenceJobs.resumeIndexWaiters(applicationContext);result.toString()}
+            if(trustedDocument)try{
+                val result=IntelligenceIndexStore(applicationContext).finish(commit,count)
+                try { IntelligenceJobs.indexCompleted(applicationContext,commit,result) } catch (_:Exception) { }
+                IntelligenceJobs.resumeIndexWaiters(applicationContext)
+                result.toString()
+            }
             catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
         @JavascriptInterface fun intelligenceRuns():String =
             if(trustedDocument)try{IntelligenceRunStore(applicationContext).list().toString()}

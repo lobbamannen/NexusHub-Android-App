@@ -44,14 +44,35 @@ class IntelligenceIndexStoreTest {
         index.finish(a,1)
         assertEquals(1,index.search(listOf("kronovisor")).length())
         index.begin(c)
-        assertFalse(index.status().getBoolean("ready"))
+        assertTrue(index.status().getBoolean("ready"))
+        assertEquals(a,index.status().getString("commit"))
         index.upsert(c,"Research/updated.md",b,"Uppdaterad",
             "Lokalt avsnitt om Gemma och verifierad sökning.")
         index.finish(c,1)
         assertEquals(0,index.search(listOf("kronovisor")).length())
         assertEquals(1,index.search(listOf("Gemma")).length())
+        assertEquals(1,index.status().getInt("added"))
+        assertEquals(1,index.status().getInt("deleted"))
     }
 
+    @Test fun interruptedIndexPreservesPreviousSearchableGeneration() {
+        val index=IntelligenceIndexStore(context)
+        index.begin(a)
+        index.upsert(a,"Research/old.md",b,"Old","Dokument med kronovisor och historia.")
+        index.finish(a,1)
+        index.begin(c)
+        index.upsert(c,"Research/new.md",b,"New","Dokument med Gemma och forskning.")
+        assertTrue(index.status().getBoolean("ready"))
+        assertEquals(a,index.status().getString("commit"))
+        assertEquals(1,index.search(listOf("kronovisor")).length())
+        assertThrows(IllegalStateException::class.java) { index.finish(c,2) }
+        assertEquals(1,index.search(listOf("kronovisor")).length())
+        index.begin(c)
+        index.upsert(c,"Research/new.md",b,"New","Dokument med Gemma och forskning.")
+        index.finish(c,1)
+        assertEquals(0,index.search(listOf("kronovisor")).length())
+        assertEquals(1,index.search(listOf("Gemma")).length())
+    }
     @Test fun refusesUnverifiedVersionAndPathTraversal() {
         val index=IntelligenceIndexStore(context)
         index.begin(a)

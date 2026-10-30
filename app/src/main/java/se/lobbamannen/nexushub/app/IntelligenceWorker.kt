@@ -58,13 +58,39 @@ object IntelligenceJobs {
         if(run.getString("state")=="queued")schedule(context,runId)
         return store.get(runId)!!
     }
-    fun schedule(context: Context,id: String) {
+    fun schedule(context: Context,id: String,policy:ExistingWorkPolicy=ExistingWorkPolicy.REPLACE) {
         require(uuid.matches(id))
         val request=OneTimeWorkRequestBuilder<IntelligenceWorker>()
             .setInputData(workDataOf("runId" to id))
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS)
             .addTag(PREFIX+id).build()
-        WorkManager.getInstance(context).enqueueUniqueWork(PREFIX+id,ExistingWorkPolicy.REPLACE,request)
+        WorkManager.getInstance(context).enqueueUniqueWork(PREFIX+id,policy,request)
+    }
+    /** Reattach orphaned queued/running work after process death without replacing live work. */
+    fun reconcile(context:Context) {
+        val runs=IntelligenceRunStore(context).list(200)
+        for(i in 0 until runs.length()){
+            val row=runs.getJSONObject(i)
+            if(row.optString("state") in setOf("running","queued"))
+                schedule(context,row.getString("id"),ExistingWorkPolicy.KEEP)
+        }
+    }
+    /** Deterministic code-only workflow; the initial index is also tracked. */
+    fun indexCompleted(context:Context,commit:String,receipt:JSONObject) {
+        require(Regex("[a-f0-9]{40}").matches(commit))
+        val store=IntelligenceRunStore(context)
+        val run=store.enqueue("source_changed","index:"+commit,"databas",commit)
+        val id=run.getString("id")
+        if(run.getString("state")!="queued")return
+        if(!store.transition(id,"queued","running"))return
+        val result=JSONObject().put("source","verified_local_index")
+            .put("indexCommit",commit).put("indexedFiles",receipt.getInt("indexedFiles"))
+            .put("added",receipt.getInt("added")).put("modified",receipt.getInt("modified"))
+            .put("deleted",receipt.getInt("deleted")).put("changeCount",receipt.getInt("changeCount"))
+            .put("syncState","local").put("proposals",JSONArray())
+        check(store.recordStep(id,0,"inventory:"+commit,"code","succeeded",result))
+        check(store.saveLocalResult(id,result))
+        check(store.transition(id,"running","local_completed"))
     }
     fun resume(context: Context,id: String): Boolean {
         val store=IntelligenceRunStore(context)
