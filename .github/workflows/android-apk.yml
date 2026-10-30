@@ -41,6 +41,8 @@ jobs:
           npm run build
       - name: Compile native background and activity code
         run: gradle --no-daemon -PskipWebBuild=true :app:compileDebugKotlin :app:compileDebugUnitTestKotlin
+      - name: Install browser test driver
+        run: npm install --no-save --package-lock=false playwright@1.58.2
       - name: Verify activity history and background save UI
         id: activity_ui
         continue-on-error: true
@@ -54,9 +56,7 @@ jobs:
       - name: Verify weather UI at phone and desktop sizes
         id: weather_ui
         continue-on-error: true
-        run: |
-          npm install --no-save --package-lock=false playwright@1.58.2
-          CHROME_PATH="$(command -v google-chrome)" node scripts/weather-ui-check.mjs
+        run: CHROME_PATH="$(command -v google-chrome)" node scripts/weather-ui-check.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
