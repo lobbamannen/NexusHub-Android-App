@@ -103,7 +103,10 @@ internal object IntelligenceNotifications {
                 state=="waiting_index"->"Väntar på färdigt sökindex"
                 state=="paused"->"Körningen pausad"
                 state=="waiting_resource"->"Väntar på batteri, temperatur eller RAM"
-                else->"Körningen kräver uppmärksamhet: $state"
+                state=="failed"->"Analysen misslyckades · kontrollera felet"
+                state=="conflict"->"Källan har ändrats · granska innan nytt försök"
+                state=="waiting_network"->"Väntar på nätverksanslutning"
+                else->"Körningen kräver uppmärksamhet"
             }
             val b=NotificationCompat.Builder(context,CHANNEL)
                 .setSmallIcon(if(complete)android.R.drawable.stat_sys_download_done
@@ -113,9 +116,9 @@ internal object IntelligenceNotifications {
                 .setContentIntent(open(context,id))
                 .setOnlyAlertOnce(true).setSilent(true)
                 .setOngoing(false).setAutoCancel(true)
-            if(state in setOf("paused","failed","waiting_model","waiting_index","waiting_network","waiting_resource")){
-                b.addAction(0,"Återuppta",control(context,id,
-                    IntelligenceControlReceiver.RESUME,6000))
+            if(state in setOf("paused","failed","conflict","waiting_model","waiting_index","waiting_network","waiting_resource")){
+                b.addAction(0,if(state in setOf("failed","conflict"))"Försök igen" else "Återuppta",
+                    control(context,id,IntelligenceControlReceiver.RESUME,6000))
             }
             manager(context).notify(terminalId(id),b.build())
         }catch(_:Exception){ /* Persisted run is the authoritative state. */ }

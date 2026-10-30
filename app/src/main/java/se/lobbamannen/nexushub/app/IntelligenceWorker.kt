@@ -98,8 +98,13 @@ object IntelligenceJobs {
             val runs=store.list(200,offset)
             for(i in 0 until runs.length()) {
                 val row=runs.getJSONObject(i)
-                if(row.optString("state") in setOf("running","queued"))
-                    schedule(context,row.getString("id"),ExistingWorkPolicy.KEEP)
+                when(row.optString("state")) {
+                    "running","queued" -> schedule(context,row.getString("id"),ExistingWorkPolicy.KEEP)
+                    "cancelling" -> {
+                        if(store.transition(row.getString("id"),"cancelling","cancelled"))
+                            IntelligenceNotifications.terminal(context,row.getString("id"),"cancelled")
+                    }
+                }
             }
             offset+=runs.length()
             if(runs.length()<200)break

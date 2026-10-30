@@ -190,6 +190,26 @@ class IntelligenceRunStore(context: Context) {
         array
     }
 
+    /** Global counters, independent of how many history pages the UI has loaded. */
+    fun counts():JSONObject=synchronized(helper) {
+        val result=JSONObject().put("active",0).put("waiting",0)
+            .put("complete",0).put("failed",0)
+        helper.readableDatabase.rawQuery("""SELECT
+            SUM(CASE WHEN state IN ('running','cancelling') THEN 1 ELSE 0 END),
+            SUM(CASE WHEN state IN ('queued','waiting_network','waiting_index','waiting_approval','waiting_model','waiting_resource','sync_pending') THEN 1 ELSE 0 END),
+            SUM(CASE WHEN state IN ('completed','local_completed') THEN 1 ELSE 0 END),
+            SUM(CASE WHEN state IN ('failed','conflict') THEN 1 ELSE 0 END)
+            FROM runs""",null).use {c->
+            if(c.moveToFirst()) {
+                result.put("active",if(c.isNull(0))0 else c.getInt(0))
+                result.put("waiting",if(c.isNull(1))0 else c.getInt(1))
+                result.put("complete",if(c.isNull(2))0 else c.getInt(2))
+                result.put("failed",if(c.isNull(3))0 else c.getInt(3))
+            }
+        }
+        result
+    }
+
     /** Compare-and-swap transition. Invalid, stale or terminal transitions are rejected. */
     fun transition(id: String, expected: String, next: String, error: String = ""): Boolean {
         require(uuid.matches(id) && expected in states && next in states)
