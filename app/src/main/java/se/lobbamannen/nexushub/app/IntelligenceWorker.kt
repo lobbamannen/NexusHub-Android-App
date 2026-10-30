@@ -88,7 +88,10 @@ object IntelligenceJobs {
         if(state!="running"&&state!="queued")return false
         if(state=="running")IntelligenceRuntime.get(context).cancel()
         val updated=store.transition(id,state,"paused")
-        if(updated)WorkManager.getInstance(context).cancelUniqueWork(PREFIX+id)
+        if(updated) {
+            WorkManager.getInstance(context).cancelUniqueWork(PREFIX+id)
+            IntelligenceNotifications.terminal(context,id,"paused")
+        }
         return updated
     }
     fun cancel(context: Context,id: String): Boolean {
@@ -97,27 +100,19 @@ object IntelligenceJobs {
         val state=run.getString("state")
         if(state=="running")IntelligenceRuntime.get(context).cancel()
         val updated=store.transition(id,state,if(state=="running")"cancelling" else "cancelled")
-        if(updated)WorkManager.getInstance(context).cancelUniqueWork(PREFIX+id)
+        if(updated) {
+            WorkManager.getInstance(context).cancelUniqueWork(PREFIX+id)
+            if(state!="running")IntelligenceNotifications.terminal(context,id,"cancelled")
+        }
         return updated
     }
     fun channel(context: Context) {
         val manager=context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel(CHANNEL,"Nexus Intelligence",NotificationManager.IMPORTANCE_LOW))
     }
-    fun notification(context:Context,id:String,stage:String):Notification {
-        channel(context)
-        val intent=Intent(context,MainActivity::class.java).apply{
-            putExtra("nexus.destination","intelligence?run="+id)
-            flags=Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pending=PendingIntent.getActivity(context,id.hashCode(),intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        return NotificationCompat.Builder(context,CHANNEL)
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setContentTitle("Nexus Intelligence")
-            .setContentText(stage).setContentIntent(pending).setOngoing(true)
-            .setOnlyAlertOnce(true).setProgress(0,0,true).build()
-    }
+    fun notification(context:Context,id:String,stage:String):Notification =
+        IntelligenceNotifications.active(context,id,stage)
+
 }
 
 class IntelligenceWorker(private val app:Context,params:WorkerParameters):Worker(app,params) {
@@ -173,7 +168,7 @@ ${source}
         val initial=store.get(id)?:return Result.failure()
         val state=initial.getString("state")
         if(state in setOf("completed","cancelled","local_completed"))return Result.success()
-        if(state=="cancelling") {store.transition(id,"cancelling","cancelled");return Result.success()}
+        if(state=="cancelling") {store.transition(id,"cancelling","cancelled");IntelligenceNotifications.terminal(app,id,"cancelled");return Result.success()}
         if(state=="running") {
             // No GitHub write is attempted by this workflow; replaying model inference
             // is safe, and already persisted steps are idempotent by operation ID.
@@ -182,24 +177,28 @@ ${source}
         val runtime=IntelligenceRuntime.get(app)
         if(!runtime.status().optBoolean("imported")){
             store.transition(id,"queued","waiting_model","Importera Gemma 4 E2B innan analys.")
+            IntelligenceNotifications.terminal(app,id,"waiting_model")
             return Result.success()
         }
         val indexed=IntelligenceIndexStore(app)
         val isIdea=initial.getString("workflow")=="idea_analysis"
         if(isIdea&&!indexed.status().optBoolean("ready")){
             store.transition(id,"queued","waiting_index","Inväntar verifierat lokalt sökindex.")
+            IntelligenceNotifications.terminal(app,id,"waiting_index")
             return Result.success()
         }
         try{
-            val foreground=ForegroundInfo(63000+(id.hashCode() and 0x3ff),
+            val foreground=ForegroundInfo(IntelligenceNotifications.foregroundId(id),
                 IntelligenceJobs.notification(app,id,"Analyserar innehåll med lokal Gemma"),
                 if(Build.VERSION.SDK_INT>=29)ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0)
             setForegroundAsync(foreground).get()
         }catch(e:Exception){
             store.transition(id,"queued","failed","Android tillät inte förgrundskörning: "+(e.message?:"okänt").take(150))
+            IntelligenceNotifications.terminal(app,id,"failed")
             return Result.failure()
         }
         if(!store.transition(id,"queued","running"))return Result.success()
+        IntelligenceNotifications.progress(app,id,"Identifierar ämne och sökbegrepp",0,3)
         try{
             val input=IntelligenceJobs.payload(app,id)
             val text=input.getString("input")
@@ -216,6 +215,7 @@ ${source}
                         .put("backend",initialNative.getString("backend"))
                         .put("telemetry",initialNative.getJSONObject("telemetry")))
             }
+            IntelligenceNotifications.progress(app,id,"Söker verkliga dokumentkandidater",1,3)
             val topic=classification.getString("topic")
             val keys=classification.getJSONArray("keywords")
             val termList=(0 until keys.length()).map{keys.getString(it)}
@@ -234,6 +234,7 @@ ${source}
                 JSONObject().put("candidateCount",evidence.length())
                     .put("indexCommit",indexState.optString("commit"))
                     .put("indexed",indexState.optBoolean("ready")))
+            IntelligenceNotifications.progress(app,id,"Verifierar citat och relationsförslag",2,3)
             val (matches,comparison)=if(evidence.length()>0)
                 compare(runtime,topic,evidence) else JSONArray() to null
             if(comparison!=null){
@@ -246,10 +247,14 @@ ${source}
             if(isIdea && (!current.optBoolean("ready") ||
                 current.optString("commit")!=indexState.optString("commit"))) {
                 store.transition(id,"running","waiting_index","Sökindexet ändrades under analys. Verifiering behöver upprepas.")
+                IntelligenceNotifications.terminal(app,id,"waiting_index")
                 return Result.success()
             }
             if(isStopped||store.get(id)?.optString("state")!="running"){
-                if(store.get(id)?.optString("state")=="cancelling")store.transition(id,"cancelling","cancelled")
+                if(store.get(id)?.optString("state")=="cancelling") {
+                    store.transition(id,"cancelling","cancelled")
+                    IntelligenceNotifications.terminal(app,id,"cancelled")
+                }
                 return Result.success()
             }
             val receipt=JSONObject().put("topic",topic).put("keywords",keys)
@@ -261,12 +266,15 @@ ${source}
                 .put("syncState","local")
             check(store.saveLocalResult(id,receipt))
             check(store.transition(id,"running","local_completed"))
+            IntelligenceNotifications.terminal(app,id,"local_completed")
             return Result.success()
         }catch(e:Exception){
             when(store.get(id)?.optString("state")){
                 "running"->store.transition(id,"running","failed",(e.message?:"Analysen misslyckades").take(400))
                 "cancelling"->store.transition(id,"cancelling","cancelled")
             }
+            if(store.get(id)?.optString("state") in setOf("failed","cancelled"))
+                IntelligenceNotifications.terminal(app,id,store.get(id)!!.getString("state"))
             return Result.failure()
         }
     }
