@@ -180,6 +180,21 @@ Första Actions-bygget skapar en beständig signeringsnyckel och sparar den som 
 
 Installera senare APK:er ovanpå appen. Avinstallera inte och rensa inte appdata för att uppdatera. Lokala debug-byggen har en annan signeringsidentitet; använd det signerade Actions-bygget för normal användning.
 
+## Gemma 4 E2B – central lokal AI-runtime
+
+Gemma använder **en gemensam runtime och en global modellprofil**. Det innebär att chatten och framtida uttryckligen aktiverade AI-funktioner använder samma importerade GGUF, native-motor och sparade inställningar. De tidigare automatiska Nexus Intelligence-jobben och AI-publiceringsflödena är avvecklade; **idésparning, synk och forskningsinkorg startar inte Gemma**.
+
+- `GemmaConfig.kt` – beprövade NPU-standardvärden samt validering och bevarande av äldre sparade inställningar.
+- `GemmaRuntime.kt` – användning vid behov, WARM/COLD-återanvändning, 30 sekunders bakgrundsrespit och minnessäker avlastning.
+- `GemmaClient.kt` – gemensam ingång för chatten och framtida, explicit aktiverade uppgifter.
+- `IntelligenceRuntime.kt` – befintlig llama.cpp/Hexagon-motor bakom den nya runtimen; GGUF-import, motorlås, inferens, backendkontroll och telemetri.
+- `MainActivity.kt`, `NexusHubApplication.kt` – Android-brygga och livscykelhändelser.
+- `components/intelligence/NexusIntelligence.tsx` – chatt, gemensamma inställningar och normal körtelemetri. `GemmaConfigTest.kt` kontrollerar profilreglerna.
+
+**Samplingvärden** som temperatur och top-p ska inte ladda om modellen; motorparametrar som backend och kontext gör det. Sparade telefoninställningar skriver över standardvärdena. Gemma-chatten har tidigare testats med verkliga svar på S26 Ultra (rapporterat Hexagon HTP, 36/36 lager). **Den senare runtime-refaktoreringen är ännu inte slutverifierad i ny APK på telefonen.**
+
+Läs [Gemma-runtime: kodkarta, start/stopp, profilkontrakt och verifiering](docs/gemma-runtime.md) innan Gemma får nya uppgifter i idéinkorgen.
+
 ## Utveckling
 
 Node 22+, Java 17, Android SDK 35 och Gradle 8.11.1.

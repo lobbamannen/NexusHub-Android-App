@@ -1,4 +1,7 @@
 # Nexus Intelligence – kravspårning och säker leveransgräns
+
+> **HISTORISKT UNDERLAG (2026-10-30).** Den tidigare autonoma Intelligence-analysmotorn, dess AI-kö, relationsgranskning och publiceringsflöde har avvecklats från NexusHub Android. Kravmatrisen nedan beskriver den gamla planens granskningsläge, **inte** aktiverade funktioner eller aktuell implementation. Den nya gemensamma Gemma-motorn, inställningar, start/stopp och verifieringsgränser dokumenteras i [Gemma-runtime](gemma-runtime.md). Återinför inte gamla jobb enbart utifrån detta dokument.
+
 Datum: 2026-10-30. Källa: Databas `Ideer/05dac249-5b6f-4920-8871-6293ef214119.json`, nummer bekräftat i `Ideer/System/nummer.json`. Detta är en utvecklingsgren, inte en färdig produktversion.
 
 ## Källkontroll
