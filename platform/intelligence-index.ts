@@ -7,9 +7,13 @@ export const intelligenceIndexProgress=()=>({...progress});
 const bridge=()=>typeof window==='undefined'?null:(window as any).Android;
 const publish=(value:Progress)=>{progress=value;window.dispatchEvent(new CustomEvent('nexus-intelligence-index',{detail:value}));};
 const pause=()=>new Promise<void>(resolve=>setTimeout(resolve,0));
+// Mirror the native IntelligenceIndexStore.eligible policy exactly for inbox
+// sidecars. The bridge refuses these files; forwarding them would abort the
+// otherwise valid atomic index generation.
 const eligible=(f:any)=>typeof f.path==='string'&&/\.(md|txt|json|csv)$/i.test(f.path)
     &&Number.isSafeInteger(f.size)&&f.size>=0&&f.size<=120000&&!f.path.startsWith('/')&&!f.path.includes('\\')
-    &&!f.path.split('/').some((part:string)=>part==='..'||part==='.'||!part);
+    &&!f.path.split('/').some((part:string)=>part==='..'||part==='.'||!part)
+    &&!(f.path.startsWith('NexusHub inkorg/')&&['metadata.json','delad-text.txt'].includes(f.path.split('/').pop()!.toLowerCase()));
 
 export async function syncIntelligenceIndex(force=false):Promise<Progress> {
  if(current)return current;
@@ -40,6 +44,7 @@ export async function syncIntelligenceIndex(force=false):Promise<Progress> {
     else if(typeof source?.text==='string')title=source.text.split('\n')[0].slice(0,200)||title;
    }catch{/* The original text remains searchable even if the JSON body is malformed. */}}
    else if(entry.path.endsWith('.md'))title=body.match(/^#\s+([^\n]{2,250})/m)?.[1]||title;
+   title=title.slice(0,300);
    const ok=native.intelligenceIndexUpsert(JSON.stringify({commit:snapshot.commit,
        path:entry.path,sha:entry.sha,title,body}));
    if(!ok)throw Error('Indexet nekade verifierad fil: '+entry.path);
