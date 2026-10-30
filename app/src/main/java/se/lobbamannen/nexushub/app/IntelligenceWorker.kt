@@ -82,6 +82,15 @@ object IntelligenceJobs {
             if(row.optString("state")=="waiting_index")resume(context,row.getString("id"))
         }
     }
+    fun pause(context: Context,id: String): Boolean {
+        val store=IntelligenceRunStore(context)
+        val state=store.get(id)?.optString("state") ?: return false
+        if(state!="running"&&state!="queued")return false
+        if(state=="running")IntelligenceRuntime.get(context).cancel()
+        val updated=store.transition(id,state,"paused")
+        if(updated)WorkManager.getInstance(context).cancelUniqueWork(PREFIX+id)
+        return updated
+    }
     fun cancel(context: Context,id: String): Boolean {
         val store=IntelligenceRunStore(context)
         val run=store.get(id)?:return false
@@ -112,8 +121,12 @@ object IntelligenceJobs {
 }
 
 class IntelligenceWorker(private val app:Context,params:WorkerParameters):Worker(app,params) {
+    companion object {
+        private val WORK_LOCK=Any()
+        @Volatile private var ownerRunId:String?=null
+    }
     override fun onStopped() {
-        IntelligenceRuntime.get(app).cancel()
+        if(ownerRunId == inputData.getString("runId")) IntelligenceRuntime.get(app).cancel()
         super.onStopped()
     }
     private fun classify(runtime:IntelligenceRuntime,input:String):Pair<JSONObject,JSONObject> {
@@ -148,7 +161,14 @@ ${source}
         return IntelligenceEvidenceValidator.validateMatches(generated.getString("text"),candidates) to generated
     }
     override fun doWork():Result {
-        val id=inputData.getString("runId")?:return Result.failure()
+        val id=inputData.getString("runId") ?: return Result.failure()
+        return synchronized(WORK_LOCK) {
+            ownerRunId=id
+            try { execute(id) } finally { ownerRunId=null }
+        }
+    }
+
+    private fun execute(id:String):Result {
         val store=IntelligenceRunStore(app)
         val initial=store.get(id)?:return Result.failure()
         val state=initial.getString("state")
