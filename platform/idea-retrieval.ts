@@ -8,6 +8,16 @@ export type Corpus={commit:string;docs:Doc[];changed:number;skipped:number;seman
 export type Hit={chunk:Chunk;score:number;lexicalRank:number|null;semanticRank:number|null;cosine:number|null;reason:'hybrid'|'lexical'|'semantic'};
 const PREFIX='nexus-idea-retrieval:v2:';
 const sleep=()=>new Promise<void>(r=>setTimeout(r,0));
+// A cache entry is valid only for the exact model, prompt/chunker profile and text digest.
+const vectorCacheKey=(profile:string,hash:string)=>PREFIX+'vector:'+profile+':'+hash;
+const queryCache=new Map<string,number[]>();
+const QUERY_CACHE_LIMIT=24;
+const rememberQuery=(key:string,vector:number[])=>{
+ if(queryCache.has(key))queryCache.delete(key);
+ queryCache.set(key,vector);
+ while(queryCache.size>QUERY_CACHE_LIMIT)queryCache.delete(queryCache.keys().next().value!);
+};
+
 const tokenize=(s:string)=>[...new Set((s.toLocaleLowerCase('sv-SE').normalize('NFKC').match(/[\p{L}\p{N}]{3,}/gu)||[]).filter(t=>!['och','eller','som','att','det','den','med','har','för','från','till','the','and','for','are','this'].includes(t)))];
 const kindOf=(path:string):Doc['kind']|null=>/^Ideer\/[0-9a-f-]{36}\.json$/i.test(path)?'idea':
  /^NexusHub inkorg\/.*\.(md|txt|json)$/i.test(path)&&!/\/(manifest|receipt|metadata)\.json$/i.test(path)?'report':
@@ -69,6 +79,20 @@ export async function buildIdeaCorpus(progress:(message:string,done:number,total
  // No returned snapshot may claim completeness after a sync generation change.
  if((await replicaReader.current('databas'))?.commit!==snapshot.commit)throw Error('Synk ändrades under indexering; starta om.');
  if(semantic&&profile){
+  // Reuse persisted vectors even across distinct files with identical title/text.
+  // No model inference is needed for a previously embedded, profile-matching window.
+  for(const doc of docs){
+   let restored=false;
+   for(const c of doc.chunks){
+    if(c.profile===profile&&c.vector?.length===256)continue;
+    if(!c.sourceHash)continue;
+    const cached=await durableGet<number[]>(vectorCacheKey(profile,c.sourceHash));
+    if(cached?.length===256&&cached.every(Number.isFinite)){
+     c.vector=cached;c.profile=profile;restored=true;
+    }
+   }
+   if(restored)await durableSet(PREFIX+'doc:'+doc.path,doc);
+  }
   const all=docs.flatMap(d=>d.chunks.filter(c=>c.profile!==profile||!c.vector||c.vector.length!==256));
   semanticTotal=docs.reduce((sum,d)=>sum+d.chunks.length,0);
   let indexed=semanticTotal-all.length;
@@ -84,6 +108,7 @@ export async function buildIdeaCorpus(progress:(message:string,done:number,total
    for(const v of result.vectors){
     const chunk=batch.find(c=>c.id===v.id);if(!chunk)throw Error('Okänd embeddingidentifierare.');
     chunk.vector=v.values;chunk.profile=profile;
+    if(chunk.sourceHash)await durableSet(vectorCacheKey(profile,chunk.sourceHash),v.values);
    }
    for(const doc of docs.filter(d=>batch.some(c=>c.path===d.path)))await durableSet(PREFIX+'doc:'+doc.path,doc);
    indexed+=batch.length;progress('EmbeddingGemma 2 indexerar förändrade textfönster',indexed,semanticTotal);
@@ -113,10 +138,16 @@ export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=
  if(corpus.profile && valid.length){
   try {
    const begun=performance.now();
-   const result=await embedBatch([{id:'query',text:query.slice(0,3000),task:'query'}]);
+   const queryText=query.slice(0,3000);
+   const cacheKey=corpus.profile+'|'+queryText;
+   let q=queryCache.get(cacheKey);
+   if(!q){
+    const result=await embedBatch([{id:'query',text:queryText,task:'query'}]);
+    if(result.modelSha256+':'+result.profileVersion+':chunk-v2'!==corpus.profile)throw Error('Föråldrad embeddingprofil');
+    q=result.vectors[0].values;
+    rememberQuery(cacheKey,q);
+   }
    embeddingMs=performance.now()-begun;
-   if(result.modelSha256+':'+result.profileVersion+':chunk-v2'!==corpus.profile)throw Error('Föråldrad embeddingprofil');
-   const q=result.vectors[0].values;
    for(const c of valid){
     const v=c.vector!;let score=0;
     for(let i=0;i<256;i++)score+=q[i]*v[i];
