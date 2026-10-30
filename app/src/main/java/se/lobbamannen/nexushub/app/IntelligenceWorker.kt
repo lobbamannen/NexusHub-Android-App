@@ -65,7 +65,7 @@ object IntelligenceJobs {
         val item=IntelligenceIndexStore(context).document(path)
         val sha=item.getString("sha")
         val commit=item.getString("commit")
-        val source=path+":"+sha
+        val source=path+":"+sha+":"+commit
         val stable=UUID.nameUUIDFromBytes(source.toByteArray(Charsets.UTF_8)).toString()
         val entire=item.getString("body")
         val content=if(entire.length<=17500)entire else {
@@ -332,11 +332,8 @@ ${source}
             val input=IntelligenceJobs.payload(app,id)
             if(isDocument) {
                 val now=indexed.status()
-                if(now.optString("commit")!=input.optString("indexCommit")) {
-                    store.transition(id,"running","conflict","Källdokumentets GitHub-version har ändrats. Starta en ny dokumentanalys.")
-                    IntelligenceNotifications.terminal(app,id,"conflict")
-                    return Result.success()
-                }
+                // The same verified source SHA may survive unrelated Git commits.
+                // Pin the working index below; reject only a changed/deleted source.
                 val source=indexed.document(input.getString("sourcePath"))
                 if(source.getString("sha")!=input.getString("sourceSha")) {
                     store.transition(id,"running","conflict","Dokumentets innehåll har ändrats.")
@@ -391,7 +388,7 @@ ${source}
             }
             val current=indexed.status()
             if(isDocument && (!current.optBoolean("ready") ||
-                current.optString("commit")!=input.optString("indexCommit"))) {
+                current.optString("commit")!=indexState.optString("commit"))) {
                 store.transition(id,"running","conflict","Källdokumentet ändrades under analys.")
                 IntelligenceNotifications.terminal(app,id,"conflict")
                 return Result.success()
@@ -420,7 +417,7 @@ ${source}
             if(isDocument) {
                 receipt.put("sourcePath",input.getString("sourcePath"))
                     .put("sourceSha",input.getString("sourceSha"))
-                    .put("sourceCommit",input.getString("indexCommit"))
+                    .put("sourceCommit",indexState.getString("commit"))
                     .put("sourceLength",input.optInt("sourceLength",text.length))
                     .put("partialDocument",input.optBoolean("partialDocument",false))
             }
