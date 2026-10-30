@@ -55,7 +55,9 @@ class IntelligenceIndexStore(context: Context) {
         private val cleanTerm=Regex("[\\p{L}\\p{N}]{2,40}")
         fun eligible(path:String):Boolean =
             Regex("(?i)\\.(md|txt|json|csv)$").containsMatchIn(path) &&
-            !path.split('/').any {it==".."||it=="."||it.isEmpty()}
+            !path.split('/').any {it==".."||it=="."||it.isEmpty()} &&
+            !(path.startsWith("NexusHub inkorg/") &&
+                path.substringAfterLast('/').lowercase() in setOf("metadata.json","delad-text.txt"))
         fun researchDocument(path:String):Boolean =
             eligible(path) && (path.startsWith("NexusHub inkorg/") ||
                 path.startsWith("Research/")) &&
@@ -125,7 +127,9 @@ class IntelligenceIndexStore(context: Context) {
                 WHERE path NOT IN (SELECT path FROM staging_documents)
                 OR blob_sha != (SELECT blob_sha FROM staging_documents n
                     WHERE n.path=pending_analysis.path)""")
-            if(previousCommit.isNotBlank()) {
+            // The inbox is queued even on first verified import. Processing is
+            // serial, persistent and resource-gated, not a simultaneous AI flood.
+            run {
                 db.execSQL("""INSERT OR REPLACE INTO pending_analysis(path,blob_sha,failures)
                     SELECT n.path,n.blob_sha,0 FROM staging_documents n
                     LEFT JOIN documents o ON o.path=n.path
@@ -178,7 +182,7 @@ class IntelligenceIndexStore(context: Context) {
     fun nextPending():JSONObject?=synchronized(lock) {
         val db=helper.readableDatabase
         db.rawQuery("""SELECT p.path,p.blob_sha FROM pending_analysis p
-            WHERE p.failures<3 ORDER BY p.failures ASC,p.path ASC LIMIT 1""",null).use {c->
+            ORDER BY p.failures ASC,p.path ASC LIMIT 1""",null).use {c->
             if(!c.moveToFirst())null else JSONObject()
                 .put("path",c.getString(0)).put("sha",c.getString(1))
         }
