@@ -13,9 +13,11 @@ test('document analysis is tied to verified local indexed content',()=>{
 });
 test('incremental sync queues bounded research analysis rather than a flood',()=>{
  const worker=read('app/src/main/java/se/lobbamannen/nexushub/app/IntelligenceWorker.kt');
- assert.match(worker,/queued>=2/);
- assert.match(worker,/previousCommit/);
- assert.match(worker,/path\.startsWith\("Research\/"\)/);
+ const index=read('app/src/main/java/se/lobbamannen/nexushub/app/IntelligenceIndexStore.kt');
+ assert.match(worker,/fun drainInbox\(context:Context\)/);
+ assert.match(worker,/hasPendingDocument/);
+ assert.match(index,/CREATE TABLE pending_analysis/);
+ assert.match(index,/NexusHub inkorg/);
  const ui=read('components/intelligence/NexusIntelligence.tsx');
  assert.match(ui,/Analysera dokument/);
 });
