@@ -8,7 +8,7 @@ type Run={id:string;workflow:string;state:string;startedAt:string;updatedAt:stri
 type Status={nativeLoaded?:boolean;imported?:boolean;importing?:boolean;processing?:boolean;fileBytes?:number;filename?:string;sha256?:string;copyBytes?:number;copyTotal?:number;warm?:boolean;config?:Record<string,any>;lastTelemetry?:Record<string,any>;error?:string};
 const native=()=> (typeof window!=='undefined'?(window as any).Android:null);
 const read=<T,>(name:string, fallback:T):T=>{try {const bridge=native();return typeof bridge?.[name]==='function'?JSON.parse(bridge[name]()) as T:fallback;}catch{return fallback;}};
-const labels:Record<string,string>={queued:'Köad',running:'Arbetar',paused:'Pausad',waiting_network:'Väntar på nät',waiting_approval:'Väntar på beslut',waiting_model:'Väntar på modell',failed:'Misslyckad',conflict:'Konflikt',cancelled:'Avbruten',local_completed:'Färdig lokalt',sync_pending:'Väntar på GitHub',completed:'Verifierat klar'};
+const labels:Record<string,string>={queued:'Köad',running:'Arbetar',cancelling:'Avbryter…',paused:'Pausad',waiting_network:'Väntar på nät',waiting_approval:'Väntar på beslut',waiting_model:'Väntar på modell',failed:'Misslyckad',conflict:'Konflikt',cancelled:'Avbruten',local_completed:'Färdig lokalt',sync_pending:'Väntar på GitHub',completed:'Verifierat klar'};
 const num=(n:any)=>Number.isFinite(Number(n))?Number(n):0;
 const fmt=(n:number)=>new Intl.NumberFormat('sv-SE',{maximumFractionDigits:1}).format(n);
 const date=(v:string)=>{try{return new Date(v).toLocaleString('sv-SE')}catch{return v}};
