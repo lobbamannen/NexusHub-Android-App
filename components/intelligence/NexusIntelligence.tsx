@@ -31,6 +31,7 @@ export default function NexusIntelligence(){
     return [...byId.values()].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
   });
   setResource(read<Record<string,any>>('intelligenceResourceStatus',{}));
+  setGlobalCounts(read('intelligenceRunCounts',{active:0,waiting:0,complete:0,failed:0}));
  };
  const loadOlder=()=>{
   try{
@@ -96,12 +97,12 @@ export default function NexusIntelligence(){
     const raw=native()?.intelligenceAnalyzeDocument?.(path);
     const x=JSON.parse(raw||'{}');
     if(x.error||!x.id)throw Error(x.error||'Kunde inte köa dokument');
-    setSelected(x.id);refresh();setNotice('Veriferat dokument tillagt i arbetskön.');
+    setSelected(x.id);refresh();setNotice('Verifierat dokument tillagt i arbetskön.');
   }catch(e:any){setNotice(e.message||'Dokumentanalys misslyckades')}
  };
  const unsupported=!native()?.intelligenceStatus;
  return <section className="nh-intelligence nh-module-dashboard">
-  <header className="nh-module-dashboard-header"><div className="nh-module-dashboard-title"><MaterialIcon tone="violet" size={48}><BrainCircuit size={28}/></MaterialIcon><div><span className="nh-module-eyebrow">NEXUS HUB · LOKAL ARBETSCENTRAL</span><h1>Nexus Intelligence</h1><p>Lokala körningar och verkliga resultat. GitHub-forskning och automatiska kopplingar är ännu inte aktiverade.</p></div></div>
+  <header className="nh-module-dashboard-header"><div className="nh-module-dashboard-title"><MaterialIcon tone="violet" size={48}><BrainCircuit size={28}/></MaterialIcon><div><span className="nh-module-eyebrow">NEXUS HUB · LOKAL ARBETSCENTRAL</span><h1>Nexus Intelligence</h1><p>Lokala körningar och verkliga resultat. Forskningsrapporter bearbetas i beständig lokal kö. AI-förslag kräver godkännande före GitHub-publicering.</p></div></div>
    <div className="nh-int-actions"><button className="secondary" onClick={refresh}><RefreshCw size={17}/>Uppdatera</button><button className="secondary" onClick={openSettings}><Settings size={17}/>Inställningar</button></div></header>
   {unsupported&&<div className="error-banner"><AlertTriangle size={19}/>Denna funktion kräver NexusHubs Android-app med native Intelligence-bryggan.</div>}
   {notice&&<div className="info-note" role="status">{notice}<button className="text-button" onClick={()=>setNotice('')}>Stäng</button></div>}
@@ -146,9 +147,10 @@ export default function NexusIntelligence(){
     return <article className="nh-int-step" key={proposal.path+':'+i}>
       <strong>{proposal.path}</strong><p>{proposal.reason}</p><blockquote>{proposal.quote}</blockquote>
       <small>Git blob: {proposal.blobSha} · Commit: {proposal.repoCommit}</small>
+      {pick.syncState==='stale'&&<p className="error-banner">Källunderlaget är inaktuellt. Gör en ny analys innan godkännande eller publicering.</p>}
       <p className="muted">Modellens säkerhet: {Math.round(num(proposal.confidence)*100)} % · Beslut: {decision?.publicationSha?'Publicerad och verifierad i GitHub':decision?.decision==='approved'?'Godkänt lokalt':decision?.decision==='rejected'?'Avvisat':'Väntar på granskning'}</p>
-      <div className="nh-int-actions"><button className="secondary" disabled={decision?.decision==='approved'} onClick={()=>review(pick.id,i,'approved')}>Godkänn lokalt</button><button className="secondary" disabled={decision?.decision==='rejected'||!!decision?.publicationSha} onClick={()=>review(pick.id,i,'rejected')}>Avvisa</button>
-      {pick.workflow==='idea_analysis'&&decision?.decision==='approved'&&!decision?.publicationSha&&<button className="primary" disabled={!!publishing} onClick={()=>void publish(pick,i)}>{publishing===pick.id+':'+i?'Verifierar GitHub…':'Publicera på GitHub'}</button>}</div>
+      <div className="nh-int-actions"><button className="secondary" disabled={pick.syncState==='stale'||decision?.decision==='approved'} onClick={()=>review(pick.id,i,'approved')}>Godkänn lokalt</button><button className="secondary" disabled={pick.syncState==='stale'||decision?.decision==='rejected'||!!decision?.publicationSha} onClick={()=>review(pick.id,i,'rejected')}>Avvisa</button>
+      {pick.workflow==='idea_analysis'&&decision?.decision==='approved'&&!decision?.publicationSha&&<button className="primary" disabled={pick.syncState==='stale'||!!publishing} onClick={()=>void publish(pick,i)}>{publishing===pick.id+':'+i?'Verifierar GitHub…':'Publicera på GitHub'}</button>}</div>
       {decision?.publicationSha&&<small>GitHub-kvittens: {decision.publicationSha}</small>}
     </article>;}):<p className="muted">Inga styrkta kopplingsförslag.</p>}
   <button className="secondary" onClick={()=>{try{download(createIntelligenceResearchPackage(pick,reviews),'nexus-intelligence-research-'+pick.id+'.json')}catch(e:any){setNotice(e.message)}}}><Download size={16}/>Exportera forskningspaket</button>

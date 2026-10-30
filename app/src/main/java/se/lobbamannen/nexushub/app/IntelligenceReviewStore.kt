@@ -68,6 +68,18 @@ class IntelligenceReviewStore(private val context: Context) {
         require(sha.matches(item.getString("repoCommit")))
         require(item.getString("path").length in 1..1000)
         require(item.getString("quote").length in 12..250)
+        // Validate sources at approval time, independently of asynchronous
+        // index-change invalidation. A source must still have the same blob.
+        val indexStore=IntelligenceIndexStore(context)
+        require(indexStore.hasVerifiedSource(item.getString("path"),item.getString("blobSha"))) {
+            "Forskningskällan saknas eller har ändrats. Gör om analysen."
+        }
+        val originalPath=result.optString("sourcePath")
+        if(originalPath.isNotBlank()) {
+            require(indexStore.hasVerifiedSource(originalPath,result.optString("sourceSha"))) {
+                "Originaldokumentet har ändrats eller tagits bort."
+            }
+        }
         return item
     }
 
