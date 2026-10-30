@@ -69,9 +69,5 @@ export function startIntelligenceSync() {
  const run=()=>{if(bridge()?.intelligenceIndexBegin)void syncIntelligenceIndex();};
  window.addEventListener('nexus-github-changed',run);
  window.addEventListener('nexus-credentials-changed',run);
- window.addEventListener('nexus-replica-status',()=>{
-  // Not every progress tick: only after a completed inventory can reader.current resolve.
-  if(!current && !progress.commit && !progress.total)run();
- });
  window.setTimeout(run,1500);
 }

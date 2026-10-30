@@ -58,7 +58,7 @@ class IntelligenceRunStore(context: Context) {
             "waiting_approval", "waiting_model", "failed", "conflict", "cancelled",
             "local_completed", "sync_pending", "completed")
         private val transitions = mapOf(
-            "queued" to setOf("running", "paused", "cancelled", "waiting_model", "waiting_index"),
+            "queued" to setOf("running", "paused", "cancelled", "waiting_model", "waiting_index", "conflict"),
             "running" to setOf("paused", "waiting_network", "waiting_approval",
                 "waiting_model", "waiting_index", "failed", "conflict", "cancelling", "local_completed", "queued"),
             "cancelling" to setOf("cancelled"),

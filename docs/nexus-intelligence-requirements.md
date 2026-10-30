@@ -109,3 +109,8 @@ Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actio
 
 ## Aktiv även utan öppen kontrollcentral
 - Appbootstrap installerar en indexobservatör efter initierad lokal lagring. Fullbordad verifierad GitHub-replika utlöser säker återindexering även om användaren aldrig öppnar Nexus Intelligence-sidan. En ofullständig replika får inte läsas in.
+
+## Versionsbunden dokumentanalys och automatiska ändringshändelser
+- Fulltextsökträffar kan starta `document_analysis` med exakt Git-blob, inventerings-commit och lokalt indexerad text. Modellen får ingen godtycklig filåtkomst; uppdaterad källversion sätter konflikttillstånd istället för att tyst acceptera stale evidens.
+- Varje verifierat nytt index har ett idempotent kodbaserat historikkvitto. Högst två förändrade `Research/`-dokument per efterföljande (inte initial) inventering får starta proaktiv analys. Baserat på stabilt dokument+blob-ID och WorkManager-kö; massimport startar inte tusentals modellkörningar.
+- Resultat innehåller promptversion, källversion och deterministiska nästa åtgärder.

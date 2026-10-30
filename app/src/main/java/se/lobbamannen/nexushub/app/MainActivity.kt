@@ -293,6 +293,15 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceRuns():String =
             if(trustedDocument)try{IntelligenceRunStore(applicationContext).list().toString()}
             catch(_:Exception){"[]"} else "[]"
+        @JavascriptInterface fun intelligenceSearchDocuments(query:String):String =
+            if(trustedDocument)try{
+                require(query.length in 2..120)
+                val terms=query.split(Regex("\\s+")).filter{it.isNotBlank()}.take(8)
+                IntelligenceIndexStore(applicationContext).search(terms,12).toString()
+            }catch(e:Exception){JSONObject().put("error",e.message?:"Sökningen misslyckades").toString()} else "[]"
+        @JavascriptInterface fun intelligenceAnalyzeDocument(path:String):String =
+            if(trustedDocument)try{IntelligenceJobs.document(applicationContext,path).toString()}
+            catch(e:Exception){JSONObject().put("error",e.message?:"Dokumentanalysen kunde inte starta").toString()} else "{}"
         @JavascriptInterface fun intelligenceReviews(id:String):String =
             if(trustedDocument)try{IntelligenceReviewStore(applicationContext).list(id).toString()}
             catch(e:Exception){JSONObject().put("error",e.message?:"Beslut kunde inte läsas").toString()} else "[]"

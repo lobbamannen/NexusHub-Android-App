@@ -58,6 +58,27 @@ object IntelligenceJobs {
         if(run.getString("state")=="queued")schedule(context,runId)
         return store.get(runId)!!
     }
+    /** Only indexed, hash-bound source documents can start document analysis. */
+    fun document(context:Context,path:String):JSONObject {
+        val item=IntelligenceIndexStore(context).document(path)
+        val sha=item.getString("sha")
+        val commit=item.getString("commit")
+        val source=path+":"+sha
+        val stable=UUID.nameUUIDFromBytes(source.toByteArray(Charsets.UTF_8)).toString()
+        val content=item.getString("body").take(17500)
+        require(content.length>=5) { "Dokumentet saknar analyserbar text" }
+        val store=IntelligenceRunStore(context)
+        val run=store.enqueue("document_analysis","document:"+stable,
+            "doc:"+stable,sha)
+        val id=run.getString("id")
+        if(run.getString("state")=="queued"){
+            save(context,id,JSONObject().put("input",content)
+                .put("sourcePath",path).put("sourceSha",sha).put("indexCommit",commit)
+                .put("version",1))
+            schedule(context,id)
+        }
+        return store.get(id)!!
+    }
     fun schedule(context: Context,id: String,policy:ExistingWorkPolicy=ExistingWorkPolicy.REPLACE) {
         require(uuid.matches(id))
         val request=OneTimeWorkRequestBuilder<IntelligenceWorker>()
@@ -91,6 +112,19 @@ object IntelligenceJobs {
         check(store.recordStep(id,0,"inventory:"+commit,"code","succeeded",result))
         check(store.saveLocalResult(id,result))
         check(store.transition(id,"running","local_completed"))
+        // Never flood the phone on first replica sync. Limit proactive analyses
+        // of modified research documents to two per verified subsequent commit.
+        if(receipt.optString("previousCommit").matches(Regex("[a-f0-9]{40}"))) {
+            val paths=receipt.optJSONArray("changedPaths") ?: JSONArray()
+            var queued=0
+            for(i in 0 until paths.length()){
+                if(queued>=2)break
+                val path=paths.getString(i)
+                if(path.startsWith("Research/") && IntelligenceIndexStore.eligible(path)){
+                    try{document(context,path);queued++}catch(_:Exception){/* index receipt remains authoritative */}
+                }
+            }
+        }
     }
     fun resume(context: Context,id: String): Boolean {
         val store=IntelligenceRunStore(context)
@@ -216,8 +250,10 @@ ${source}
             return Result.success()
         }
         val indexed=IntelligenceIndexStore(app)
-        val isIdea=initial.getString("workflow")=="idea_analysis"
-        if(isIdea&&!indexed.status().optBoolean("ready")){
+        val workflow=initial.getString("workflow")
+        val isIdea=workflow=="idea_analysis"
+        val isDocument=workflow=="document_analysis"
+        if((isIdea||isDocument)&&!indexed.status().optBoolean("ready")){
             store.transition(id,"queued","waiting_index","Inväntar verifierat lokalt sökindex.")
             IntelligenceNotifications.terminal(app,id,"waiting_index")
             return Result.success()
@@ -236,6 +272,20 @@ ${source}
         IntelligenceNotifications.progress(app,id,"Identifierar ämne och sökbegrepp",0,3)
         try{
             val input=IntelligenceJobs.payload(app,id)
+            if(isDocument) {
+                val now=indexed.status()
+                if(now.optString("commit")!=input.optString("indexCommit")) {
+                    store.transition(id,"running","conflict","Källdokumentets GitHub-version har ändrats. Starta en ny dokumentanalys.")
+                    IntelligenceNotifications.terminal(app,id,"conflict")
+                    return Result.success()
+                }
+                val source=indexed.document(input.getString("sourcePath"))
+                if(source.getString("sha")!=input.getString("sourceSha")) {
+                    store.transition(id,"running","conflict","Dokumentets innehåll har ändrats.")
+                    IntelligenceNotifications.terminal(app,id,"conflict")
+                    return Result.success()
+                }
+            }
             val text=input.getString("input")
             val old=store.get(id)?.getJSONArray("steps") ?: JSONArray()
             val oldClass=(0 until old.length()).map{old.getJSONObject(it)}
@@ -279,6 +329,12 @@ ${source}
                         .put("telemetry",comparison.getJSONObject("telemetry")))
             }
             val current=indexed.status()
+            if(isDocument && (!current.optBoolean("ready") ||
+                current.optString("commit")!=input.optString("indexCommit"))) {
+                store.transition(id,"running","conflict","Källdokumentet ändrades under analys.")
+                IntelligenceNotifications.terminal(app,id,"conflict")
+                return Result.success()
+            }
             if(isIdea && (!current.optBoolean("ready") ||
                 current.optString("commit")!=indexState.optString("commit"))) {
                 store.transition(id,"running","waiting_index","Sökindexet ändrades under analys. Verifiering behöver upprepas.")
@@ -299,6 +355,17 @@ ${source}
                 .put("modelSha256",initialNative?.optString("modelSha256") ?:
                     (oldClass?.optJSONObject("output")?.optString("modelSha256") ?: ""))
                 .put("syncState","local")
+                .put("workflowVersion",1).put("promptVersion","intelligence-2026-10-30-v1")
+            if(isDocument) {
+                receipt.put("sourcePath",input.getString("sourcePath"))
+                    .put("sourceSha",input.getString("sourceSha"))
+                    .put("sourceCommit",input.getString("indexCommit"))
+            }
+            receipt.put("nextActions",JSONArray().apply {
+                if(evidence.length()==0)put("Ingen relevant indexerad källa hittades; komplettera underlaget.")
+                else if(matches.length()==0)put("Granska fler dokument eller förtydliga textens ämne.")
+                else put("Granska varje källbundet relationsförslag innan publicering.")
+            })
             check(store.saveLocalResult(id,receipt))
             check(store.transition(id,"running","local_completed"))
             IntelligenceNotifications.terminal(app,id,"local_completed")

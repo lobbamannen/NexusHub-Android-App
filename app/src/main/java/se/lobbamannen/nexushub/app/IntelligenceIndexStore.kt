@@ -86,8 +86,11 @@ class IntelligenceIndexStore(context: Context) {
     }
     fun finish(commit:String,expected:Int):JSONObject {
         require(commitPattern.matches(commit)&&expected in 0..200000)
+        var previousCommit=""
+        val changedPaths=JSONArray()
         write {db ->
             check(meta(db,"working")==commit)
+            previousCommit=meta(db,"completed").orEmpty()
             val count=db.rawQuery(
                 "SELECT count(*) FROM staging_documents WHERE repo_commit=?",arrayOf(commit))
                 .use{it.moveToFirst();it.getInt(0)}
@@ -99,6 +102,13 @@ class IntelligenceIndexStore(context: Context) {
                 JOIN documents o ON o.path=n.path WHERE n.blob_sha<>o.blob_sha""")
             val deleted=count("""SELECT count(*) FROM documents o
                 LEFT JOIN staging_documents n ON o.path=n.path WHERE n.path IS NULL""")
+            // Bounded change events; initial import never auto-runs hundreds of model tasks.
+            db.rawQuery("""SELECT n.path FROM staging_documents n
+                LEFT JOIN documents o ON o.path=n.path
+                WHERE o.path IS NULL OR n.blob_sha<>o.blob_sha
+                ORDER BY n.path LIMIT 50""",null).use { rows ->
+                while(rows.moveToNext()) changedPaths.put(rows.getString(0))
+            }
             db.delete("documents_fts",null,null)
             db.delete("documents",null,null)
             db.execSQL("""INSERT INTO documents(path,blob_sha,repo_commit,title,body)
@@ -113,7 +123,7 @@ class IntelligenceIndexStore(context: Context) {
             setMeta(db,"lastModified",modified.toString())
             setMeta(db,"lastDeleted",deleted.toString())
         }
-        return status()
+        return status().put("previousCommit",previousCommit).put("changedPaths",changedPaths)
     }
     fun status():JSONObject=synchronized(lock) {
         val db=helper.readableDatabase
@@ -127,6 +137,20 @@ class IntelligenceIndexStore(context: Context) {
             .put("indexedFiles",rows).put("indexing",meta(db,"working").orEmpty().isNotBlank())
             .put("added",added).put("modified",modified).put("deleted",deleted)
             .put("changeCount",added+modified+deleted)
+    }
+    fun document(path:String):JSONObject=synchronized(lock) {
+        require(path.length in 1..1000 && eligible(path) && !path.startsWith('/') &&
+            !path.contains('\\') && !path.split('/').any { it in setOf("",".","..") })
+        val db=helper.readableDatabase
+        require(meta(db,"ready")=="true") { "Verifierat sökindex saknas" }
+        val commit=meta(db,"completed").orEmpty()
+        db.rawQuery("""SELECT path,blob_sha,repo_commit,title,body FROM documents
+            WHERE path=? AND repo_commit=?""",arrayOf(path,commit)).use {c->
+            require(c.moveToFirst()) { "Dokumentet saknas i den verifierade versionen" }
+            JSONObject().put("path",c.getString(0)).put("sha",c.getString(1))
+                .put("commit",c.getString(2)).put("title",c.getString(3))
+                .put("body",c.getString(4))
+        }
     }
     fun search(terms:List<String>,limit:Int=8):JSONArray=synchronized(lock) {
         val db=helper.readableDatabase
