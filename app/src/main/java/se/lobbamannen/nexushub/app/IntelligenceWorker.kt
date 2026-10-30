@@ -100,22 +100,28 @@ object IntelligenceJobs {
     }
     /** Dispatch one verified research item at a time; the rest remain durable in SQLite. */
     @Synchronized fun drainInbox(context:Context) {
-        // A waiting model/resource job holds the slot rather than draining
-        // the entire research inbox into simultaneous WorkManager requests.
+        // Exactly one active report at a time, but a broken/unavailable entry
+        // must not permanently block unrelated, already verified reports.
         if(IntelligenceRunStore(context).hasPendingDocument())return
         val index=IntelligenceIndexStore(context)
-        val pending=index.nextPending() ?: return
-        val path=pending.getString("path")
-        val sha=pending.getString("sha")
-        try {
-            if(index.document(path).getString("sha")!=sha) {
+        var attempts=0
+        while(attempts++<16) {
+            val pending=index.nextPending() ?: return
+            val path=pending.getString("path")
+            val sha=pending.getString("sha")
+            try {
+                if(index.document(path).getString("sha")!=sha) {
+                    index.acknowledgePending(path,sha)
+                    continue
+                }
+                document(context,path) // Durable run and work request precede ack.
                 index.acknowledgePending(path,sha)
                 return
+            } catch(_:Exception) {
+                // Retain the entry, increasing its failure count so other
+                // documents are attempted before repeatedly trying this one.
+                index.failPending(path,sha)
             }
-            document(context,path) // Persist run and WorkManager request before acknowledging.
-            index.acknowledgePending(path,sha)
-        } catch(_:Exception) {
-            index.failPending(path,sha)
         }
     }
     /** Reattach orphaned queued/running work after process death without replacing live work. */
