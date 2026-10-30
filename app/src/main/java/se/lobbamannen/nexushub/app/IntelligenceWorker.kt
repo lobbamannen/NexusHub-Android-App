@@ -52,7 +52,7 @@ object IntelligenceJobs {
             .setInputData(workDataOf("runId" to id))
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS)
             .addTag(PREFIX+id).build()
-        WorkManager.getInstance(context).enqueueUniqueWork(PREFIX+id,ExistingWorkPolicy.KEEP,request)
+        WorkManager.getInstance(context).enqueueUniqueWork(PREFIX+id,ExistingWorkPolicy.REPLACE,request)
     }
     fun resume(context: Context,id: String): Boolean {
         val store=IntelligenceRunStore(context)
@@ -68,7 +68,7 @@ object IntelligenceJobs {
         val run=store.get(id)?:return false
         val state=run.getString("state")
         if(state=="running")IntelligenceRuntime.get(context).cancel()
-        val updated=store.transition(id,state,"cancelled")
+        val updated=store.transition(id,state,if(state=="running")"cancelling" else "cancelled")
         if(updated)WorkManager.getInstance(context).cancelUniqueWork(PREFIX+id)
         return updated
     }
@@ -93,12 +93,17 @@ object IntelligenceJobs {
 }
 
 class IntelligenceWorker(private val app: Context, params: WorkerParameters): Worker(app,params) {
+    override fun onStopped() {
+        IntelligenceRuntime.get(app).cancel()
+        super.onStopped()
+    }
     override fun doWork(): Result {
         val id=inputData.getString("runId")?:return Result.failure()
         val store=IntelligenceRunStore(app)
         val run=store.get(id)?:return Result.failure()
         val state=run.getString("state")
         if(state in setOf("completed","cancelled","local_completed"))return Result.success()
+        if(state=="cancelling") {store.transition(id,"cancelling","cancelled");return Result.success()}
         // After process death a running attempt is not reported as actively executing.
         if(state=="running") {
             if(!store.transition(id,"running","failed","Körningen avbröts av Android. Starta om från säker kontrollpunkt."))
@@ -138,7 +143,10 @@ class IntelligenceWorker(private val app: Context, params: WorkerParameters): Wo
             val keys=json.getJSONArray("keywords")
             require(keys.length() in 1..8)
             for(i in 0 until keys.length())require(keys.getString(i).trim().length in 2..80)
-            if(isStopped || store.get(id)?.optString("state")!="running")return Result.success()
+            if(isStopped || store.get(id)?.optString("state")!="running") {
+                if(store.get(id)?.optString("state")=="cancelling")store.transition(id,"cancelling","cancelled")
+                return Result.success()
+            }
             val verified=JSONObject().put("topic",topic).put("keywords",keys)
                 .put("source","local_gemma").put("modelSha256",result.getString("modelSha256"))
                 .put("nativeTelemetry",result.getJSONObject("telemetry"))
@@ -152,6 +160,7 @@ class IntelligenceWorker(private val app: Context, params: WorkerParameters): Wo
         } catch(e:Exception) {
             val current=store.get(id)?.optString("state")
             if(current=="running")store.transition(id,"running","failed",(e.message ?: "Körning misslyckades").take(400))
+            else if(current=="cancelling")store.transition(id,"cancelling","cancelled")
             return Result.failure()
         }
     }
