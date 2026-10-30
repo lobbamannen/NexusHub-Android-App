@@ -1,3 +1,4 @@
+import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 'use client';
 import {cancelDraftWrites} from '@/platform/draft-writes';
 import React,{useEffect,useId,useRef,useState} from 'react';
@@ -20,13 +21,13 @@ export default function StoryEditor({story,full=false,staged=false,saving,error,
  const closeRef=useRef(close);closeRef.current=close;
  useBackHandler(180,()=>{closeRef.current();return true;});
  useEffect(()=>{
-  const previous=document.activeElement as HTMLElement|null,overflow=document.body.style.overflow;document.body.style.overflow='hidden';
+  const previous=document.activeElement as HTMLElement|null,releaseScroll=lockPageScroll();
   const dialog=form.current;dialog?.querySelector<HTMLElement>('input,textarea,button')?.focus();
   const keyboard=(e:KeyboardEvent)=>{
    if(e.key==='Escape'){e.preventDefault();closeRef.current();}
    if(e.key==='Tab'&&dialog){const nodes=Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled)')).filter(n=>n.getClientRects().length);const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}
   };
-  document.addEventListener('keydown',keyboard);return()=>{document.body.style.overflow=overflow;document.removeEventListener('keydown',keyboard);previous?.focus();};
+  document.addEventListener('keydown',keyboard);return()=>{releaseScroll();document.removeEventListener('keydown',keyboard);previous?.focus();};
  },[]);
  return <div className="nh-register-modal-backdrop">
   <div ref={form} className="nh-register-modal story-editor-modal" role="dialog" aria-modal="true" aria-labelledby={id}>

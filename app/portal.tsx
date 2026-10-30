@@ -1,3 +1,4 @@
+import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 import TrainingArchive from '@/components/training/TrainingArchive';
 import Connections, {ConnectionsPanel} from '@/components/connections/Connections';
 import {useConnections} from '@/components/connections/use-connections';
@@ -120,7 +121,7 @@ export default function Portal() {
         title?: string;
     } | null>(null);
     useEffect(() => { if (!menu && !upload && !inspect && !addMenu)
-        return; const before = document.body.style.overflow; document.body.style.overflow = 'hidden'; const onKey = (event: KeyboardEvent) => { if (event.key !== 'Escape')
+        return; const releaseScroll = lockPageScroll(); const onKey = (event: KeyboardEvent) => { if (event.key !== 'Escape')
         return; if (addMenu) { setAddMenu(false); return; } if (inspect) {
         setInspect(null);
         return;
@@ -129,7 +130,7 @@ export default function Portal() {
             setUpload(false);
         return;
     } if (menu)
-        setMenu(false); }; document.addEventListener('keydown', onKey); return () => { document.body.style.overflow = before; document.removeEventListener('keydown', onKey); }; }, [menu, upload, inspect, sending, addMenu]);
+        setMenu(false); }; document.addEventListener('keydown', onKey); return () => { releaseScroll(); document.removeEventListener('keydown', onKey); }; }, [menu, upload, inspect, sending, addMenu]);
     useEffect(() => { if (menu)
         document.querySelector<HTMLButtonElement>('.menu-sheet [aria-label="Stäng menyn"]')?.focus(); }, [menu]);
     const [noticeKind, setNoticeKind] = useState<'error' | 'success'>('error');

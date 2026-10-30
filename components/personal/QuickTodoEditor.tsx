@@ -1,3 +1,4 @@
+import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 import React,{useEffect,useRef} from 'react';
 import {Bookmark,Save,Loader2,X} from 'lucide-react';
 import {useBackHandler} from '@/components/NativeBackBridge';
@@ -8,7 +9,7 @@ export default function QuickTodoEditor({todos,ideas,onClose}:{todos:TodosContro
  const field=useRef<HTMLTextAreaElement>(null),dialog=useRef<HTMLFormElement>(null);
  const close=()=>{if(!todos.busy)onClose();};
  useBackHandler(160,()=>{close();return true;});
- useEffect(()=>{const previous=document.activeElement as HTMLElement|null,before=document.body.style.overflow;document.body.style.overflow='hidden';field.current?.focus();return()=>{document.body.style.overflow=before;if(previous?.isConnected)previous.focus();};},[]);
+ useEffect(()=>{const previous=document.activeElement as HTMLElement|null,releaseScroll=lockPageScroll();field.current?.focus();return()=>{releaseScroll();if(previous?.isConnected)previous.focus();};},[]);
  const draft=todos.compose;if(!draft)return null;
  return <div className="modal-backdrop nh-idea-backdrop" onClick={close}><form ref={dialog} className="nh-idea-editor nh-task-editor" role="dialog" aria-modal="true" aria-labelledby="task-editor-title" onClick={e=>e.stopPropagation()} onSubmit={e=>{e.preventDefault();void todos.saveQuick().then(saved=>{if(saved)onClose();});}} onKeyDown={e=>{
   if(e.key==='Escape'){e.preventDefault();close();}

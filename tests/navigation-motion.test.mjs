@@ -22,3 +22,8 @@ test('failed capture readiness falls back to content motion without repeating na
 test('reduced motion performs navigation with no capture or fallback animation',async()=>{
  setup(()=>{throw Error('must not capture');});window.matchMedia=()=>({matches:true});document.querySelector=()=>({animate(){throw Error('must not animate');}});let count=0;await navigateMotion(()=>count++);assert.equal(count,1);
 });
+test('Android module navigation uses live content motion and never installs a snapshot input layer',async()=>{
+ let snapshots=0;setup(update=>{snapshots++;const updateCallbackDone=Promise.resolve().then(update);return {updateCallbackDone,ready:Promise.resolve(),finished:updateCallbackDone,skipTransition(){}};});
+ window.Android={};const animations=[];document.querySelector=()=>({animate(frames,options){animations.push({frames,options});return {cancel(){}};}});
+ let count=0;await navigateMotion(()=>count++,'forward');assert.equal(count,1);assert.equal(snapshots,0);assert.equal(animations.length,1);assert.deepEqual(document.documentElement.dataset,{});
+});

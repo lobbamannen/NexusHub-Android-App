@@ -1,0 +1,28 @@
+name: Verify Android scrolling
+on:
+  push:
+    branches: [main, fix/shared-scroll-lock]
+    paths: ['lib/page-scroll-lock.mjs', 'lib/navigation-motion.ts', 'components/**', 'app/portal.tsx', 'tests/ui/scroll-*', 'scripts/scroll-ui-check.mjs', '.github/workflows/scroll-ui.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check && npm run check:design && node --test tests/page-scroll-lock.test.mjs tests/navigation-motion.test.mjs
+      - run: npm install --no-save --package-lock=false playwright@1.58.2
+      - run: CHROME_PATH="$(command -v google-chrome)" node scripts/scroll-ui-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scroll-ui
+          path: scroll-ui/
+          retention-days: 14

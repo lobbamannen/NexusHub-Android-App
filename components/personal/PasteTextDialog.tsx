@@ -1,3 +1,4 @@
+import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 import {replacePastedSelection,reconcilePastedEdit} from '@/lib/pasted-text.mjs';
 import React,{useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
@@ -10,7 +11,7 @@ export default function PasteTextDialog({onClose,onSave}:{onClose:()=>void;onSav
  const close=()=>{if(!saving.current)onClose();};
  useBackHandler(250,()=>{close();return true;});
  useEffect(()=>{
-  const previous=document.activeElement as HTMLElement|null,overflow=document.body.style.overflow;document.body.style.overflow='hidden';editor.current?.focus({preventScroll:true});
+  const previous=document.activeElement as HTMLElement|null,releaseScroll=lockPageScroll();editor.current?.focus({preventScroll:true});
   const key=(event:KeyboardEvent)=>{
    if(event.key==='Escape'){event.preventDefault();close();}
    if(event.key==='Tab'){
@@ -18,7 +19,7 @@ export default function PasteTextDialog({onClose,onSave}:{onClose:()=>void;onSav
     if(!first)return;if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
    }
   };
-  document.addEventListener('keydown',key);return()=>{document.body.style.overflow=overflow;document.removeEventListener('keydown',key);previous?.focus({preventScroll:true});};
+  document.addEventListener('keydown',key);return()=>{releaseScroll();document.removeEventListener('keydown',key);previous?.focus({preventScroll:true});};
  },[]);
  const save=async()=>{
   if(saving.current||!text.trim())return;saving.current=true;setBusy(true);setError('');

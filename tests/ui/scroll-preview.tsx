@@ -1,0 +1,11 @@
+import React,{useEffect,useState} from 'react';import {createRoot} from 'react-dom/client';
+import '@/app/globals.css';import '@/src/android.css';import '@/app/portal-polish.css';import '@/components/ideas/ideas.css';
+import {navigateMotion} from '@/lib/navigation-motion';import {usePanelPresence} from '@/lib/use-panel-presence';import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
+import QuickTodoEditor from '@/components/personal/QuickTodoEditor';import PasteTextDialog from '@/components/personal/PasteTextDialog';import NativeBackBridge from '@/components/NativeBackBridge';
+function Preview(){const [module,setModule]=useState('Hem'),[menu,setMenu,closing]=usePanelPresence(false),[editor,setEditor]=useState(false),[paste,setPaste]=useState(false),[text,setText]=useState('');
+ useEffect(()=>menu?lockPageScroll():undefined,[menu]);
+ const open=()=>{setMenu(false);setEditor(true);};
+ const todos:any={compose:{text},busy:false,ready:true,error:'',changeCompose:(draft:any)=>setText(draft.text),saveQuick:async()=>true};const ideas:any={items:[],numbering:{entries:[]}};
+ return <div className="portal-shell"><NativeBackBridge/><header style={{position:'sticky',top:0,zIndex:2,background:'#17101f',padding:12,display:'flex',gap:12}}><button onClick={()=>void navigateMotion(()=>setModule(m=>m==='Hem'?'Bibliotek':'Hem'),'forward',undefined,0)}>Byt modul</button><button onClick={()=>setMenu(true)}>Lägg till</button><button onClick={()=>{setMenu(true);open();}}>Snabbt byte</button><button onClick={()=>setPaste(true)}>Klistra in</button></header><main data-nexus-motion-content><h1>{module}</h1>{Array.from({length:60},(_,i)=><p key={i} style={{padding:'18px 0'}}>Skrollbar rad {i+1} · NexusHub</p>)}</main>{menu&&<div className={'modal-backdrop'+(closing?' nh-motion-closing':'')}><div className="menu-sheet" role="dialog" aria-label="Lägg till"><button onClick={open}>Ny uppgift</button><button onClick={()=>setMenu(false)}>Stäng menyn</button></div></div>}{editor&&<QuickTodoEditor todos={todos} ideas={ideas} onClose={()=>setEditor(false)}/>} {paste&&<PasteTextDialog onClose={()=>setPaste(false)} onSave={async()=>setPaste(false)}/>}</div>;
+}
+createRoot(document.getElementById('root')!).render(<React.StrictMode><Preview/></React.StrictMode>);

@@ -1,3 +1,4 @@
+import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 import Lightbulb from '@/components/ideas/IdeaBulb';
 import React, { useEffect, useRef, useState } from 'react';
 import { Archive, Trash2,  Plus, RefreshCw, ChevronRight, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
@@ -46,8 +47,7 @@ export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
     useBackHandler(160, () => { if (!ideas.selected) return false; closeRef.current(); return true; });
     useEffect(() => {
         if (!ideas.selected) return;
-        const previous = document.activeElement as HTMLElement | null, before = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
+        const previous = document.activeElement as HTMLElement | null, releaseScroll = lockPageScroll();
         textRef.current?.focus();
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); }
@@ -59,7 +59,7 @@ export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
             }
         };
         document.addEventListener('keydown', onKey);
-        return () => { document.body.style.overflow = before; document.removeEventListener('keydown', onKey); if (previous?.isConnected) previous.focus(); };
+        return () => { releaseScroll(); document.removeEventListener('keydown', onKey); if (previous?.isConnected) previous.focus(); };
     }, [ideas.selected]);
     if (!draft) return null;
     const { idea } = draft, local = ideas.drafts[idea.id], pending = ideas.pending[idea.id];

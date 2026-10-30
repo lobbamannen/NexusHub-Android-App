@@ -1,3 +1,4 @@
+import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 import './register-watch.css';
 import {toggleReleaseWatch} from '@/lib/media-additions.mjs';
 'use client';
@@ -101,10 +102,10 @@ function Editor({ item, kind, onApply, onClose, onDirtyChange }: {
     const closeRef = useRef(close);
     closeRef.current = close;
     useBackHandler(180, () => { closeRef.current(); return true; });
-    useEffect(() => { const previous = document.activeElement as HTMLElement | null; const overflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; const keyboard = (e: KeyboardEvent) => { if (e.key === 'Escape') {
+    useEffect(() => { const previous = document.activeElement as HTMLElement | null; const releaseScroll = lockPageScroll(); const keyboard = (e: KeyboardEvent) => { if (e.key === 'Escape') {
         e.preventDefault();
         closeRef.current();
-    } }; document.addEventListener('keydown', keyboard); return () => { document.body.style.overflow = overflow; document.removeEventListener('keydown', keyboard); previous?.focus(); }; }, []);
+    } }; document.addEventListener('keydown', keyboard); return () => { releaseScroll(); document.removeEventListener('keydown', keyboard); previous?.focus(); }; }, []);
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         const parsed = genres.split(',').map(x => x.trim()).filter(Boolean);
