@@ -37,3 +37,16 @@
 .nh-archive-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;user-select:text;margin:14px 0}
 .nh-task-editor .modal-heading h2{gap:12px}
 .nh-task-editor .nh-idea-editor-body{padding-top:6px}
+
+
+.nh-idea-intelligence,.nh-retrieval-lab{margin:16px 0;display:grid;gap:14px;min-width:0}
+.nh-idea-intelligence .nh-gemma-row,.nh-retrieval-lab .nh-gemma-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.nh-idea-intelligence .nh-gemma-row h2,.nh-retrieval-lab .nh-gemma-row h2{display:flex;align-items:center;gap:8px;font-size:1.1rem;margin:0}
+.nh-idea-intelligence .field,.nh-retrieval-lab .field{display:grid;gap:5px}
+.nh-idea-intelligence select,.nh-retrieval-lab select,.nh-retrieval-lab textarea{width:100%;min-width:0;padding:11px;border-radius:12px;background:var(--surface-secondary,#191c29);color:inherit;border:1px solid rgba(180,190,210,.2)}
+.nh-idea-intro{display:grid;gap:8px}.nh-idea-intro p{margin:0}
+.nh-idea-match{padding:13px;border:1px solid rgba(160,175,200,.16);border-radius:14px;overflow-wrap:anywhere;display:grid;gap:8px}
+.nh-idea-match p{margin:0;line-height:1.5}.nh-idea-match .nh-gemma-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.nh-idea-match a,.nh-idea-intro a{display:inline-flex;align-items:center;gap:4px}
+.nh-idea-match .nh-source-caption{font-size:12px;opacity:.7}
+.nh-retrieval-lab details{min-width:0}.nh-retrieval-lab progress,.nh-idea-intelligence progress{width:100%}

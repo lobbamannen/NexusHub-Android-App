@@ -10,6 +10,7 @@ import './ideas.css';
 import IdeaAttachments, {type AttachmentActions,type AttachmentState} from '@/components/personal/IdeaAttachments';
 import {ideaDay} from '@/lib/idea-numbers.mjs';
 import IdeaPlans from './IdeaPlans';
+import IdeaIntelligence from './IdeaIntelligence';
 import IdeasArchive from './IdeasArchive';
 import {inboxIdeas} from '@/lib/personal-capture.mjs';
 import { useLibraryState } from '@/lib/library-state';
@@ -28,6 +29,7 @@ export default function IdeasInbox({ ideas, onOpenPlan }: { ideas: IdeasControll
         <div className="nh-ideas-actions"><button className="primary" disabled={!ideas.ready || ideas.busy} onClick={ideas.create}><Plus size={18}/>Ny idé</button><button className="secondary" disabled={ideas.loading || ideas.busy} onClick={() => void ideas.reload()}><RefreshCw size={17} className={ideas.loading ? 'spin' : ''}/>Uppdatera</button></div>
         {ideas.error && <div className="error-banner" role="alert">{ideas.error}</div>}
         {ideas.stale && <p className="nh-ideas-note"><AlertTriangle size={16}/>GitHub kunde inte uppdateras. Visar tillgängliga kopior och dina lokala utkast.</p>}
+        <IdeaIntelligence ideas={shown.map(({idea})=>({id:idea.id,text:idea.text}))}/>
         <div className="nh-ideas-list">{shown.map(({ idea }) => <button className="nh-idea-card" key={idea.id} onClick={() => ideas.open(idea.id)}>
             <span className="nh-idea-card-top"><span className={'nh-idea-status ' + idea.status}>{IDEA_STATUSES[idea.status]}</span><span className="nh-ideas-note">{ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number ? 'Idé '+ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number : 'Nummer tilldelas vid sparning'}</span><time dateTime={idea.updatedAt}>{date(idea.updatedAt)}</time></span>
             <span className="nh-idea-preview">{idea.text.trim() || 'Din nya tanke…'}</span>
