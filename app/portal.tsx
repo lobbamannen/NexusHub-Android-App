@@ -1,6 +1,5 @@
 import ActivityLog from '@/components/activity/ActivityLog';
 import NexusIntelligence from '@/components/intelligence/NexusIntelligence';
-import {syncIntelligenceIndex} from '@/platform/intelligence-index';
 import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 import TrainingArchive from '@/components/training/TrainingArchive';
 import Connections, {ConnectionsPanel} from '@/components/connections/Connections';
@@ -62,7 +61,7 @@ import MaterialDefinitions from '@/components/home/MaterialDefinitions';
 import { storyList, storyFromDocument } from '@/lib/stories.mjs';
 import RepositoryPoster, { usePosterRevision } from '@/components/repository-poster';
 import { filterCatalog, relatedSuggestions, documentKey } from '@/lib/catalog.mjs';
-const NAV = [['intelligence','Nexus Intelligence',BrainCircuit],['activitet','Aktivitetslogg',Clock],['connections','Kopplingar & karta',Network],['traning','Träning',Dumbbell],['vader','Väder',CloudSun],['kalender','Kalender',CalendarDays],['bevakning','Seriebevakning',Bell],['hem', 'Hem', Home], ['ideer', 'Idéinkorg', Lightbulb], ['mottaget','NexusHub inkorg',Inbox], ['attgora','Att göra',LibraryBig], ['databas', 'Databas', Layers], ['berattelser', 'Berättelser', BookOpen], ['filmer', 'Filmer', Clapperboard], ['serier', 'Serier', Tv], ['register', 'Register', LibraryBig], ['ekonomi', 'Ekonomi', Coins], ['plugins', 'Plugins', Puzzle], ['upptack', 'Upptäck', Network], ['filer', 'Utforska filer', FolderOpen], ['verktyg', 'Verktyg', Wrench], ['nyheter', 'Nyhetsarkiv', FileText], ['favoriter', 'Sparade', Bookmark], ['arkiv', 'Tekniskt arkiv', Archive]] as const;
+const NAV = [['intelligence','Gemma 4 – chatt',BrainCircuit],['activitet','Aktivitetslogg',Clock],['connections','Kopplingar & karta',Network],['traning','Träning',Dumbbell],['vader','Väder',CloudSun],['kalender','Kalender',CalendarDays],['bevakning','Seriebevakning',Bell],['hem', 'Hem', Home], ['ideer', 'Idéinkorg', Lightbulb], ['mottaget','NexusHub inkorg',Inbox], ['attgora','Att göra',LibraryBig], ['databas', 'Databas', Layers], ['berattelser', 'Berättelser', BookOpen], ['filmer', 'Filmer', Clapperboard], ['serier', 'Serier', Tv], ['register', 'Register', LibraryBig], ['ekonomi', 'Ekonomi', Coins], ['plugins', 'Plugins', Puzzle], ['upptack', 'Upptäck', Network], ['filer', 'Utforska filer', FolderOpen], ['verktyg', 'Verktyg', Wrench], ['nyheter', 'Nyhetsarkiv', FileText], ['favoriter', 'Sparade', Bookmark], ['arkiv', 'Tekniskt arkiv', Archive]] as const;
 const MENU_SECTIONS: {
     title: string;
     ids: string[];
@@ -71,7 +70,7 @@ const MENU_SECTIONS: {
     { title: 'Utforska', ids: ['intelligence','connections','plugins', 'upptack', 'filer', 'verktyg', 'nyheter'] },
     { title: 'Personligt & arkiv', ids: ['activitet','traning','vader','kalender','bevakning','ideer','mottaget','attgora', 'ekonomi', 'favoriter', 'arkiv'] }
 ];
-const labels: Record<string, string> = { intelligence:'Nexus Intelligence',aktivitet:'Aktivitetslogg', connections:'Kopplingar & karta',guardian:'Guardian',vader:'Väder',kalender:'Kalender',bevakning:'Seriebevakning',hem: 'Hem', mottaget:'NexusHub inkorg', attgora:'Att göra', ideer: 'Idéinkorg', villse: 'Vill se', traning: 'Träning', filer: 'Utforska filer', databas: 'Databas', sok: 'Sök', mysterier: 'Mysterier', berattelser: 'Berättelser', filmer: 'Filmer', serier: 'Serier', register: 'Register', ekonomi: 'Ekonomi', plugins: 'Plugins', upptack: 'Upptäck', verktyg: 'Verktyg', nyheter: 'Nyhetsarkiv', inkorg: 'Inkorg', favoriter: 'Sparade', arkiv: 'Tekniskt arkiv', installningar: 'Inställningar & system' };
+const labels: Record<string, string> = { intelligence:'Gemma 4 – chatt',aktivitet:'Aktivitetslogg', connections:'Kopplingar & karta',guardian:'Guardian',vader:'Väder',kalender:'Kalender',bevakning:'Seriebevakning',hem: 'Hem', mottaget:'NexusHub inkorg', attgora:'Att göra', ideer: 'Idéinkorg', villse: 'Vill se', traning: 'Träning', filer: 'Utforska filer', databas: 'Databas', sok: 'Sök', mysterier: 'Mysterier', berattelser: 'Berättelser', filmer: 'Filmer', serier: 'Serier', register: 'Register', ekonomi: 'Ekonomi', plugins: 'Plugins', upptack: 'Upptäck', verktyg: 'Verktyg', nyheter: 'Nyhetsarkiv', inkorg: 'Inkorg', favoriter: 'Sparade', arkiv: 'Tekniskt arkiv', installningar: 'Inställningar & system' };
 async function api(path: string, opts: RequestInit = {}): Promise<any> { const r = await fetch('/api/' + path, { ...opts, headers: opts.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }, cache: 'no-store' }); const data: any = await r.json(); if (!r.ok)
     throw Error(data.error || 'Kunde inte hämta data.'); return data; }
 function bytes(n: number) { return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(0) + ' KB' : (n / 1048576).toFixed(1) + ' MB'; }
@@ -83,14 +82,7 @@ catch {
     return [];
 } }
 export default function Portal() {
-    useEffect(()=>{
-        if(!(window as any).Android?.intelligenceIndexStatus)return;
-        const sync=()=>{void syncIntelligenceIndex()};
-        const t=window.setTimeout(sync,1000);
-        window.addEventListener('nexus-replica-status',sync);
-        window.addEventListener('nexus-github-changed',sync);
-        return()=>{window.clearTimeout(t);window.removeEventListener('nexus-replica-status',sync);window.removeEventListener('nexus-github-changed',sync)};
-    },[]);
+
     const ideas = useIdeas(), todos=useTodos();
     const [taskEditor,setTaskEditor]=useState(false);
     const [addMenu, setAddMenu,addMenuClosing] = usePanelPresence(false);
