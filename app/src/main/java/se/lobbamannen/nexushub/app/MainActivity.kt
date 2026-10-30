@@ -282,7 +282,7 @@ class MainActivity : Activity() {
                     x.getString("path"),x.getString("sha"),x.getString("title"),x.getString("body"))
             } catch(_:Exception){false}
         @JavascriptInterface fun intelligenceIndexFinish(commit:String,count:Int):String =
-            if(trustedDocument)try{IntelligenceIndexStore(applicationContext).finish(commit,count).toString()}
+            if(trustedDocument)try{val result=IntelligenceIndexStore(applicationContext).finish(commit,count);IntelligenceJobs.resumeIndexWaiters(applicationContext);result.toString()}
             catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
         @JavascriptInterface fun intelligenceRuns():String =
             if(trustedDocument)try{IntelligenceRunStore(applicationContext).list().toString()}
@@ -292,6 +292,9 @@ class MainActivity : Activity() {
                 require(text.length in 5..20000)
                 IntelligenceJobs.request(applicationContext,text).toString()
             }catch(e:Exception){JSONObject().put("error",e.message?: "Kunde inte starta").toString()} else "{}"
+        @JavascriptInterface fun intelligenceQueueIdea(id:String,sha:String,text:String):String =
+            if(trustedDocument)try{IntelligenceJobs.idea(applicationContext,id,sha,text).toString()}
+            catch(e:Exception){JSONObject().put("error",e.message?:"Analys kunde inte köas").toString()} else "{}"
         @JavascriptInterface fun intelligenceResume(id:String):Boolean =
             trustedDocument && try{IntelligenceJobs.resume(applicationContext,id)}catch(_:Exception){false}
         @JavascriptInterface fun intelligenceCancel(id:String):Boolean =
