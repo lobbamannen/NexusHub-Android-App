@@ -288,7 +288,10 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceIndexFinish(commit:String,count:Int):String =
             if(trustedDocument)try{
                 val result=IntelligenceIndexStore(applicationContext).finish(commit,count)
-                try { IntelligenceJobs.indexCompleted(applicationContext,commit,result) } catch (_:Exception) { }
+                try {
+                    IntelligenceRunStore(applicationContext).invalidateOlderEvidence(commit)
+                    IntelligenceJobs.indexCompleted(applicationContext,commit,result)
+                } catch (_:Exception) { }
                 IntelligenceJobs.resumeIndexWaiters(applicationContext)
                 result.toString()
             }
