@@ -4,9 +4,11 @@ import {BrainCircuit,Settings,RefreshCw,Download,Play,Pause,Square,AlertTriangle
 import MaterialIcon from '@/components/MaterialIcon';
 import {syncIntelligenceIndex,intelligenceIndexProgress} from '@/platform/intelligence-index';
 import './nexus-intelligence.css';
+import {github} from '@/lib/github';
+import {publishApprovedIntelligenceRelation} from '@/lib/intelligence-publish.mjs';
 
-type Run={id:string;workflow:string;state:string;startedAt:string;updatedAt:string;error?:string;result?:any;syncState?:string;steps?:Array<{ordinal:number;operationId:string;kind:string;state:string;output:any;error:string}>};
-type Review={proposalIndex:number;decision:'approved'|'rejected';proposalHash:string;path:string;blobSha:string;repoCommit:string;quote:string;decidedAt:string;revision:number};
+type Run={id:string;objectId?:string;objectVersion?:string;workflow:string;state:string;startedAt:string;updatedAt:string;error?:string;result?:any;syncState?:string;steps?:Array<{ordinal:number;operationId:string;kind:string;state:string;output:any;error:string}>};
+type Review={proposalIndex:number;decision:'approved'|'rejected';proposalHash:string;path:string;blobSha:string;repoCommit:string;quote:string;decidedAt:string;revision:number;publicationSha?:string;publicationCommit?:string;publishedAt?:string};
 type Status={nativeLoaded?:boolean;imported?:boolean;importing?:boolean;processing?:boolean;fileBytes?:number;filename?:string;sha256?:string;copyBytes?:number;copyTotal?:number;warm?:boolean;config?:Record<string,any>;lastTelemetry?:Record<string,any>;error?:string};
 const native=()=> (typeof window!=='undefined'?(window as any).Android:null);
 const read=<T,>(name:string, fallback:T):T=>{try {const bridge=native();return typeof bridge?.[name]==='function'?JSON.parse(bridge[name]()) as T:fallback;}catch{return fallback;}};
@@ -18,7 +20,7 @@ const options:Record<string,string[]>={contextSize:['1024','2048','4096','8192',
 const description:Record<string,string>={backend:'Begärd backend, inte bevis för exekvering',threads:'CPU-trådar',batchThreads:'Batchtrådar',contextSize:'Kontextfönster (16K–64K experimentellt; högre RAM-behov, kräver modellomladdning)',batch:'Batch',microbatch:'Microbatch',q8Kv:'KV-cache Q8_0 (annars F16)',flashAttention:'Flash Attention',mlock:'Begär minneslåsning',gpuLayers:'Begärd GPU-offload',temperature:'Temperature',topP:'Top-p',topK:'Top-k',minP:'Min-p',repeatPenalty:'Repeat penalty',seed:'Seed (-1 = slump)',maxOutputTokens:'Maximala outputtoken',thinking:'Thinking när templaten stöder det',audit:'HTP-audit (stäng av vid hastighetstest)',warmModel:'Behåll modellvikter laddade'};
 function download(value:any,name:string){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 export default function NexusIntelligence(){
- const [index,setIndex]=useState(intelligenceIndexProgress()),[status,setStatus]=useState<Status>({}),[runs,setRuns]=useState<Run[]>([]),[selected,setSelected]=useState<string>(''),[editing,setEditing]=useState(false),[draft,setDraft]=useState<Record<string,any>>({}),[task,setTask]=useState(''),[notice,setNotice]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState('all'),[reviews,setReviews]=useState<Review[]>([]),[compareId,setCompareId]=useState('');
+ const [index,setIndex]=useState(intelligenceIndexProgress()),[status,setStatus]=useState<Status>({}),[runs,setRuns]=useState<Run[]>([]),[selected,setSelected]=useState<string>(''),[editing,setEditing]=useState(false),[draft,setDraft]=useState<Record<string,any>>({}),[task,setTask]=useState(''),[notice,setNotice]=useState(''),[search,setSearch]=useState(''),[filter,setFilter]=useState('all'),[reviews,setReviews]=useState<Review[]>([]),[compareId,setCompareId]=useState(''),[publishing,setPublishing]=useState('');
  const refresh=()=>{setStatus(read<Status>('intelligenceStatus',{}));setRuns(read<Run[]>('intelligenceRuns',[]))};
  useEffect(()=>{refresh();void syncIntelligenceIndex();const update=()=>setIndex(intelligenceIndexProgress());window.addEventListener('nexus-intelligence-index',update);const t=window.setInterval(refresh,2000);return()=>{window.clearInterval(t);window.removeEventListener('nexus-intelligence-index',update)}},[]);
  useEffect(()=>{const params=new URLSearchParams(location.hash.split('?')[1]||'');const id=params.get('run');if(id)setSelected(id)},[]);
@@ -36,6 +38,20 @@ export default function NexusIntelligence(){
     const updated=JSON.parse(native()?.intelligenceReviews?.(runId)||'[]');
     setReviews(Array.isArray(updated)?updated:[]);setNotice(decision==='approved'?'Förslaget är godkänt lokalt. Ingen GitHub-ändring har gjorts.':'Förslaget har avvisats och beslutet sparats lokalt.');
    }catch(e:any){setNotice(e.message||'Beslutet kunde inte sparas')}
+ };
+ const publish=async(run:Run,index:number)=>{
+    if(publishing)return;
+    setPublishing(run.id+':'+index);
+    try{
+      const decision=reviews.find(r=>r.proposalIndex===index);
+      const receipt=await publishApprovedIntelligenceRelation(run,index,decision,github('databas'));
+      const ack=JSON.parse(native()?.intelligenceRecordPublication?.(JSON.stringify(receipt))||'{}');
+      if(ack.error||ack.syncState!=='github_verified')throw Error(ack.error||'GitHub-skrivningen lyckades men lokal kvittens saknas. Publicera igen för säker återläsning.');
+      const updated=JSON.parse(native()?.intelligenceReviews?.(run.id)||'[]');
+      setReviews(Array.isArray(updated)?updated:[]);
+      setNotice('Relationen sparades i Databas och bekräftades genom återläsning av GitHub.');
+    }catch(e:any){setNotice(e.message||'GitHub-publiceringen misslyckades; det lokala godkännandet finns kvar.')}
+    finally{setPublishing('')}
  };
  const comparison=runs.find(r=>r.id===compareId&&r.id!==pick?.id);
  const duration=(r:Run)=>{const x=Date.parse(r.startedAt),y=Date.parse(r.updatedAt);return Number.isFinite(x)&&Number.isFinite(y)?Math.max(0,Math.round((y-x)/1000)):null};
@@ -70,8 +86,10 @@ export default function NexusIntelligence(){
     return <article className="nh-int-step" key={proposal.path+':'+i}>
       <strong>{proposal.path}</strong><p>{proposal.reason}</p><blockquote>{proposal.quote}</blockquote>
       <small>Git blob: {proposal.blobSha} · Commit: {proposal.repoCommit}</small>
-      <p className="muted">Modellens säkerhet: {Math.round(num(proposal.confidence)*100)} % · Beslut: {decision?.decision==='approved'?'Godkänt lokalt':decision?.decision==='rejected'?'Avvisat':'Väntar på granskning'}</p>
-      <div className="nh-int-actions"><button className="secondary" disabled={decision?.decision==='approved'} onClick={()=>review(pick.id,i,'approved')}>Godkänn lokalt</button><button className="secondary" disabled={decision?.decision==='rejected'} onClick={()=>review(pick.id,i,'rejected')}>Avvisa</button></div>
+      <p className="muted">Modellens säkerhet: {Math.round(num(proposal.confidence)*100)} % · Beslut: {decision?.publicationSha?'Publicerad och verifierad i GitHub':decision?.decision==='approved'?'Godkänt lokalt':decision?.decision==='rejected'?'Avvisat':'Väntar på granskning'}</p>
+      <div className="nh-int-actions"><button className="secondary" disabled={decision?.decision==='approved'} onClick={()=>review(pick.id,i,'approved')}>Godkänn lokalt</button><button className="secondary" disabled={decision?.decision==='rejected'||!!decision?.publicationSha} onClick={()=>review(pick.id,i,'rejected')}>Avvisa</button>
+      {pick.workflow==='idea_analysis'&&decision?.decision==='approved'&&!decision?.publicationSha&&<button className="primary" disabled={!!publishing} onClick={()=>void publish(pick,i)}>{publishing===pick.id+':'+i?'Verifierar GitHub…':'Publicera på GitHub'}</button>}</div>
+      {decision?.publicationSha&&<small>GitHub-kvittens: {decision.publicationSha}</small>}
     </article>;}):<p className="muted">Inga styrkta kopplingsförslag.</p>}
   <button className="secondary" onClick={()=>download({run:pick,reviews},'nexus-intelligence-underlag-'+pick.id+'.json')}><Download size={16}/>Exportera källor och beslut</button>
   <details><summary>Fullständigt maskinläsbart resultat</summary><pre>{JSON.stringify(pick.result,null,2)}</pre></details>

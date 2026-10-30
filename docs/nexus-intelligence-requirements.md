@@ -101,3 +101,8 @@ Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actio
 - Native-indexet har separat stagingtabell (databasversion 2). Vid avbruten indexering förblir senaste verifierade generationen sökbar. Slutkvittens sker först efter fullständig antalskontroll samt atomär ombyggnad av FTS och byte av käll-commit.
 - Added/modified/deleted beräknas deterministiskt på Git blob SHA och registreras som ett idempotent `source_changed`-arbete utan Gemma. Köade och avbrutna `running`-arbeten återansluts vid appstart genom WorkManager KEEP.
 - Jämförelse av sparade körningar finns i kontrollcentralen; telefonprov återstår.
+
+## Explicit verifierad GitHub-publicering
+- Godkända förslag från idéanalyser kan via en separat användarknapp registreras i befintliga `System/NexusHub/connections.json`. Endast samma källblobs som i den verifierade analysen godtas; båda dokumenten återläses live innan skrivning.
+- Stabilt relations-ID gör upprepningar idempotenta, befintligt connections-register har CAS på blob SHA, och den publicerade relationen återläses och verifieras före lokal kvittens. Ingen AI-modell har skrivrättigheter. Lokal publiceringskvittens och aktivitetslogg får separat tillstånd `github_verified`.
+- Endast idéanalyser har en auktoritativ ursprungskälla för publicering; manuella textanalyser kan exporteras och granskas men inte skriva fristående relationer.

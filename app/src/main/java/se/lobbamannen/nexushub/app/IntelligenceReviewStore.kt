@@ -16,7 +16,7 @@ import java.time.Instant
  */
 class IntelligenceReviewStore(private val context: Context) {
     private class Helper(context: Context) :
-        SQLiteOpenHelper(context.applicationContext, "nexus_intelligence_reviews_v1.db", null, 1) {
+        SQLiteOpenHelper(context.applicationContext, "nexus_intelligence_reviews_v1.db", null, 2) {
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL("""CREATE TABLE decisions(
                 run_id TEXT NOT NULL, proposal_index INTEGER NOT NULL,
@@ -24,12 +24,18 @@ class IntelligenceReviewStore(private val context: Context) {
                 source_path TEXT NOT NULL, blob_sha TEXT NOT NULL,
                 repo_commit TEXT NOT NULL, quote TEXT NOT NULL,
                 decided_at TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1,
+                publication_sha TEXT NOT NULL DEFAULT '',publication_commit TEXT NOT NULL DEFAULT '',
+                published_at TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY(run_id,proposal_index)
             )""")
             db.execSQL("CREATE INDEX decisions_state ON decisions(decision,decided_at DESC)")
         }
         override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            error("Review history requires explicit migration; never discard decisions")
+            if(oldVersion==1 && newVersion==2) {
+                db.execSQL("ALTER TABLE decisions ADD COLUMN publication_sha TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE decisions ADD COLUMN publication_commit TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE decisions ADD COLUMN published_at TEXT NOT NULL DEFAULT ''")
+            } else error("Unsupported review schema migration")
         }
     }
     companion object {
@@ -66,7 +72,7 @@ class IntelligenceReviewStore(private val context: Context) {
         val out = JSONArray()
         helper.readableDatabase.rawQuery(
             """SELECT proposal_index,decision,proposal_hash,source_path,blob_sha,
-                repo_commit,quote,decided_at,revision FROM decisions
+                repo_commit,quote,decided_at,revision,publication_sha,publication_commit,published_at FROM decisions
                 WHERE run_id=? ORDER BY proposal_index""",
             arrayOf(runId)
         ).use { rows ->
@@ -75,9 +81,66 @@ class IntelligenceReviewStore(private val context: Context) {
                 .put("proposalHash",rows.getString(2)).put("path",rows.getString(3))
                 .put("blobSha",rows.getString(4)).put("repoCommit",rows.getString(5))
                 .put("quote",rows.getString(6)).put("decidedAt",rows.getString(7))
-                .put("revision",rows.getInt(8)))
+                .put("revision",rows.getInt(8))
+                .put("publicationSha",rows.getString(9))
+                .put("publicationCommit",rows.getString(10))
+                .put("publishedAt",rows.getString(11)))
         }
         out
+    }
+
+
+    /** Call only after a user-initiated GitHub PUT and independently verified GET. */
+    fun recordPublication(runId:String,index:Int,proposalHash:String,
+                          registrySha:String,registryCommit:String):JSONObject = synchronized(lock) {
+        require(hash.matches(proposalHash))
+        require(sha.matches(registrySha) && sha.matches(registryCommit))
+        val source=proposal(runId,index)
+        require(digest(source.toString())==proposalHash) { "Förslaget har ändrats" }
+        val now=Instant.now().toString()
+        val db=helper.writableDatabase
+        var changed=false
+        db.beginTransaction()
+        try {
+            val row=db.rawQuery(
+                """SELECT decision,proposal_hash,publication_sha,publication_commit
+                    FROM decisions WHERE run_id=? AND proposal_index=?""",
+                arrayOf(runId,index.toString())
+            ).use { c -> if(c.moveToFirst()) listOf(c.getString(0),c.getString(1),c.getString(2),c.getString(3)) else null }
+            require(row!=null && row[0]=="approved" && row[1]==proposalHash) {
+                "Kopplingen måste godkännas lokalt före GitHub-publicering"
+            }
+            if(row[2].isNotEmpty()) {
+                require(row[2]==registrySha) {
+                    "En tidigare publicering har en annan registerversion; läs om GitHub"
+                }
+            } else {
+                val values=ContentValues().apply {
+                    put("publication_sha",registrySha);put("publication_commit",registryCommit)
+                    put("published_at",now)
+                }
+                check(db.update("decisions",values,
+                    "run_id=? AND proposal_index=? AND decision='approved' AND publication_sha=''",
+                    arrayOf(runId,index.toString()))==1)
+                changed=true
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        if(changed)try {
+            ActivityJournal(context).append(JSONObject()
+                .put("id","intelligence:published:"+runId+":"+index+":"+registrySha)
+                .put("at",now).put("category","documents")
+                .put("action","intelligence_relation_published")
+                .put("status","succeeded").put("source","github")
+                .put("title","Godkänd dokumentkoppling verifierad i GitHub")
+                .put("objectType","intelligence_run").put("objectId",runId)
+                .put("operationId","publish:"+runId+":"+index)
+                .put("details",JSONObject().put("proposalIndex",index)
+                    .put("registrySha",registrySha).put("registryCommit",registryCommit)))
+        }catch(_:Exception){}
+        JSONObject().put("runId",runId).put("proposalIndex",index)
+            .put("publicationSha",registrySha).put("changed",changed)
+            .put("syncState","github_verified")
     }
 
     fun decide(runId: String, index: Int, decision: String): JSONObject = synchronized(lock) {
@@ -91,11 +154,14 @@ class IntelligenceReviewStore(private val context: Context) {
         db.beginTransaction()
         try {
             val current=db.rawQuery(
-                "SELECT decision,proposal_hash FROM decisions WHERE run_id=? AND proposal_index=?",
+                "SELECT decision,proposal_hash,publication_sha FROM decisions WHERE run_id=? AND proposal_index=?",
                 arrayOf(runId,index.toString())
-            ).use { c -> if(c.moveToFirst()) c.getString(0) to c.getString(1) else null }
+            ).use { c -> if(c.moveToFirst()) Triple(c.getString(0),c.getString(1),c.getString(2)) else null }
             require(current==null || current.second==proposalHash) {
                 "Förslaget har ändrats sedan förra beslutet; en ny granskning krävs"
+            }
+            require(current==null || current.third.isEmpty() || decision=="approved") {
+                "Publicerad relation måste återkallas via GitHub innan avvisning"
             }
             if(current?.first != decision) {
                 val values=ContentValues().apply {

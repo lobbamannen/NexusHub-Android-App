@@ -299,6 +299,14 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceReview(id:String,index:Int,decision:String):String =
             if(trustedDocument)try{IntelligenceReviewStore(applicationContext).decide(id,index,decision).toString()}
             catch(e:Exception){JSONObject().put("error",e.message?:"Beslutet kunde inte sparas").toString()} else "{}"
+        @JavascriptInterface fun intelligenceRecordPublication(raw:String):String =
+            if(trustedDocument)try{
+                require(raw.length<=4096)
+                val x=JSONObject(raw)
+                IntelligenceReviewStore(applicationContext).recordPublication(
+                    x.getString("runId"),x.getInt("proposalIndex"),x.getString("proposalHash"),
+                    x.getString("registrySha"),x.getString("registryCommit")).toString()
+            }catch(e:Exception){JSONObject().put("error",e.message?:"Publiceringskvittensen kunde inte sparas").toString()} else "{}"
         @JavascriptInterface fun intelligenceStart(text:String):String =
             if(trustedDocument)try{
                 require(text.length in 5..20000)
