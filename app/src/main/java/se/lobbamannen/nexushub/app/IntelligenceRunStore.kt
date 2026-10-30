@@ -54,17 +54,18 @@ class IntelligenceRunStore(context: Context) {
     private val journalContext = context.applicationContext
 
     companion object {
-        val states = setOf("queued", "running", "cancelling", "paused", "waiting_network",
+        val states = setOf("queued", "running", "cancelling", "paused", "waiting_network", "waiting_index",
             "waiting_approval", "waiting_model", "failed", "conflict", "cancelled",
             "local_completed", "sync_pending", "completed")
         private val transitions = mapOf(
-            "queued" to setOf("running", "paused", "cancelled", "waiting_model"),
+            "queued" to setOf("running", "paused", "cancelled", "waiting_model", "waiting_index"),
             "running" to setOf("paused", "waiting_network", "waiting_approval",
-                "waiting_model", "failed", "conflict", "cancelling", "local_completed"),
+                "waiting_model", "waiting_index", "failed", "conflict", "cancelling", "local_completed", "queued"),
             "cancelling" to setOf("cancelled"),
             "paused" to setOf("queued", "cancelled"),
             "waiting_network" to setOf("queued", "cancelled", "conflict"),
             "waiting_model" to setOf("queued", "cancelled"),
+            "waiting_index" to setOf("queued", "cancelled"),
             "waiting_approval" to setOf("queued", "cancelled"),
             "failed" to setOf("queued", "cancelled"),
             "conflict" to setOf("queued", "cancelled"),
