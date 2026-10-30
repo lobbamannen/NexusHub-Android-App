@@ -1,6 +1,7 @@
 import {replicaReader} from './mirror-access';
 import {durableGet,durableSet} from './local-store';
 import {embedBatch,embeddingStatus,type EmbedItem} from './embedding-bridge';
+import {ideaProbes,rankIdeaRelations,type RelationCandidate} from './idea-relations';
 
 export type Chunk={id:string;path:string;sha:string;title:string;kind:'idea'|'report'|'attachment';text:string;index:number;heading:string;sourceHash?:string;vector?:number[];profile?:string};
 export type Doc={path:string;sha:string;kind:Chunk['kind'];title:string;chunks:Chunk[];indexedAt:string};
@@ -166,11 +167,16 @@ export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=
  }).sort((a,b)=>b.score-a.score||a.chunk.id.localeCompare(b.chunk.id)).slice(0,32);
  return {hits,mode:semantic.length?'HYBRID':'LEXICAL_FALLBACK',embeddingMs,scanMs:performance.now()-start-embeddingMs,fallback};
 }
+export async function relatedReportCandidates(corpus:Corpus,idea:{id:string;text:string},limit=6):Promise<RelationCandidate[]>{
+ const probes=ideaProbes(idea.text);
+ const results:Hit[][]=[];
+ for(const probe of probes){
+  const found=await searchCorpus(corpus,probe,c=>c.kind!=='idea'&&c.path!=='Ideer/'+idea.id+'.json');
+  results.push(found.hits);
+ }
+ return rankIdeaRelations(idea.text,results,limit);
+}
 export async function relatedReports(corpus:Corpus,idea:{id:string;text:string},limit=6):Promise<Hit[]>{
- const query=idea.text.slice(0,1200);
- const result=await searchCorpus(corpus,query,c=>c.kind!=='idea'&&c.path!=='Ideer/'+idea.id+'.json');
- const byPath=new Map<string,Hit>();
- for(const hit of result.hits)if(!byPath.has(hit.chunk.path))byPath.set(hit.chunk.path,hit);
- return [...byPath.values()].slice(0,limit);
+ return (await relatedReportCandidates(corpus,idea,limit)).map(candidate=>candidate.hit);
 }
 export function sourceLink(path:string,commit:string){return 'https://github.com/lobbamannen/Databas/blob/'+commit+'/'+path.split('/').map(encodeURIComponent).join('/')}
