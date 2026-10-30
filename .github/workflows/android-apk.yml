@@ -1,7 +1,7 @@
 name: Build Nexus Hub App APK
 on:
   push:
-    branches: [main]
+    branches: [main, codex/nexus-intelligence-foundation-20261030]
   workflow_dispatch:
 permissions:
   contents: write
