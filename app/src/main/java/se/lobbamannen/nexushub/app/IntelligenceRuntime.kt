@@ -191,7 +191,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                 "Prompt och reserverad utdata överskrider kontexten."
             }
             val parser=GemmaStreamParser({})
-            val output=LlamaNative.generateCompletionExt(formatted,TokenCallback { token->parser.feed(token) },
+            LlamaNative.generateCompletionExt(formatted,TokenCallback { token->parser.feed(token) },
                 requested,p.getDouble("temperature").toFloat(),p.getDouble("topP").toFloat(),
                 p.getInt("topK"),p.getDouble("minP").toFloat(),
                 p.getDouble("repeatPenalty").toFloat(),p.getLong("seed"))
@@ -204,7 +204,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             }
             val reason=telemetry.optString("finish_reason","unknown")
             check(reason !in setOf("error","cancelled","in_progress")) { "Generering avslutades inte normalt: $reason" }
-            val result=JSONObject().put("text",parser.finalAnswer().ifBlank { output })
+            val result=JSONObject().put("text",parser.finalAnswer())
                 .put("finishReason",reason).put("promptTokens",promptTokens)
                 .put("backend",actual).put("requestedBackend",p.getString("backend"))
                 .put("telemetry",telemetry).put("modelSha256",prefs.getString("sha256",""))
