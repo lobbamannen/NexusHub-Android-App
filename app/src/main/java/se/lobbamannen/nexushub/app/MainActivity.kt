@@ -295,6 +295,8 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceQueueIdea(id:String,sha:String,text:String):String =
             if(trustedDocument)try{IntelligenceJobs.idea(applicationContext,id,sha,text).toString()}
             catch(e:Exception){JSONObject().put("error",e.message?:"Analys kunde inte köas").toString()} else "{}"
+        @JavascriptInterface fun intelligencePause(id:String):Boolean =
+            trustedDocument && try{IntelligenceJobs.pause(applicationContext,id)}catch(_:Exception){false}
         @JavascriptInterface fun intelligenceResume(id:String):Boolean =
             trustedDocument && try{IntelligenceJobs.resume(applicationContext,id)}catch(_:Exception){false}
         @JavascriptInterface fun intelligenceCancel(id:String):Boolean =
