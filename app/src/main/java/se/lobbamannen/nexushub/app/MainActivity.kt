@@ -296,6 +296,9 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceRunsPage(offset:Int,limit:Int):String =
             if(trustedDocument)try{IntelligenceRunStore(applicationContext).list(limit,offset).toString()}
             catch(e:Exception){JSONObject().put("error",e.message?:"Historik kunde inte läsas").toString()} else "[]"
+        @JavascriptInterface fun intelligenceRunCounts():String =
+            if(trustedDocument)try{IntelligenceRunStore(applicationContext).counts().toString()}
+            catch(_:Exception){"{}"} else "{}"
         @JavascriptInterface fun intelligenceRuns():String =
             if(trustedDocument)try{IntelligenceRunStore(applicationContext).list().toString()}
             catch(_:Exception){"[]"} else "[]"
