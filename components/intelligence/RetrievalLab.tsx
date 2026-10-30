@@ -24,7 +24,7 @@ export default function RetrievalLab(){
    if(!selected.length){setReply('Inget relevant dokumentstöd hittades. Gemma har inte anropats.');return;}
    // Chunks are 900-character embedding windows: keep their entire matched text.
    const excerpt=formatRagEvidence(selected);
-   const prompt='Du är NexusHubs faktabundna RAG-assistent. Besvara frågan på svenska ENDAST med fakta från utdragen nedan. Ange källor [D1], [D2] etc. Om underlaget inte räcker, säg tydligt att svaret saknas; gissa aldrig. '+ragAnswerGuidance(query)+'\\n\\nFRÅGA: '+query.slice(0,1000)+'\\n\\nKÄLLUTDRAG:\\n'+excerpt;
+   const prompt='Du är NexusHubs faktabundna RAG-assistent. Besvara frågan på svenska ENDAST med fakta från utdragen nedan. Ange källor [D1], [D2] etc. Om underlaget inte räcker, säg tydligt att svaret saknas; gissa aldrig. '+ragAnswerGuidance(query)+'\n\nFRÅGA: '+query.slice(0,1000)+'\n\nKÄLLUTDRAG:\n'+excerpt;
    if(prompt.length>11500)throw Error('Källunderlaget överskrider promptbudgeten. Ingen tyst kapning görs.');
    setMetrics({...stats,promptCharacters:prompt.length,sourceWindows:selected.map(h=>h.chunk.path+'#'+h.chunk.index+' (0–'+h.chunk.text.length+')').join(' | ')});
    const started=performance.now();
