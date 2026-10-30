@@ -179,6 +179,17 @@ class IntelligenceRunStore(context: Context) {
         array
     }
 
+    /** Fetch a stable state-specific batch without offset races during state transitions. */
+    fun listByState(state:String, limit:Int=200):JSONArray = synchronized(helper) {
+        require(state in states)
+        val array=JSONArray()
+        helper.readableDatabase.rawQuery(
+            "SELECT id FROM runs WHERE state=? ORDER BY started_at ASC,id ASC LIMIT ${limit.coerceIn(1,200)}",
+            arrayOf(state)
+        ).use {c->while(c.moveToNext())get(c.getString(0))?.let(array::put)}
+        array
+    }
+
     /** Compare-and-swap transition. Invalid, stale or terminal transitions are rejected. */
     fun transition(id: String, expected: String, next: String, error: String = ""): Boolean {
         require(uuid.matches(id) && expected in states && next in states)

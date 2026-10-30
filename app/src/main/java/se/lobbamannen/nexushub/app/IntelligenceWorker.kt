@@ -146,29 +146,27 @@ object IntelligenceJobs {
     /** Imported model becomes usable without manually reopening queued tasks. */
     fun resumeModelWaiters(context:Context) {
         val store=IntelligenceRunStore(context)
-        var offset=0
-        do {
-            val runs=store.list(200,offset)
-            for(i in 0 until runs.length()){
-                val row=runs.getJSONObject(i)
-                if(row.optString("state")=="waiting_model")resume(context,row.getString("id"))
-            }
-            offset+=runs.length()
-            if(runs.length()<200)break
-        } while(offset<=100000)
+        var rounds=0
+        while(rounds++<500) {
+            val runs=store.listByState("waiting_model")
+            if(runs.length()==0)break
+            var changed=false
+            for(i in 0 until runs.length())
+                if(resume(context,runs.getJSONObject(i).getString("id")))changed=true
+            if(!changed)break
+        }
     }
     fun resumeIndexWaiters(context:Context) {
         val store=IntelligenceRunStore(context)
-        var offset=0
-        do {
-            val runs=store.list(200,offset)
-            for(i in 0 until runs.length()){
-                val row=runs.getJSONObject(i)
-                if(row.optString("state")=="waiting_index")resume(context,row.getString("id"))
-            }
-            offset+=runs.length()
-            if(runs.length()<200)break
-        } while(offset<=100000)
+        var rounds=0
+        while(rounds++<500) {
+            val runs=store.listByState("waiting_index")
+            if(runs.length()==0)break
+            var changed=false
+            for(i in 0 until runs.length())
+                if(resume(context,runs.getJSONObject(i).getString("id")))changed=true
+            if(!changed)break
+        }
     }
     fun pause(context: Context,id: String): Boolean {
         val store=IntelligenceRunStore(context)

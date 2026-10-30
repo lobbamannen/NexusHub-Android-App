@@ -126,3 +126,5 @@ Signerad test-APK skapades och `apksigner` verifierade signaturen i GitHub Actio
 
 ## Långvarig historik
 - Körningshistorik har SQLite-sidindelning och läs in äldre i UI. Automatisk omstart och återupptagning skannar flera sidor, inte bara de första 200 körningarna. Väntande granskningsbeslut söks även i äldre sidor.
+
+- Väntande körningar återupptas i stabila state-specifika SQLite-batcher. Sidläsning sker före övergång för att undvika att ändrad `updated_at` flyttar poster och orsakar tappade återupptagningar.
