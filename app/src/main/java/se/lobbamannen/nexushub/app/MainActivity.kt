@@ -31,6 +31,7 @@ class MainActivity : Activity() {
     companion object {
         private const val HOST = "appassets.androidplatform.net"
         private const val HOME = "https://appassets.androidplatform.net/index.html"
+        private const val PICK_MODEL = 1003
         private const val PICK_FILE = 1001
         private const val SAVE_FILE = 1002
         private const val MAX_FILE_BYTES = 64 * 1024 * 1024
@@ -112,7 +113,7 @@ class MainActivity : Activity() {
         webView.addJavascriptInterface(NativeBridge(), "Android")
         nexusMessages = NexusMessageBridge(this, webView)
         nexusMessages.install()
-        pendingDestination = se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider.destination(intent.getStringExtra("nexus.destination").orEmpty())
+        pendingDestination = destinationForIntent(intent)
         pendingSeries = intent.getStringExtra("nexus.series")?.take(200)
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
@@ -205,9 +206,14 @@ class MainActivity : Activity() {
         super.onNewIntent(intent)
         setIntent(intent)
         captureShare(intent)
-        pendingDestination=se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider.destination(intent.getStringExtra("nexus.destination").orEmpty())
+        pendingDestination=destinationForIntent(intent)
         if(trustedDocument)openPendingDestination()
         intent.getStringExtra("nexus.series")?.take(200)?.let { pendingSeries = it; if (trustedDocument) openPendingSeries() }
+    }
+    private fun destinationForIntent(value: Intent): String? {
+        val target=value.getStringExtra("nexus.destination").orEmpty()
+        if (Regex("intelligence\\?run=[a-fA-F0-9-]{36}").matches(target))return target
+        return se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider.destination(target)
     }
     private fun openPendingDestination(){
         val target=pendingDestination ?: return
@@ -260,6 +266,43 @@ class MainActivity : Activity() {
         @JavascriptInterface fun readIncomingFile(id: String, fileId: String): String = if (trustedDocument) incomingShares.read(id, fileId) else ""
         @JavascriptInterface fun removeIncoming(id: String): Boolean = trustedDocument && incomingShares.remove(id)
 
+        @JavascriptInterface fun intelligenceStatus():String =
+            if(trustedDocument)try{IntelligenceRuntime.get(applicationContext).status().toString()}
+            catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
+        @JavascriptInterface fun intelligenceRuns():String =
+            if(trustedDocument)try{IntelligenceRunStore(applicationContext).list().toString()}
+            catch(_:Exception){"[]"} else "[]"
+        @JavascriptInterface fun intelligenceStart(text:String):String =
+            if(trustedDocument)try{
+                require(text.length in 5..20000)
+                IntelligenceJobs.request(applicationContext,text).toString()
+            }catch(e:Exception){JSONObject().put("error",e.message?: "Kunde inte starta").toString()} else "{}"
+        @JavascriptInterface fun intelligenceResume(id:String):Boolean =
+            trustedDocument && try{IntelligenceJobs.resume(applicationContext,id)}catch(_:Exception){false}
+        @JavascriptInterface fun intelligenceCancel(id:String):Boolean =
+            trustedDocument && try{IntelligenceJobs.cancel(applicationContext,id)}catch(_:Exception){false}
+        @JavascriptInterface fun intelligenceSaveProfile(raw:String):String =
+            if(trustedDocument)try{
+                require(raw.length<=16000)
+                IntelligenceRuntime.get(applicationContext).saveProfile(JSONObject(raw)).toString()
+            }catch(e:Exception){JSONObject().put("error",e.message?: "Felaktiga inställningar").toString()} else "{}"
+        @JavascriptInterface fun intelligenceImportModel():Boolean {
+            if(!trustedDocument)return false
+            runOnUiThread {
+                try {
+                    startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type="application/octet-stream"
+                        putExtra(Intent.EXTRA_MIME_TYPES,arrayOf("application/octet-stream","application/x-gguf","*/*"))
+                    },PICK_MODEL)
+                } catch(e:ActivityNotFoundException){notifyUser("Androids dokumentväljare saknas")}
+            }
+            return true
+        }
+        @JavascriptInterface fun intelligenceDeleteModel():Boolean =
+            trustedDocument && try{IntelligenceRuntime.get(applicationContext).delete();true}catch(_:Exception){false}
+        @JavascriptInterface fun intelligenceUnloadModel():Boolean =
+            trustedDocument && try{IntelligenceRuntime.get(applicationContext).unload();true}catch(_:Exception){false}
         @JavascriptInterface fun getGithubToken(): String = if (trustedDocument) credentials.get() else ""
         @JavascriptInterface fun setGithubToken(token: String): Boolean {
             if(!trustedDocument)return false
@@ -406,7 +449,19 @@ class MainActivity : Activity() {
     @Deprecated("Legacy WebView file result API")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == PICK_FILE) {
+        if (requestCode == PICK_MODEL) {
+            val uri=if(resultCode==RESULT_OK)data?.data else null
+            if(uri!=null)io.execute {
+                try {
+                    IntelligenceRuntime.get(applicationContext).import(uri)
+                    activityEvent("intelligence_model_imported","succeeded","Gemma 4 E2B importerad")
+                    notifyUser("Modellen har importerats och verifierats.")
+                }catch(e:Exception){
+                    activityEvent("intelligence_model_import_failed","failed","Gemma-import misslyckades")
+                    notifyUser("Modellimport: "+(e.message?:"okänt fel").take(200))
+                }
+            }
+        } else if (requestCode == PICK_FILE) {
             val callback = fileCallback; fileCallback = null
             val selected = linkedSetOf<Uri>()
             if (resultCode == RESULT_OK) {
