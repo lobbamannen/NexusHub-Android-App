@@ -28,6 +28,59 @@ object IntelligenceJobs {
     private const val PREFIX = "intelligence:"
     private val uuid = Regex("[a-fA-F0-9-]{36}")
     private val sha = Regex("[a-f0-9]{40}")
+    private const val BACKEND_GUARD = "nexus_intelligence_backend_guard_v1"
+    private fun guard(context:Context) =
+        context.getSharedPreferences(BACKEND_GUARD,Context.MODE_PRIVATE)
+
+    private fun currentProfile(context:Context):String =
+        IntelligenceRuntime.get(context).profile().toString()
+
+    /** Block only automatic inbox dispatch while the SAME APK and profile
+     * have a reproducible, fatal accelerator/linker failure.
+     * Existing results, pending records and manual diagnosis remain accessible.
+     */
+    private fun blocked(context:Context):Boolean {
+        val saved=guard(context)
+        if(!saved.contains("runId"))return false
+        return saved.getInt("version",-1)==BuildConfig.VERSION_CODE &&
+            saved.getString("profile","")==currentProfile(context)
+    }
+
+    fun queueStatus(context:Context):JSONObject {
+        val suspended=blocked(context)
+        return JSONObject().put("automaticSuspended",suspended)
+            .put("suspensionReason",
+                if(suspended)guard(context).getString("error","") ?: "" else "")
+    }
+
+    /** Resume the specific failed source after an APK update or profile change,
+     * without re-importing the GGUF or discarding the pending document queue.
+     */
+    fun recoverBackendGuard(context:Context) {
+        if(!guard(context).contains("runId") || blocked(context))return
+        val id=guard(context).getString("runId","").orEmpty()
+        guard(context).edit().clear().commit()
+        if(uuid.matches(id) &&
+            IntelligenceRunStore(context).get(id)?.optString("state")=="failed")
+            resume(context,id)
+    }
+
+    fun recordFatalBackendFailure(context:Context,id:String,error:String) {
+        val fatal=error.startsWith("NPU-only nekades:") ||
+            error.startsWith("GPU-only nekades:") ||
+            error.contains("libcdsprpc.so") || error.contains("libOpenCL.so")
+        if(!fatal)return
+        guard(context).edit()
+            .putString("runId",id)
+            .putInt("version",BuildConfig.VERSION_CODE)
+            .putString("profile",currentProfile(context))
+            .putString("error",error.take(300))
+            .commit()
+    }
+
+    private fun clearBackendGuard(context:Context) {
+        guard(context).edit().clear().commit()
+    }
     private fun file(context: Context,id: String): File {
         require(uuid.matches(id))
         return File(File(context.filesDir,"intelligence-input-v1").apply{mkdirs()},"$id.json")
@@ -102,7 +155,7 @@ object IntelligenceJobs {
     @Synchronized fun drainInbox(context:Context) {
         // Exactly one active report at a time, but a broken/unavailable entry
         // must not permanently block unrelated, already verified reports.
-        if(IntelligenceRunStore(context).hasPendingDocument())return
+        if(blocked(context) || IntelligenceRunStore(context).hasPendingDocument())return
         val index=IntelligenceIndexStore(context)
         var attempts=0
         while(attempts++<16) {
@@ -130,6 +183,8 @@ object IntelligenceJobs {
     }
     /** Reattach orphaned queued/running work after process death without replacing live work. */
     fun reconcile(context:Context) {
+        IntelligenceNotifications.migrateLegacySummaries(context)
+        recoverBackendGuard(context)
         val store=IntelligenceRunStore(context)
         // Drain a state-specific batch to avoid offset skipping when timestamps
         // change during recovery; a cancelled worker must end terminally.
@@ -191,6 +246,7 @@ object IntelligenceJobs {
         val run=store.get(id)?:return false
         val state=run.getString("state")
         if(!store.transition(id,state,"queued"))return false
+        clearBackendGuard(context)
         schedule(context,id)
         return true
     }
@@ -473,8 +529,12 @@ ${source}
             IntelligenceNotifications.terminal(app,id,"local_completed")
             return Result.success()
         }catch(e:Exception){
+            val failure=(e.message ?: "Analysen misslyckades").take(400)
             when(store.get(id)?.optString("state")){
-                "running"->store.transition(id,"running","failed",(e.message?:"Analysen misslyckades").take(400))
+                "running"->{
+                    store.transition(id,"running","failed",failure)
+                    IntelligenceJobs.recordFatalBackendFailure(app,id,failure)
+                }
                 "cancelling"->store.transition(id,"cancelling","cancelled")
             }
             if(store.get(id)?.optString("state") in setOf("failed","cancelled"))

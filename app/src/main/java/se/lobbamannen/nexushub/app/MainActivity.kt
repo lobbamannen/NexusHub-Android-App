@@ -274,7 +274,12 @@ class MainActivity : Activity() {
             if(trustedDocument)try{IntelligenceRuntime.get(applicationContext).status().toString()}
             catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
         @JavascriptInterface fun intelligenceIndexStatus():String =
-            if(trustedDocument)try{IntelligenceIndexStore(applicationContext).status().toString()}catch(_:Exception){"{}"} else "{}"
+            if(trustedDocument)try{
+                val state=IntelligenceIndexStore(applicationContext).status()
+                val queue=IntelligenceJobs.queueStatus(applicationContext)
+                state.put("automaticSuspended",queue.optBoolean("automaticSuspended"))
+                    .put("suspensionReason",queue.optString("suspensionReason")).toString()
+            }catch(_:Exception){"{}"} else "{}"
         @JavascriptInterface fun intelligenceIndexBegin(commit:String):String =
             if(trustedDocument)try{IntelligenceIndexStore(applicationContext).begin(commit).toString()}
             catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
@@ -348,7 +353,9 @@ class MainActivity : Activity() {
         @JavascriptInterface fun intelligenceSaveProfile(raw:String):String =
             if(trustedDocument)try{
                 require(raw.length<=16000)
-                IntelligenceRuntime.get(applicationContext).saveProfile(JSONObject(raw)).toString()
+                val result=IntelligenceRuntime.get(applicationContext).saveProfile(JSONObject(raw))
+                IntelligenceJobs.recoverBackendGuard(applicationContext)
+                result.toString()
             }catch(e:Exception){JSONObject().put("error",e.message?: "Felaktiga inställningar").toString()} else "{}"
         @JavascriptInterface fun intelligenceImportModel():Boolean {
             if(!trustedDocument)return false

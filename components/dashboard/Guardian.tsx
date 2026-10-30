@@ -40,13 +40,14 @@ export default function Guardian({replica,model,onAction}:{replica:any;model:Con
   const stale=source.ready && current && source.commit!==current;
   const queued=Number(source.pendingAnalysis||0);
   const failed=Number(runs.failed||0);
-  const state=intelligence.error?'unknown':stale?'pending':
+  const state=intelligence.error?'unknown':source.automaticSuspended?'issue':stale?'pending':
     failed>0?'issue':!source.ready?'pending':queued>0?'pending':'ok';
   const detail=intelligence.error||
     (source.ready?(source.indexedFiles||0)+' indexerade textfiler · '+queued+
       ' väntande forskningsanalyser · '+failed+' felaktiga körningar':
       'Det verifierade lokala sökindexet är inte färdigt.')+
-    (stale?' · Nyare GitHub-version väntar på indexering.':'');
+    (stale?' · Nyare GitHub-version väntar på indexering.':'')+
+    (source.automaticSuspended?' · Automatisk analys stoppad efter backendfel.':'');
   findings.push({id:'intelligence',state,title:'Nexus Intelligence',detail,action:'intelligence'});
  }
  if(posterChecked)findings.push({id:'metadata',state:metadata.length?'issue':'ok',title:'Film- och seriemetadata',detail:metadata.length?metadata.length+' titlar saknar namn eller årtal.':'Kontrollerade titlar har namn och årtal.'});

@@ -24,6 +24,9 @@ internal object IntelligenceNotifications {
     private const val CHANNEL = "nexus_intelligence_v1"
     private const val FOREGROUND_BASE = 63000
     private const val TERMINAL_BASE = 73000
+    // A single shared summary, not one permanent notification for every
+    // document in a potentially thousands-long background research queue.
+    private const val TERMINAL_SUMMARY_ID = 73000
     private val runId = Regex("[0-9a-fA-F-]{36}")
 
     fun foregroundId(id:String):Int {
@@ -31,7 +34,19 @@ internal object IntelligenceNotifications {
         return FOREGROUND_BASE + (id.hashCode() and 0x3ff)
     }
 
-    private fun terminalId(id:String):Int = TERMINAL_BASE + (id.hashCode() and 0x3ff)
+    private fun terminalId(id:String):Int = TERMINAL_SUMMARY_ID
+
+    /** Remove summaries created by the previous per-run notification scheme.
+     * Only notifications in this app's legacy Intelligence ID range are touched.
+     */
+    fun migrateLegacySummaries(context:Context) {
+        try {
+            val notifications=manager(context).activeNotifications
+            for(item in notifications)
+                if(item.id in (TERMINAL_BASE+1)..(TERMINAL_BASE+1023))
+                    manager(context).cancel(item.tag,item.id)
+        }catch(_:Exception){ /* UI history remains the durable source of truth. */ }
+    }
 
     private fun manager(context:Context):NotificationManager {
         val manager=context.getSystemService(NotificationManager::class.java)
@@ -108,11 +123,18 @@ internal object IntelligenceNotifications {
                 state=="waiting_network"->"Väntar på nätverksanslutning"
                 else->"Körningen kräver uppmärksamhet"
             }
+            val totals=IntelligenceRunStore(context).counts()
+            val failures=totals.optInt("failed")
+            val queued=totals.optInt("waiting")
+            val summary=if(failures>0 || queued>0)
+                "$text · $failures med fel · $queued väntande"
+                else text
             val b=NotificationCompat.Builder(context,CHANNEL)
                 .setSmallIcon(if(complete)android.R.drawable.stat_sys_download_done
                     else android.R.drawable.stat_notify_error)
                 .setContentTitle("Nexus Intelligence")
-                .setContentText(text)
+                .setContentText(summary.take(220))
+                .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
                 .setContentIntent(open(context,id))
                 .setOnlyAlertOnce(true).setSilent(true)
                 .setOngoing(false).setAutoCancel(true)
@@ -120,12 +142,12 @@ internal object IntelligenceNotifications {
                 b.addAction(0,if(state in setOf("failed","conflict"))"Försök igen" else "Återuppta",
                     control(context,id,IntelligenceControlReceiver.RESUME,6000))
             }
-            manager(context).notify(terminalId(id),b.build())
+            manager(context).notify(TERMINAL_SUMMARY_ID,b.build())
         }catch(_:Exception){ /* Persisted run is the authoritative state. */ }
     }
 
     fun dismissSummary(context:Context,id:String) {
-        try {manager(context).cancel(terminalId(id))}catch(_:Exception){}
+        try {manager(context).cancel(TERMINAL_SUMMARY_ID)}catch(_:Exception){}
     }
 }
 
