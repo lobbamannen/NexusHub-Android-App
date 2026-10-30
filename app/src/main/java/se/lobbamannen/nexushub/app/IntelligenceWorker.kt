@@ -67,7 +67,14 @@ object IntelligenceJobs {
         val commit=item.getString("commit")
         val source=path+":"+sha
         val stable=UUID.nameUUIDFromBytes(source.toByteArray(Charsets.UTF_8)).toString()
-        val content=item.getString("body").take(17500)
+        val entire=item.getString("body")
+        val content=if(entire.length<=17500)entire else {
+            // Representative bounded windows, never misrepresent them as the full document.
+            val mid=(entire.length/2-1800).coerceAtLeast(0)
+            entire.take(6500)+"\\n[UTELÄMNAT AVSNITT — fulltext finns i indexet]\\n"+
+                entire.substring(mid,(mid+3500).coerceAtMost(entire.length))+
+                "\\n[UTELÄMNAT AVSNITT]\\n"+entire.takeLast(6500)
+        }
         require(content.length>=5) { "Dokumentet saknar analyserbar text" }
         val store=IntelligenceRunStore(context)
         val run=store.enqueue("document_analysis","document:"+stable,
@@ -76,6 +83,7 @@ object IntelligenceJobs {
         if(run.getString("state")=="queued"){
             save(context,id,JSONObject().put("input",content)
                 .put("sourcePath",path).put("sourceSha",sha).put("indexCommit",commit)
+                .put("sourceLength",entire.length).put("partialDocument",entire.length>17500)
                 .put("version",1))
             schedule(context,id)
         }
@@ -89,6 +97,23 @@ object IntelligenceJobs {
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL,30,TimeUnit.SECONDS)
             .addTag(PREFIX+id).build()
         WorkManager.getInstance(context).enqueueUniqueWork(PREFIX+id,policy,request)
+    }
+    /** Dispatch one verified research item at a time; the rest remain durable in SQLite. */
+    fun drainInbox(context:Context) {
+        val index=IntelligenceIndexStore(context)
+        val pending=index.nextPending() ?: return
+        val path=pending.getString("path")
+        val sha=pending.getString("sha")
+        try {
+            if(index.document(path).getString("sha")!=sha) {
+                index.acknowledgePending(path,sha)
+                return
+            }
+            document(context,path) // Persist run and WorkManager request before acknowledging.
+            index.acknowledgePending(path,sha)
+        } catch(_:Exception) {
+            index.failPending(path,sha)
+        }
     }
     /** Reattach orphaned queued/running work after process death without replacing live work. */
     fun reconcile(context:Context) {
@@ -109,6 +134,7 @@ object IntelligenceJobs {
             offset+=runs.length()
             if(runs.length()<200)break
         } while(offset<=100000)
+        drainInbox(context)
     }
     /** Deterministic code-only workflow; the initial index is also tracked. */
     fun indexCompleted(context:Context,commit:String,receipt:JSONObject) {
@@ -126,19 +152,9 @@ object IntelligenceJobs {
         check(store.recordStep(id,0,"inventory:"+commit,"code","succeeded",result))
         check(store.saveLocalResult(id,result))
         check(store.transition(id,"running","local_completed"))
-        // Never flood the phone on first replica sync. Limit proactive analyses
-        // of modified research documents to two per verified subsequent commit.
-        if(receipt.optString("previousCommit").matches(Regex("[a-f0-9]{40}"))) {
-            val paths=receipt.optJSONArray("changedPaths") ?: JSONArray()
-            var queued=0
-            for(i in 0 until paths.length()){
-                if(queued>=2)break
-                val path=paths.getString(i)
-                if(path.startsWith("Research/") && IntelligenceIndexStore.eligible(path)){
-                    try{document(context,path);queued++}catch(_:Exception){/* index receipt remains authoritative */}
-                }
-            }
-        }
+        // Persistent inbox backlog survives process death and analysis batch limits.
+        if(receipt.optString("previousCommit").matches(Regex("[a-f0-9]{40}")))
+            drainInbox(context)
     }
     fun resume(context: Context,id: String): Boolean {
         val store=IntelligenceRunStore(context)
@@ -250,7 +266,11 @@ ${source}
         val id=inputData.getString("runId") ?: return Result.failure()
         return synchronized(WORK_LOCK) {
             ownerWorkerId=this.id
-            try { execute(id) } finally { ownerWorkerId=null }
+            try { execute(id) } finally {
+                ownerWorkerId=null
+                // Completion, error or pause may free room for the next inbox report.
+                try {IntelligenceJobs.drainInbox(app)}catch(_:Exception){}
+            }
         }
     }
 
@@ -401,6 +421,8 @@ ${source}
                 receipt.put("sourcePath",input.getString("sourcePath"))
                     .put("sourceSha",input.getString("sourceSha"))
                     .put("sourceCommit",input.getString("indexCommit"))
+                    .put("sourceLength",input.optInt("sourceLength",text.length))
+                    .put("partialDocument",input.optBoolean("partialDocument",false))
             }
             receipt.put("nextActions",JSONArray().apply {
                 if(evidence.length()==0)put("Ingen relevant indexerad källa hittades; komplettera underlaget.")
