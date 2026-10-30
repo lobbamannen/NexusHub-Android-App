@@ -192,6 +192,20 @@ class IntelligenceRunStore(context: Context) {
         return changed
     }
 
+    /** A result is locally committed; sync status remains explicit and cannot imply GitHub success. */
+    fun saveLocalResult(id: String, verifiedResult: JSONObject): Boolean {
+        require(uuid.matches(id) && verifiedResult.toString().length<=65536)
+        return transaction { db ->
+            val values=ContentValues().apply {
+                put("result_json",verifiedResult.toString());put("sync_state","local")
+                put("updated_at",now())
+            }
+            val written=db.update("runs",values,"id=? AND state='running'",arrayOf(id))==1
+            if(written)db.execSQL("UPDATE runs SET revision=revision+1 WHERE id=?",arrayOf(id))
+            written
+        }
+    }
+
     /** A step is registered once by its stable operation ID. Output must be already validated. */
     fun recordStep(id: String, ordinal: Int, operationId: String, kind: String,
                    state: String, verifiedOutput: JSONObject = JSONObject(), error: String = ""): Boolean {
