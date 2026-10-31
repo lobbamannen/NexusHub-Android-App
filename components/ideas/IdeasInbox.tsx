@@ -1,7 +1,7 @@
 import {lockPageScroll} from '@/lib/page-scroll-lock.mjs';
 import Lightbulb from '@/components/ideas/IdeaBulb';
-import React, { useEffect, useRef, useState } from 'react';
-import { Archive, Trash2,  Plus, RefreshCw, ChevronRight, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Archive, Trash2, Plus, RefreshCw, ChevronRight, ArrowLeft, BrainCircuit, X, Save, Loader2, CloudCheck, CloudUpload, FilePenLine, Undo2, AlertTriangle } from 'lucide-react';
 import MaterialIcon from '@/components/MaterialIcon';
 import { useBackHandler } from '@/components/NativeBackBridge';
 import { IDEA_STATUSES } from '@/lib/ideas.mjs';
@@ -10,7 +10,7 @@ import './ideas.css';
 import IdeaAttachments, {type AttachmentActions,type AttachmentState} from '@/components/personal/IdeaAttachments';
 import {ideaDay} from '@/lib/idea-numbers.mjs';
 import IdeaPlans from './IdeaPlans';
-import IdeaIntelligence from './IdeaIntelligence';
+import IdeaIntelligence, {type IdeaIntelligenceSummary} from './IdeaIntelligence';
 import IdeasArchive from './IdeasArchive';
 import {inboxIdeas} from '@/lib/personal-capture.mjs';
 import { useLibraryState } from '@/lib/library-state';
@@ -20,24 +20,47 @@ export function ideaSyncLabel(ideas: IdeasController, id: string) {
     return pending ? pending.status === 'conflict' ? 'Konflikt – din text finns kvar' : 'Väntar på synk till GitHub' : ideas.drafts[id] ? 'Utkast lokalt' : ideas.stale && !ideas.confirmedIds.includes(id) ? 'Tidigare GitHub-kopia' : 'Sparad i GitHub';
 }
 export default function IdeasInbox({ ideas, onOpenPlan }: { ideas: IdeasController; onOpenPlan: (path:string)=>void }) {
-    const [section,setSection]=useLibraryState<'inbox'|'plans'|'archive'>('ideas:section','inbox');
+    const [section,setSection]=useLibraryState<'inbox'|'plans'|'archive'|'intelligence'>('ideas:section','inbox');
+    const [intelligence,setIntelligence]=useState<IdeaIntelligenceSummary>({counts:{},indexed:false,running:false,error:''});
+    const onSummaryChange=useCallback((summary:IdeaIntelligenceSummary)=>setIntelligence(summary),[]);
     const shown = inboxIdeas(ideas.items,ideas.pending,ideas.drafts) as typeof ideas.items;
+    const totalMatches=Object.values(intelligence.counts).reduce((sum,count)=>sum+count,0);
+    const matchedIdeas=Object.keys(intelligence.counts).length;
+    const onIntelligencePage=section==='intelligence';
+    useBackHandler(55,()=>{
+        if(!onIntelligencePage)return false;
+        setSection('inbox');
+        return true;
+    });
     return <section className="nh-ideas nh-module-dashboard" aria-labelledby="ideas-title">
-        <header className="nh-module-dashboard-header"><div className="nh-module-dashboard-title"><span className="nh-module-heading-icon"><MaterialIcon tone="orange" size={48}><Lightbulb size={29}/></MaterialIcon></span><div><span className="nh-module-eyebrow">NEXUS HUB · DINA TANKAR</span><h1 id="ideas-title">Idéinkorg</h1><p>Fånga tanken nu. Utveckla den när du vill.</p></div></div></header>
-        <div className="nh-idea-sections"><div className="nh-idea-filters" role="group" aria-label="Idéer och planer"><button type="button" aria-pressed={section==='inbox'} onClick={()=>setSection('inbox')}>Idéinkorg</button><button type="button" aria-pressed={section==='plans'} onClick={()=>setSection('plans')}>Färdiga planer</button></div><button className="text-button nh-idea-archive-toggle" type="button" aria-pressed={section==='archive'} onClick={()=>setSection(section==='archive'?'inbox':'archive')}><Archive size={16}/>Arkiv</button></div>
-        {section==='archive' ? <IdeasArchive ideas={ideas}/> : section==='plans' ? <IdeaPlans onOpen={onOpenPlan}/> : <>
+        {onIntelligencePage ?
+          <header className="nh-module-dashboard-header"><div className="nh-module-dashboard-title"><span className="nh-module-heading-icon"><MaterialIcon tone="violet" size={48}><BrainCircuit size={29}/></MaterialIcon></span><div><span className="nh-module-eyebrow">NEXUS HUB · IDÉINKORG</span><h1 id="ideas-title">Intelligenta samband</h1><p>Upptäck forskning som kan höra till dina idéer.</p></div></div></header>
+          : <header className="nh-module-dashboard-header"><div className="nh-module-dashboard-title"><span className="nh-module-heading-icon"><MaterialIcon tone="orange" size={48}><Lightbulb size={29}/></MaterialIcon></span><div><span className="nh-module-eyebrow">NEXUS HUB · DINA TANKAR</span><h1 id="ideas-title">Idéinkorg</h1><p>Fånga tanken nu. Utveckla den när du vill.</p></div></div></header>}
+        {!onIntelligencePage && <div className="nh-idea-sections"><div className="nh-idea-filters" role="group" aria-label="Idéer och planer"><button type="button" aria-pressed={section==='inbox'} onClick={()=>setSection('inbox')}>Idéinkorg</button><button type="button" aria-pressed={section==='plans'} onClick={()=>setSection('plans')}>Färdiga planer</button></div><button className="text-button nh-idea-archive-toggle" type="button" aria-pressed={section==='archive'} onClick={()=>setSection(section==='archive'?'inbox':'archive')}><Archive size={16}/>Arkiv</button></div>}
+        {section==='archive' ? <IdeasArchive ideas={ideas}/> : section==='plans' ? <IdeaPlans onOpen={onOpenPlan}/> : onIntelligencePage ?
+          <button className="secondary nh-idea-intelligence-back" type="button" onClick={()=>setSection('inbox')}><ArrowLeft size={18}/> Tillbaka till idéinkorgen</button>
+        : <>
         <div className="nh-ideas-actions"><button className="primary" disabled={!ideas.ready || ideas.busy} onClick={ideas.create}><Plus size={18}/>Ny idé</button><button className="secondary" disabled={ideas.loading || ideas.busy} onClick={() => void ideas.reload()}><RefreshCw size={17} className={ideas.loading ? 'spin' : ''}/>Uppdatera</button></div>
         {ideas.error && <div className="error-banner" role="alert">{ideas.error}</div>}
         {ideas.stale && <p className="nh-ideas-note"><AlertTriangle size={16}/>GitHub kunde inte uppdateras. Visar tillgängliga kopior och dina lokala utkast.</p>}
-        <IdeaIntelligence ideas={shown.map(({idea})=>({id:idea.id,text:idea.text}))}/>
+        <button className="nh-idea-intelligence-entry" type="button" onClick={()=>setSection('intelligence')} aria-label="Öppna Intelligenta samband">
+          <span className="nh-idea-intelligence-entry-icon"><BrainCircuit size={22}/></span>
+          <span className="nh-idea-intelligence-entry-text"><strong>Intelligenta samband</strong><small>{intelligence.error?'Sambanden behöver kontrolleras':intelligence.running?'Kontrollerar dokument och idéer…':intelligence.indexed?`${totalMatches} föreslagna matchningar för ${matchedIdeas} idéer`:'Söker relevanta forskningsunderlag…'}</small></span>
+          {intelligence.indexed && totalMatches>0 && <span className="nh-idea-intelligence-total" aria-hidden="true">{totalMatches}</span>}
+          <ChevronRight size={19} className="nh-idea-intelligence-chevron"/>
+        </button>
         <div className="nh-ideas-list">{shown.map(({ idea }) => <button className="nh-idea-card" key={idea.id} onClick={() => ideas.open(idea.id)}>
             <span className="nh-idea-card-top"><span className={'nh-idea-status ' + idea.status}>{IDEA_STATUSES[idea.status]}</span><span className="nh-ideas-note">{ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number ? 'Idé '+ideas.numbering.entries.find(entry=>entry.id===idea.id)?.number : 'Nummer tilldelas vid sparning'}</span><time dateTime={idea.updatedAt}>{date(idea.updatedAt)}</time></span>
             <span className="nh-idea-preview">{idea.text.trim() || 'Din nya tanke…'}</span>
+            {!!intelligence.counts[idea.id] && <span className="nh-idea-match-count"><BrainCircuit size={14}/>{intelligence.counts[idea.id]} föreslagna {intelligence.counts[idea.id]===1?'matchning':'matchningar'}</span>}
             <span className={'nh-idea-sync' + (ideas.pending[idea.id] || ideas.drafts[idea.id] ? ' local' : '')}>{ideas.pending[idea.id] ? <CloudUpload size={15}/> : ideas.drafts[idea.id] ? <FilePenLine size={15}/> : <CloudCheck size={15}/>} {ideaSyncLabel(ideas, idea.id)}<ChevronRight size={17}/></span>
         </button>)}</div>
         {!shown.length && <div className="hub-empty"><Lightbulb size={35}/><strong>{ideas.loading ? 'Hämtar idéer…' : 'Här börjar nästa idé'}</strong><p>{'En mening räcker. Du kan alltid fortsätta senare.'}</p>{<button className="secondary" disabled={!ideas.ready} onClick={ideas.create}>Skriv en idé <Plus size={16}/></button>}</div>}
     </>}
-    <details className="panel settings-panel"><summary>Idéhistorik per dag</summary>{Object.entries(ideas.numbering.entries.reduce<Record<string,number>>((counts,entry)=>{const day=ideaDay(entry.createdAt);counts[day]=(counts[day]||0)+1;return counts;},{})).sort(([a],[b])=>b.localeCompare(a)).map(([day,count])=><p key={day}>{day} · {count} idéer</p>)}</details>
+    {(section==='inbox'||onIntelligencePage) && <div className="nh-idea-intelligence-subpage" hidden={!onIntelligencePage}>
+      <IdeaIntelligence ideas={shown.map(({idea})=>({id:idea.id,text:idea.text}))} onSummaryChange={onSummaryChange}/>
+    </div>}
+    {!onIntelligencePage && <details className="panel settings-panel"><summary>Idéhistorik per dag</summary>{Object.entries(ideas.numbering.entries.reduce<Record<string,number>>((counts,entry)=>{const day=ideaDay(entry.createdAt);counts[day]=(counts[day]||0)+1;return counts;},{})).sort(([a],[b])=>b.localeCompare(a)).map(([day,count])=><p key={day}>{day} · {count} idéer</p>)}</details>}
     </section>;
 }
 export function IdeaEditor({ ideas }: { ideas: IdeasController }) {
