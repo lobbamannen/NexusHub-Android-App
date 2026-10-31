@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Base64
+import android.util.AtomicFile
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -16,6 +17,28 @@ import java.security.MessageDigest
 /** Original streams are copied into private persistent storage while their grants are valid. */
 class IncomingShareStore(private val context: Context) {
     private val root = File(context.filesDir, "incoming-v1").apply { mkdirs() }
+    companion object {
+        private const val MAX_FILE_BYTES = 64L * 1024 * 1024
+        private const val MAX_PACKAGE_BYTES = 128L * 1024 * 1024
+        private const val MAX_TRANSPORT_BYTES = 16L * 1024 * 1024
+    }
+    @Synchronized fun encodedSize(id:String,fileId:String):Long {
+        require(uuid.matches(id) && uuid.matches(fileId))
+        val file=File(File(root,id),fileId)
+        require(file.isFile) { "Delad originalfil saknas." }
+        return file.length()
+    }
+    @Synchronized fun markImportError(id:String,message:String) {
+        require(uuid.matches(id))
+        val target=File(File(root,id),"metadata.json")
+        val metadata=JSONObject(target.readText())
+        metadata.put("importError",message.take(300))
+        val atomic=AtomicFile(target)
+        val output=atomic.startWrite()
+        try { output.write(metadata.toString().toByteArray(Charsets.UTF_8));atomic.finishWrite(output) }
+        catch(e:Exception) {atomic.failWrite(output);throw e}
+    }
+    fun safeForBase64(length:Long):Boolean=length in 0..MAX_TRANSPORT_BYTES
     private val uuid = Regex("^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$")
     @Suppress("DEPRECATION")
     fun receive(intent: Intent): Boolean {
@@ -28,6 +51,7 @@ class IncomingShareStore(private val context: Context) {
         intent.clipData?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { uris.add(it) } }
         val text = listOfNotNull(intent.getStringExtra(Intent.EXTRA_SUBJECT), intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()).distinct().joinToString("\n\n")
         val files = JSONArray()
+        var packageBytes=0L
         for (uri in uris) {
             val fileId = UUID.randomUUID().toString()
             val entry = JSONObject().put("id", fileId)
@@ -39,7 +63,22 @@ class IncomingShareStore(private val context: Context) {
                 }
                 entry.put("name", name.take(180)).put("mime", context.contentResolver.getType(uri) ?: "application/octet-stream")
                 context.contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(File(directory, fileId)).use { output -> input.copyTo(output); output.fd.sync() }
+                    FileOutputStream(File(directory, fileId)).use { output ->
+                        val limit=minOf(MAX_FILE_BYTES,MAX_PACKAGE_BYTES-packageBytes)
+                        require(limit>0) { "Paketet överskrider lagringsgränsen på 128 MiB." }
+                        val buffer=ByteArray(64*1024)
+                        var copied=0L
+                        while(true) {
+                            val n=input.read(buffer)
+                            if(n<0)break
+                            if(n==0)continue
+                            copied+=n
+                            require(copied<=limit) { "Filen eller delningspaketet är för stort. Max 64 MiB per fil." }
+                            output.write(buffer,0,n)
+                        }
+                        output.fd.sync()
+                        packageBytes+=copied
+                    }
                 } ?: error("Den delade filen kunde inte öppnas.")
                 val saved = File(directory, fileId)
                 val digest = MessageDigest.getInstance("SHA-1")

@@ -12,7 +12,38 @@ object BackgroundIntake {
     fun retry(context:Context,id:String):Boolean {val store=BackgroundIntakeStore(context);val job=store.job(id)?:return false;if(store.cancellationRequested(id))return false;if(job.optString("state") in setOf("cancelled","succeeded"))return false;store.update(id,"pending");schedule(context,id);return true}
     fun cancel(context:Context,id:String):Boolean {WorkManager.getInstance(context).cancelUniqueWork("nexus-incoming-$id");return BackgroundIntakeStore(context).cancel(id)}
     /** Android ACTION_SEND originals are already safe in IncomingShareStore, even before WebView startup. */
-    fun importShares(context:Context){val shares=IncomingShareStore(context);val items=org.json.JSONArray(shares.list());for(i in 0 until items.length()){try{val item=items.getJSONObject(i);val job=BackgroundIntakeStore(context).job(item.getString("id"));if(job!=null)continue;val files=item.getJSONArray("files");for(n in 0 until files.length()){val f=files.getJSONObject(n);require(!f.has("error"));val bytes=shares.read(item.getString("id"),f.getString("id"));require(bytes.isNotEmpty()||f.optString("sha")==BackgroundIntakeProtocol.hash(ByteArray(0))){ "Originalet kunde inte läsas." };f.put("base64",bytes)};enqueue(context,item)}catch(_:Exception){/* Original remains in native inbox for visible recovery. */}}}
+    fun importShares(context:Context){
+        val shares=IncomingShareStore(context)
+        val items=org.json.JSONArray(shares.list())
+        for(i in 0 until items.length()) {
+            try {
+                val item=items.getJSONObject(i)
+                val id=item.getString("id")
+                if(item.optString("importError").isNotBlank()||BackgroundIntakeStore(context).job(id)!=null)continue
+                val files=item.getJSONArray("files")
+                var total=0L
+                var rejected:String?=null
+                for(n in 0 until files.length()) {
+                    val file=files.getJSONObject(n)
+                    if(file.has("error")){rejected=file.optString("error","Den delade filen kunde inte tas emot.");break}
+                    val size=shares.encodedSize(id,file.getString("id"))
+                    total+=size
+                    if(!shares.safeForBase64(total)) {
+                        rejected="Det delade paketet är för stort för säker uppladdning (max 16 MiB i denna version). Originalet är kvar lokalt."
+                        break
+                    }
+                }
+                if(rejected!=null){shares.markImportError(id,rejected);continue}
+                for(n in 0 until files.length()) {
+                    val file=files.getJSONObject(n)
+                    val bytes=shares.read(id,file.getString("id"))
+                    require(bytes.isNotEmpty()||file.optString("sha")==BackgroundIntakeProtocol.hash(ByteArray(0))) { "Originalet kunde inte läsas." }
+                    file.put("base64",bytes)
+                }
+                enqueue(context,item)
+            }catch(_:Exception){/* Retain the original and retry recoverable staging errors. */}
+        }
+    }
 }
 
 class BackgroundIntakeWorker(context:Context,params:WorkerParameters):Worker(context,params) {
