@@ -1,7 +1,13 @@
 import {chromium} from 'playwright';import {spawn} from 'node:child_process';import fs from 'node:fs/promises';import assert from 'node:assert/strict';
-const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5180'],{stdio:'ignore'});let browser;
+const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5180','--strictPort'],{stdio:'ignore'});let browser;
 try{
- const url='http://127.0.0.1:5180/tests/ui/scroll-preview.html';for(let i=0;i<60;i++){try{if((await fetch(url)).ok)break;}catch{}await new Promise(r=>setTimeout(r,250));}
+ const url='http://127.0.0.1:5180/tests/ui/scroll-preview.html';let ready=false;
+ for(let i=0;i<60;i++){
+  if(server.exitCode!==null)throw Error('Vite avslutades före UI-testet.');
+  try{const response=await fetch(url,{cache:'no-store'});if(response.ok&&response.headers.get('content-type')?.includes('text/html')){ready=true;break;}}catch{}
+  await new Promise(r=>setTimeout(r,250));
+ }
+ if(!ready)throw Error('Rätt Vite-server kunde inte verifieras.');
  browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox']});await fs.mkdir('scroll-ui',{recursive:true});
  for(const reducedMotion of ['no-preference','reduce'])for(const width of [320,412]){
   const page=await browser.newPage({viewport:{width,height:900},isMobile:true,hasTouch:true,reducedMotion}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.getByRole('heading',{name:'Hem',exact:true}).waitFor();const cdp=await page.context().newCDPSession(page);

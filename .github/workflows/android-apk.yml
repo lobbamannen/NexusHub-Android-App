@@ -1,5 +1,7 @@
 name: Build Nexus Hub App APK
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main, codex/nexus-intelligence-foundation-20261030, codex/embeddinggemma2-ideas-20261030]
   workflow_dispatch:

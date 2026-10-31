@@ -1,8 +1,14 @@
 import{chromium}from'playwright';import{spawn}from'node:child_process';import fs from'node:fs/promises';import assert from'node:assert/strict';
-const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5176'],{stdio:'ignore'});let browser,page;
+const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5182','--strictPort'],{stdio:'ignore'});let browser,page;
 const raw='  # Research 😎 åäö\r\n\r\n```mermaid\ngraph TD\n A-->B\n```\n[Webb](https://example.com/?a=1&b=2)\n<script>alert("text only")</script>\n\n';
 try{
- const url='http://127.0.0.1:5176/tests/ui/paste-preview.html';for(let i=0;i<60;i++){try{if((await fetch(url)).ok)break;}catch{}await new Promise(r=>setTimeout(r,250));}
+ const url='http://127.0.0.1:5182/tests/ui/paste-preview.html';let ready=false;
+ for(let i=0;i<60;i++){
+  if(server.exitCode!==null)throw Error('Vite avslutades före UI-testet.');
+  try{const response=await fetch(url,{cache:'no-store'});if(response.ok&&response.headers.get('content-type')?.includes('text/html')){ready=true;break;}}catch{}
+  await new Promise(r=>setTimeout(r,250));
+ }
+ if(!ready)throw Error('Rätt Vite-server kunde inte verifieras.');
  browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox']});await fs.mkdir('paste-ui',{recursive:true});
  for(const width of[320,412]){
   page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(url);const open=page.getByRole('button',{name:'Klistra in text',exact:true});await open.click();let dialog=page.getByRole('dialog',{name:'Klistra in text'});
