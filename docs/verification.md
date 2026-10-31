@@ -1,5 +1,25 @@
 # Verifieringsöversikt – 2026-10-31 (dokumentationssynk)
 
+## Idé 35 – pågående samlad rättning
+
+[PR #4](https://github.com/lobbamannen/NexusHub-Android-App/pull/4) innehåller
+fokuserade rättningar av den ursprungliga granskningens 26 fel/risker och
+5 förbättringar. De nya, aktuella regressionstesterna körs separat från
+historiska Site-tester. En godkänd testsvit betyder inte att de gamla Site-testerna
+är gröna. Databas-original, sparade utkast och väntande GitHub-operationer
+omstruktureras inte.
+
+GitHub Actions verifierar TypeScript, designoriginal (36 hashkontrollerade,
+6 undantagna), riktade Node-regressioner och produktionsbygge. Den signerade
+Android-APK:n måste dessutom byggas och kontrolleras; faktisk installation,
+Gemma/EmbeddingGemma-samspelet och NPU-hårdvara kräver separat telefonprovning.
+
+Kända avgränsningar: delade original större än den nuvarande säkra
+Base64-transportbudgeten bevaras med en synlig felstatus i stället för att
+orsaka upprepad OutOfMemoryError. Ingen automatisk TTL-rensning av kvittenser
+eller raderingsskydd har införts. Modulvis koddelning kräver en uppmätt
+telefonvinst innan den ska behållas.
+
 Den här översikten skiljer aktuell implementerad kod från tidigare dokumenterade Actions-/enhetstester. Äldre avsnitt nedan är bevarad historik och får inte tolkas som verifiering av nyare Gemma- eller EmbeddingGemma-funktioner.
 
 ## Status och kontrollkällor

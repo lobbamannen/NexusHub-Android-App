@@ -2,6 +2,21 @@
 
 **Status 2026-10-31:** Gemensam runtime implementerad i NexusHubs Android-kod. NexusHubs fristående Gemma-chatt och Hexagon HTP/NPU 36/36 lager har tidigare verifierats på Galaxy S26 Ultra med verkliga svar och runtime-telemetri. **Den nya livscykel-/profilrefaktoreringen måste fortfarande byggverifieras och testas på telefonen.** Detta dokument är inte en kvittens på att den senaste APK:n är färdig eller installerad.
 
+## Modellarbete och avbrott enligt idé 35
+
+- `ModelRunCoordinator` äger en processgemensam resursgrind för
+  Gemma- och EmbeddingGemma-körningar även efter Activity-byte.
+- Begäran reserveras med request-ID; avbrytning adresserar endast samma ID.
+  En begäran som väntar på en annan motor kan avbrytas innan inferens.
+  Native-resursen frigörs först när arbetet faktiskt avslutats.
+- `GemmaReplyStore` sparar färdigt svar innan React/WebView meddelas.
+  Efter processdöd rapporteras ofärdig generering avbruten; tidigare tokenstream
+  och KV-cache rekonstrueras inte.
+- JavaScript kontrollerar JSON/transportgränsen. Modellens slutliga
+  tokenbudget bestäms i native runtime med faktisk tokenizer/chattemplate.
+- Verklig concurrent Activity-återskapning, fysisk NPU-belastning och
+  native-avbrott behöver test på telefon. Kod och CI ensamt verifierar inte detta.
+
 ## Syfte och avgränsning
 
 Det finns **en** Gemma 4 E2B-motor, **en** global modellprofil och **en** gemensam ingång för explicita AI-anrop. Idéinkorg, forskningsdokument och GitHub-synk är fortfarande vanliga NexusHub-funktioner; de startar **inga** automatiska Gemma-arbeten. Tidigare Nexus Intelligence-analyser, relationsgranskning, autonom publicering och AI-arbetsköer har avvecklats. Nästa funktion, intelligens i idéinkorgen, byggs separat ovanpå denna grund först när den definierats och verifierats.

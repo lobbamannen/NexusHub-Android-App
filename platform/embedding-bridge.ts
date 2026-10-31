@@ -39,14 +39,15 @@ export async function gemmaRag(prompt:string,signal?:AbortSignal):Promise<{text:
  if(!prompt.trim()||prompt.length>12000)throw Error('RAG-underlaget är för långt (max 12000 tecken).');
  const id=crypto.randomUUID();
  return new Promise((resolve,reject)=>{
-  let done=false,stopping=false;
-  const clean=()=>{window.removeEventListener('nexus-gemma-chat',receive);signal?.removeEventListener('abort',abort);clearTimeout(timer)};
+  let done=false,stopping=false;let cancelDeadline:ReturnType<typeof setTimeout>|undefined;
+  const clean=()=>{window.removeEventListener('nexus-gemma-chat',receive);signal?.removeEventListener('abort',abort);clearTimeout(timer);clearTimeout(cancelDeadline)};
   const finish=(error?:Error,result?:{text:string;telemetry?:any;finishReason?:string})=>{
    if(done)return;done=true;clean();if(error)reject(error);else resolve(result!);
   };
   const abort=()=>{if(done||stopping)return;stopping=true;
    // The coordinator owns the model until the native run actually exits.
    if(!host.gemmaCancelRequest?.(id))finish(new DOMException('Avbruten','AbortError'));
+   else cancelDeadline=setTimeout(()=>finish(Error('Native-avbrott kunde inte kvitteras i tid. Modellen hålls fortfarande reserverad tills den är avslutad.')),15000);
   };
   const receive=(event:Event)=>{
    const reply=(event as CustomEvent<any>).detail;if(reply?.requestId!==id)return;
@@ -54,7 +55,7 @@ export async function gemmaRag(prompt:string,signal?:AbortSignal):Promise<{text:
    if(reply.ok&&reply.result)finish(undefined,reply.result);
    else finish(Error(reply.error||'Gemma kunde inte slutföra svaret.'));
   };
-  const timer=setTimeout(()=>{if(!done){abort();if(!stopping)finish(Error('Gemma svarade inte inom 180 sekunder.'))}},180000);
+  const timer=setTimeout(()=>{if(!done)abort()},180000);
   window.addEventListener('nexus-gemma-chat',receive);
   signal?.addEventListener('abort',abort,{once:true});
   if(signal?.aborted){finish(new DOMException('Avbruten','AbortError'));return;}
