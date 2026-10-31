@@ -7,6 +7,7 @@ import {embeddingStatus,importEmbeddingModel} from '@/platform/embedding-bridge'
 
 type Idea={id:string;text:string};
 type Decision={state:'dismissed'|'reviewed';sha:string;at:string};
+const evidenceLabel=(kind:RelationCandidate['evidenceClass'])=>kind==='direct'?'Direkt ämnesunderlag':kind==='background'?'Kompletterande bakgrund':'Osäkert samband';
 const key=(id:string,path:string)=>'nexus-idea-decision:v1:'+id+':'+path;
 export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
  const [corpus,setCorpus]=useState<Corpus|null>(null),[status,setStatus]=useState(embeddingStatus);
@@ -48,7 +49,7 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
   if(!current||!corpus)return;
   const accepted=chosen.filter(c=>decisions[key(current.id,c.hit.chunk.path)]?.state!=='dismissed');
   const text=['NexusHub – versionsbunden idéöverlämning','Databas commit: '+corpus.commit,'Idé-ID: '+current.id,'Idétext:\n'+current.text,'','Föreslagna forskningsunderlag (ej verifierade relationer):',
-   ...accepted.map(({hit,confidence,reason,evidenceCount,matchedProbes},i)=>{const excerpt=relationExcerpt(corpus,hit);return '\n'+(i+1)+'. '+hit.chunk.path+'\nSHA: '+hit.chunk.sha+'\nKälla: '+sourceLink(hit.chunk.path,corpus.commit)+'\nBedömning: '+(confidence==='strong'?'Stark kandidat':'Möjlig kandidat')+' (ej verifierad)\nMatchningsorsak: '+reason+'\nRetrieval: '+hit.reason+'; lexikal rang '+(hit.lexicalRank??'–')+'; semantisk rang '+(hit.semanticRank??'–')+'; cosine '+(hit.cosine?.toFixed(3)??'–')+'; idéavsnitt '+matchedProbes+'; matchande fönster '+evidenceCount+' (inte oberoende belägg)\nProfil: '+corpus.profile+'\nBästa fönsterindex: '+hit.chunk.index+'; närliggande fönster: '+(excerpt?.contextIndices.join(', ')??'saknas')+'\nRelevant utdrag:\n'+(excerpt?.text??'[Källversion saknas – kontrollera index]');})].join('\n');
+   ...accepted.map(({hit,confidence,evidenceClass,evidenceTerms,distinctPassages,reason,evidenceCount,matchedProbes},i)=>{const excerpt=relationExcerpt(corpus,hit);return '\n'+(i+1)+'. '+hit.chunk.path+'\nSHA: '+hit.chunk.sha+'\nKälla: '+sourceLink(hit.chunk.path,corpus.commit)+'\nEvidensklass: '+evidenceLabel(evidenceClass)+' (automatisk bedömning, ej verifierad)\nHittade ämnesord: '+(evidenceTerms.join(', ')||'inga')+'; distinkta textområden: '+distinctPassages+'\nRetrievalstyrka: '+(confidence==='strong'?'Stark kandidat':'Möjlig kandidat')+'\nMatchningsorsak: '+reason+'\nRetrieval: '+hit.reason+'; lexikal rang '+(hit.lexicalRank??'–')+'; semantisk rang '+(hit.semanticRank??'–')+'; cosine '+(hit.cosine?.toFixed(3)??'–')+'; idéavsnitt '+matchedProbes+'; matchande fönster '+evidenceCount+' (inte oberoende belägg)\nProfil: '+corpus.profile+'\nBästa fönsterindex: '+hit.chunk.index+'; närliggande fönster: '+(excerpt?.contextIndices.join(', ')??'saknas')+'\nRelevant utdrag:\n'+(excerpt?.text??'[Källversion saknas – kontrollera index]');})].join('\n');
   try{await navigator.clipboard.writeText(text);setMessage('Versionsbundet underlag kopierat till urklipp.')}catch{setError('Kopiering blockerad av Android/WebView.')}
  };
  return <section className="panel nh-idea-intelligence" aria-label="Intelligent idéinkorg">
@@ -64,8 +65,8 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
    {!running&&!chosen.length&&<p className="muted small">Inga tillräckligt starka relationskandidater hittades. Det betyder inte att samband saknas.</p>}
    {chosen.map(candidate=>{const hit=candidate.hit;const d=decisions[key(current.id,hit.chunk.path)],suppressed=d?.state==='dismissed'&&d.sha===hit.chunk.sha;
     return <article key={hit.chunk.path} className="nh-idea-match" style={{opacity:suppressed ? 0.55 : 1}}>
-     <div className="nh-gemma-row"><strong>{hit.chunk.title}</strong><small>{candidate.confidence==='strong'?'Stark kandidat':'Möjlig kandidat'} · {hit.reason==='hybrid'?'Hybridträff':hit.reason==='semantic'?'Semantisk träff':'Textträff'}</small></div>
-     <p className="nh-source-caption">{candidate.reason} · {candidate.matchedProbes} idéavsnitt · {candidate.evidenceCount} textfönster. Förslag, inte verifierad relation.</p><p>{hit.chunk.text.slice(0,460)}{hit.chunk.text.length>460?'…':''}</p>
+     <div className="nh-gemma-row"><strong>{hit.chunk.title}</strong><small>{evidenceLabel(candidate.evidenceClass)} · {hit.reason==='hybrid'?'Hybridträff':hit.reason==='semantic'?'Semantisk träff':'Textträff'}</small></div>
+     <p className="nh-source-caption">{candidate.reason} · {candidate.matchedProbes} idéavsnitt · {candidate.evidenceCount} träfffönster ({candidate.distinctPassages} separata textområden). Automatisk ämnesbedömning, inte verifierad relation.</p><p>{hit.chunk.text.slice(0,460)}{hit.chunk.text.length>460?'…':''}</p>
      <p className="nh-source-caption">Dokument: {hit.chunk.path} · SHA: {hit.chunk.sha.slice(0,12)} · Avsnitt #{hit.chunk.index+1} · Semantisk rang: {hit.semanticRank??'–'} · Lexikal rang: {hit.lexicalRank??'–'}{hit.cosine!=null?' · Cosine: '+hit.cosine.toFixed(3):''}</p>
      <div className="nh-gemma-actions"><a href={sourceLink(hit.chunk.path,corpus?.commit||'main')} target="_blank" rel="noopener noreferrer">Visa original <ExternalLink size={14}/></a>
       <button className="secondary" type="button" onClick={()=>void decision(current.id,hit,'reviewed')}><CheckCircle2 size={14}/> {d?.state==='reviewed'?'Granskad':'Markera granskad'}</button>
