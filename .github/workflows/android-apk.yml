@@ -390,11 +390,17 @@ jobs:
           archive: false
           retention-days: 30
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - name: Create phone and watch ZIP bundle
+        run: |
+          cd apk
+          zip -q ../nexus-hub-app-bundle.zip nexus-hub-app.apk nexus-hub-watch.apk INSTALLATION.md SHA256SUMS.txt
+      - name: Upload phone and watch ZIP bundle
+        uses: actions/upload-artifact@v7
         with:
-          name: nexus-hub-app-apk
-          path: apk/
+          path: nexus-hub-app-bundle.zip
+          archive: false
           retention-days: 30
+          if-no-files-found: error
       - name: Publish installable APK
         if: github.ref == 'refs/heads/main'
         env:

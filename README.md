@@ -18,7 +18,7 @@ Robin använder sedan 2026-10-25 Android-appen som sin huvudsakliga NexusHub. Si
 ## Installera och anslut
 
 1. Öppna **Actions → Build Nexus Hub App APK → Run workflow**. Push till `main` bygger också appen.
-2. Hämta `nexus-hub-app.apk` från den färdiga körningens Release eller artefakten `nexus-hub-app-apk`.
+2. Hämta **`nexus-hub-app.apk` för telefonen** från den färdiga körningens Release eller artefakter. **`nexus-hub-app-bundle.zip`** är det separata paketet med telefon-APK, klock-APK, installationsguide och kontrollsummor.
 3. Installera appen. Den heter **Nexus Hub App** och kan finnas bredvid den tidigare Nexus Hub-appen.
 4. Ange en fine-grained GitHub-token vid första start. Välj `lobbamannen/Databas` och `lobbamannen/ChatGPT-Plugin`. Ge **Contents: Read and write** (appen skriver endast i Databas och använder plugin-repot för läsning).
 
