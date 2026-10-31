@@ -80,6 +80,7 @@ async function cycle(force=false){
     for(const item of repairsInBatch){
       await repairMirrorVersion(repo,item.file,item.bytes,snapshot.commit);
       await durableDelete(repairPrefix+item.file.sha);
+      viewsDirty=true;
     }
     copied+=good.length;bytes+=good.reduce((sum,item)=>sum+item.file.size,0);
     progress.done+=good.length;progress.doneBytes+=good.reduce((sum,item)=>sum+item.file.size,0);update();

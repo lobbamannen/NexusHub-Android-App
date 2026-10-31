@@ -39,3 +39,14 @@ test('unsafe paths and incomplete manifests cannot be used for local projections
  state.manifest.truncated=true;
  assert.equal(await reader.file('databas','System/test.json'),null);
 });
+
+test('pinned snapshot reads the exact earlier blob during concurrent manifest updates',async()=>{
+ const {reader,state,path,sha,commit}=await make();
+ const pinned=await reader.current('databas');
+ state.manifest={commit:'b'.repeat(40),files:[]};
+ const old=await reader.file('databas',path,pinned);
+ assert.equal(old?.sha,sha);
+ assert.equal(old?.commit,commit);
+ assert.deepEqual(await reader.json('databas',path,pinned),{hello:'local'});
+ assert.equal(await reader.file('databas',path),null);
+});

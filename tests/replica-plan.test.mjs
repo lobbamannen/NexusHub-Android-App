@@ -11,3 +11,11 @@ test('no artificial file count or size ceiling; prioritizes registers',()=>{
  const files=Array.from({length:5000},(_,i)=>({path:'image-'+i+'.jpg',sha:String(i),size:12000000}));files.push({path:'Filmer/register.json',sha:'register',size:100});
  const p=planReplica(files,[],[],'databas');assert.equal(p.missing.length,5001);assert.equal(p.missing[0].path,'Filmer/register.json');
 });
+
+test('an existing object marked corrupt is re-fetched despite matching inventory keys',()=>{
+ const file={path:'Berattelser/x.md',sha:'a'.repeat(40),size:12};
+ const key='mirror/databas/'+file.sha;
+ const result=planReplica([file],[{path:file.path,blob_sha:file.sha,object_key:key}],[key],'databas',new Set([file.sha]));
+ assert.equal(result.missing.length,1);
+ assert.equal(result.current.length,0);
+});
