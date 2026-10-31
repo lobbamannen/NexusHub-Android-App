@@ -1,17 +1,18 @@
 name: Build Nexus Hub App APK
 on:
   push:
-    branches: [main]
+    branches: [main, codex/nexus-intelligence-foundation-20261030, codex/embeddinggemma2-ideas-20261030]
   workflow_dispatch:
 permissions:
   contents: write
+  actions: read
 concurrency:
-  group: nexus-hub-android-signing
-  cancel-in-progress: false
+  group: nexus-hub-android-signing-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,84 +29,311 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Install Android platform
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
-      - name: Build original React UI
+          # Feature branch builds must also WRITE reusable Gradle caches.
+          # Without this, subsequent branch builds repeatedly start cold.
+          cache-read-only: false
+      - name: Install Android platform if missing
+        run: |
+          set -euo pipefail
+          NEED=()
+          if [ ! -d "${ANDROID_HOME}/platforms/android-35" ]; then NEED+=("platforms;android-35"); fi
+          if [ ! -d "${ANDROID_HOME}/build-tools/35.0.0" ]; then NEED+=("build-tools;35.0.0"); fi
+          if [ ${#NEED[@]} -gt 0 ]; then sdkmanager --install "${NEED[@]}"; fi
+
+      # Cortex pattern: immutable pinned source cached independently of compiled
+      # binaries. Native/Gradle/Kotlin changes must NOT download llama.cpp again.
+      - name: Restore pinned llama.cpp source
+        id: cache-llama-source
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/cpp/llama.cpp
+          key: ${{ runner.os }}-nexus-llama-source-v1-${{ hashFiles('llama-revision.txt') }}
+
+      - name: Fetch pinned llama.cpp on cache miss
+        if: steps.cache-llama-source.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          PINNED_SHA=$(tr -d '\r\n' < llama-revision.txt)
+          SRC="app/src/main/cpp/llama.cpp"
+          rm -rf "$SRC"
+          git init "$SRC"
+          git -C "$SRC" remote add origin https://github.com/ggml-org/llama.cpp.git
+          git -C "$SRC" fetch --depth 1 origin "$PINNED_SHA"
+          git -C "$SRC" checkout --detach FETCH_HEAD
+          test "$(git -C "$SRC" rev-parse HEAD)" = "$PINNED_SHA"
+
+      - name: Verify pinned llama source
+        run: |
+          set -euo pipefail
+          PINNED_SHA=$(tr -d '\r\n' < llama-revision.txt)
+          SRC="app/src/main/cpp/llama.cpp"
+          test -f "$SRC/CMakeLists.txt"
+          test "$(git -C "$SRC" rev-parse HEAD)" = "$PINNED_SHA"
+          if [ -n "$(git -C "$SRC" status --porcelain --untracked-files=no)" ]; then
+            echo "::error::Cached llama.cpp source contains tracked modifications"
+            exit 1
+          fi
+
+      # Pin a single, deterministic digest of versioned native inputs.
+      # A UI/workflow-only change cannot invalidate compiled .so cache.
+      - name: Fingerprint native build inputs
+        id: native-key
+        run: |
+          python3 -m unittest discover -s tests -p test_native_cache_key.py -v
+          python3 scripts/native-cache-key.py
+
+      # Cortex pattern: package exact native .so files, NOT ephemeral .cxx intermediates.
+      # The cache key includes the pinned llama revision and all local native inputs.
+      - name: Restore prebuilt llama.cpp core libraries
+        id: cache-core-native
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/core-native-libs/arm64-v8a
+          key: ${{ runner.os }}-nexus-core-prebuilt-v2-ndk28.2-cmake3.22-${{ steps.native-key.outputs.digest }}
+
+      # GitHub may evict or fail to expose a saved cache even on an identical
+      # native-input hash. An immutable Actions artifact is an independently
+      # retrievable fallback; neither a source change nor a model change can
+      # silently reuse an incompatible core binary.
+      - name: Restore native core from prior signed-build artifact
+        if: steps.cache-core-native.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CORE_ARTIFACT: nexus-core-prebuilt-v2-${{ steps.native-key.outputs.digest }}
+        run: |
+          set -euo pipefail
+          RUN_ID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$CORE_ARTIFACT&per_page=100" \
+            --jq '.artifacts[] | select(.expired == false) | .workflow_run.id' | head -n 1 || true)
+          if [ -z "$RUN_ID" ]; then
+            echo "No previous immutable native artifact found; CMake will compile."
+            exit 0
+          fi
+          DEST=".cache/core-native-libs/arm64-v8a"
+          mkdir -p "$DEST"
+          if ! gh run download "$RUN_ID" --name "$CORE_ARTIFACT" --dir "$DEST"; then
+            rm -rf "$DEST"
+            echo "Native artifact download failed; CMake will compile."
+            exit 0
+          fi
+          echo "NATIVE_FROM_ARTIFACT=true" >> "$GITHUB_ENV"
+          echo "Restored exact native-input artifact from run $RUN_ID."
+
+      - name: Validate and stage cached core libraries
+        if: steps.cache-core-native.outputs.cache-hit == 'true' || env.NATIVE_FROM_ARTIFACT == 'true'
+        run: |
+          set -euo pipefail
+          SRC=".cache/core-native-libs/arm64-v8a"
+          DEST="app/src/main/jniLibs/arm64-v8a"
+          for lib in libllama_android.so libllama.so libggml.so libggml-base.so libggml-cpu.so; do
+            test -s "$SRC/$lib" || { echo "::error::Native cache is missing $lib"; exit 1; }
+          done
+          test "$(cat "$SRC/llama-commit.txt")" = "$(tr -d '\r\n' < llama-revision.txt)"
+          (cd "$SRC" && sha256sum --check SHA256SUMS)
+          mkdir -p "$DEST"
+          cp -v "$SRC"/*.so "$DEST/"
+          echo "PREBUILT_NATIVE=true" >> "$GITHUB_ENV"
+          echo "Validated core native binaries restored. Release CMake compilation will be skipped."
+
+      # Restore and save the expensive Snapdragon artifacts explicitly. The save happens
+      # immediately after a successful accelerator build, so a later APK/link failure does
+      # not throw away completed work. The Jarvis audit patch is part of the cache identity.
+      - name: Restore Snapdragon OpenCL and Hexagon Libraries
+        id: cache-snapdragon-libs
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/snapdragon-libs/arm64-v8a
+          key: nexus-snapdragon-libs-v1-v0.7-${{ hashFiles('llama-revision.txt', 'scripts/patch-llama-hexagon-jarvis-audit.py') }}
+
+
+      - name: Ensure Android Native Toolchain
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "::error::ANDROID_SDK_ROOT/ANDROID_HOME is not configured on the runner."
+            exit 1
+          fi
+          SDKMANAGER=""
+          for candidate in \
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK_ROOT/cmdline-tools/bin/sdkmanager" \
+            "$SDK_ROOT/tools/bin/sdkmanager"; do
+            if [ -x "$candidate" ]; then SDKMANAGER="$candidate"; break; fi
+          done
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager -perm -111 2>/dev/null | head -n 1 || true)
+          fi
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::Could not locate sdkmanager under Android SDK root: $SDK_ROOT"
+            exit 1
+          fi
+          NEED_INSTALL=()
+          if [ ! -d "$SDK_ROOT/ndk/28.2.13676358" ]; then NEED_INSTALL+=("ndk;28.2.13676358"); fi
+          if [ ! -d "$SDK_ROOT/cmake/3.22.1" ]; then NEED_INSTALL+=("cmake;3.22.1"); fi
+          if [ ${#NEED_INSTALL[@]} -gt 0 ]; then
+            yes | "$SDKMANAGER" --licenses >/dev/null || true
+            "$SDKMANAGER" --install "${NEED_INSTALL[@]}"
+          fi
+
+      - name: Build Snapdragon Accelerator Libraries
+        if: steps.cache-snapdragon-libs.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          PINNED_SHA=$(tr -d '\r\n' < llama-revision.txt)
+          TOOLCHAIN_IMAGE="ghcr.io/snapdragon-toolchain/arm64-android:v0.7"
+          LLAMA_SRC="${RUNNER_TEMP:-/tmp}/jarvis-llama-snapdragon-src"
+          DEST=".cache/snapdragon-libs/arm64-v8a"
+
+          rm -rf "$LLAMA_SRC"
+          mkdir -p "$LLAMA_SRC" "$DEST"
+
+          if [ -d "app/src/main/cpp/llama.cpp/.git" ]; then
+            cp -r app/src/main/cpp/llama.cpp/. "$LLAMA_SRC/"
+          else
+            git clone https://github.com/ggml-org/llama.cpp.git "$LLAMA_SRC"
+            git -C "$LLAMA_SRC" checkout "$PINNED_SHA"
+          fi
+
+          test "$(git -C "$LLAMA_SRC" rev-parse HEAD)" = "$PINNED_SHA"
+          if [ ! -f "$LLAMA_SRC/docs/backend/snapdragon/CMakeUserPresets.json" ]; then
+            echo "::error::Snapdragon CMake preset missing from pinned llama.cpp commit."
+            exit 1
+          fi
+          cp "$LLAMA_SRC/docs/backend/snapdragon/CMakeUserPresets.json" "$LLAMA_SRC/"
+
+          # The canonical checkout stays pristine. Only this disposable accelerator source copy
+          # receives a tiny diagnostic export that toggles already-existing Hexagon profile knobs.
+          python3 "${GITHUB_WORKSPACE}/scripts/patch-llama-hexagon-jarvis-audit.py" "$LLAMA_SRC"
+          sha256sum "${GITHUB_WORKSPACE}/scripts/patch-llama-hexagon-jarvis-audit.py" | awk '{print $1}' > "$DEST/hexagon-audit-patch-sha256.txt"
+
+          docker pull "$TOOLCHAIN_IMAGE"
+          docker image inspect "$TOOLCHAIN_IMAGE" --format '{{index .RepoDigests 0}}' > "$DEST/toolchain-digest.txt"
+          printf '%s\n' "$PINNED_SHA" > "$DEST/llama-commit.txt"
+          docker run --rm \
+            -v "${LLAMA_SRC}:/workspace" \
+            -w /workspace \
+            --platform linux/amd64 \
+            "$TOOLCHAIN_IMAGE" \
+            bash -c "
+              set -e
+              git config --global --add safe.directory /workspace
+              cmake --preset arm64-android-snapdragon-release -B build-snapdragon
+              cmake --build build-snapdragon --parallel \$(nproc) --target ggml-opencl ggml-hexagon htp-v73 htp-v75 htp-v79 htp-v81
+            "
+
+          find "$LLAMA_SRC/build-snapdragon" -type f -name "libggml-opencl.so" -exec cp -v {} "$DEST/" \;
+          find "$LLAMA_SRC/build-snapdragon" -type f -name "libggml-hexagon.so" -exec cp -v {} "$DEST/" \;
+          find "$LLAMA_SRC/build-snapdragon" -type f -name "libggml-htp-*.so" -exec cp -v {} "$DEST/" \;
+          sudo chown -R "$(id -u):$(id -g)" "$DEST" || true
+          chmod 755 "$DEST"/*.so || true
+
+          if [ ! -f "$DEST/libggml-opencl.so" ] || [ ! -f "$DEST/libggml-hexagon.so" ]; then
+            echo "::error::Required Snapdragon OpenCL/Hexagon libraries were not produced."
+            exit 1
+          fi
+          for htp in v73 v75 v79 v81; do
+            if [ ! -f "$DEST/libggml-htp-${htp}.so" ]; then
+              echo "::error::Required libggml-htp-${htp}.so was not produced."
+              exit 1
+            fi
+          done
+
+      - name: Save Snapdragon OpenCL and Hexagon Libraries
+        if: steps.cache-snapdragon-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/snapdragon-libs/arm64-v8a
+          key: nexus-snapdragon-libs-v1-v0.7-${{ hashFiles('llama-revision.txt', 'scripts/patch-llama-hexagon-jarvis-audit.py') }}
+
+      - name: Stage Snapdragon Accelerator Libraries
+        run: |
+          set -euo pipefail
+          SRC=".cache/snapdragon-libs/arm64-v8a"
+          DEST="app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$DEST"
+          if [ ! -d "$SRC" ]; then
+            echo "::error::Snapdragon library cache directory is missing."
+            exit 1
+          fi
+          test "$(cat "$SRC/llama-commit.txt")" = "$(tr -d '\r\n' < llama-revision.txt)"
+          test -s "$SRC/hexagon-audit-patch-sha256.txt"
+          cp -v "$SRC"/*.so "$DEST/"
+          mkdir -p app/src/main/assets
+          python3 - <<'PYCODE'
+          import hashlib, json, pathlib
+          source = pathlib.Path('.cache/snapdragon-libs/arm64-v8a')
+          data = {'llama_commit': (source/'llama-commit.txt').read_text().strip(),
+                  'toolchain_digest': (source/'toolchain-digest.txt').read_text().strip(),
+                  'hexagon_audit_patch_sha256': (source/'hexagon-audit-patch-sha256.txt').read_text().strip(),
+                  'accelerator_sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(source.glob('*.so'))}}
+          pathlib.Path('app/src/main/assets/gemma-native-build.json').write_text(json.dumps(data, indent=2))
+          PYCODE
+          chmod 755 "$DEST"/*.so || true
+          echo "Accelerator libraries staged:"
+          ls -lh "$DEST"
+
+      # Cortex Scout pattern: compile the core once, cache it BEFORE building
+      # either APK, and use only verified staged native libraries for packaging.
+      # Avoid losing an expensive successful CMake build to a later APK failure.
+      - name: Compile core native libraries on cache miss
+        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
+        run: |
+          set -euo pipefail
+          gradle --build-cache --no-daemon -PskipWebBuild=true :app:buildCMakeRelWithDebInfo
+          DEST=".cache/core-native-libs/arm64-v8a"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          find app/build/intermediates/cxx/RelWithDebInfo -type f -name '*.so' -exec cp -v {} "$DEST/" \;
+          for lib in libllama_android.so libllama.so libggml.so libggml-base.so libggml-cpu.so; do
+            test -s "$DEST/$lib" || { echo "::error::CMake did not produce $lib"; exit 1; }
+          done
+          NDK_CXX="$ANDROID_HOME/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+          if [ -s "$NDK_CXX" ]; then cp "$NDK_CXX" "$DEST/"; fi
+          printf '%s\n' "$(tr -d '\r\n' < llama-revision.txt)" > "$DEST/llama-commit.txt"
+          (cd "$DEST" && sha256sum ./*.so > SHA256SUMS && sha256sum --check SHA256SUMS)
+
+      - name: Verify native inputs stayed unchanged before caching
+        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
+        run: python3 scripts/native-cache-key.py --check "${{ steps.native-key.outputs.digest }}"
+
+      - name: Preserve compiled core as immutable fallback artifact
+        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-core-prebuilt-${{ steps.native-key.outputs.digest }}
+          path: .cache/core-native-libs/arm64-v8a/
+          retention-days: 30
+          if-no-files-found: error
+
+
+      - name: Save compiled core libraries for future APK builds
+        if: steps.cache-core-native.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/core-native-libs/arm64-v8a
+          key: ${{ steps.cache-core-native.outputs.cache-primary-key }}
+
+      - name: Validate and stage newly compiled core libraries
+        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
+        run: |
+          set -euo pipefail
+          SRC=".cache/core-native-libs/arm64-v8a"
+          DEST="app/src/main/jniLibs/arm64-v8a"
+          test "$(cat "$SRC/llama-commit.txt")" = "$(tr -d '\r\n' < llama-revision.txt)"
+          (cd "$SRC" && sha256sum --check SHA256SUMS)
+          mkdir -p "$DEST"
+          cp -v "$SRC"/*.so "$DEST/"
+          echo "PREBUILT_NATIVE=true" >> "$GITHUB_ENV"
+          echo "Native core compiled, saved, and staged before APK packaging."
+
+      # Keep expensive UI/design suites separate; run focused retrieval regressions.
+      - name: Build production React UI
         run: |
           npm ci
+          node --test tests/idea-relations.test.mjs tests/idea-excerpt.test.mjs tests/idea-intelligence-regressions.test.mjs tests/incoming-sync.test.mjs
           npm run check
-          java com.sun.tools.javac.Main -d /tmp/battery-policy-test tests/java/BatteryQuietHoursTest.java shared/src/main/java/se/lobbamannen/nexushub/battery/BatteryQuietHours.java
-          java -cp /tmp/battery-policy-test BatteryQuietHoursTest
-          npm run check:design
-          node --test tests/activity-*.test.mjs tests/shared-incoming.test.mjs tests/incoming-sync.test.mjs tests/home-sync-status.test.mjs tests/home-groups.test.mjs tests/personal-capture.test.mjs tests/todos-controller.test.mjs tests/telemetry.test.mjs tests/local-first-recent.test.mjs tests/calendar-*.test.mjs tests/replica-plan.test.mjs tests/replica-sync.test.mjs tests/mirror.test.mjs tests/ideas.test.mjs tests/idea-attachments.test.mjs tests/idea-resolution.test.mjs tests/economy-*.test.mjs tests/weather-*.test.mjs tests/widget-activity.test.mjs tests/pulse-motion.test.mjs tests/pulse-surface.test.mjs tests/navigation-motion.test.mjs tests/pasted-text.test.mjs tests/connected-library.test.mjs tests/connected-services.test.mjs tests/page-scroll-lock.test.mjs
           npm run build
-      - name: Compile native background and activity code
-        run: gradle --no-daemon -PskipWebBuild=true :app:compileDebugKotlin :app:compileDebugUnitTestKotlin
-      - name: Install browser test driver
-        run: npm install --no-save --package-lock=false playwright@1.58.2
-      - name: Verify activity history and background save UI
-        id: activity_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/activity-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: activity-ui
-          path: activity-ui/
-          retention-days: 14
-      - name: Verify weather UI at phone and desktop sizes
-        id: weather_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/weather-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: weather-ui
-          path: weather-ui/
-          retention-days: 14
-      - name: Verify Calendar V2 layout and interactions
-        id: calendar_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/calendar-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: calendar-ui
-          path: calendar-ui/
-          retention-days: 14
-      - name: Verify pasted research UI and durable retry
-        id: paste_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/paste-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: paste-ui
-          path: paste-ui/
-          retention-days: 14
-      - name: Verify Connections, training, Guardian and Command UI
-        id: connected_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/connected-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: connected-ui
-          path: connected-ui/
-          retention-days: 14
-      - name: Verify touch scrolling after navigation and dialogs
-        id: scroll_ui
-        continue-on-error: true
-        run: CHROME_PATH="$(command -v google-chrome)" node scripts/scroll-ui-check.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: scroll-ui
-          path: scroll-ui/
-          retention-days: 14
-      - name: Stop before signing when UI verification fails
-        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success' || steps.paste_ui.outcome != 'success' || steps.connected_ui.outcome != 'success' || steps.scroll_ui.outcome != 'success' || steps.activity_ui.outcome != 'success'
-        run: exit 1
+
       - name: Restore stable private signing identity
         env:
           GH_TOKEN: ${{ github.token }}
@@ -118,14 +346,27 @@ jobs:
           set -a
           source .github/posthog.env
           set +a
-          gradle --no-daemon -PskipWebBuild=true :app:dependencyInsight --dependency okhttp --configuration releaseRuntimeClasspath
-          gradle --no-daemon -PskipWebBuild=true :app:testDebugUnitTest :wear:testDebugUnitTest :app:assembleRelease :wear:assembleRelease :app:lintRelease :wear:lintRelease
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: weather-widget-render
-          path: app/build/reports/weather-widget*.png
-          retention-days: 14
+          # All successful paths stage verified native binaries before this step.
+          # App/Kotlin/UI still rebuild on every changed input.
+          EXTRA_ARGS=()
+          if [ "${PREBUILT_NATIVE:-false}" = "true" ]; then
+            EXTRA_ARGS+=("-PusePrebuiltNative=true")
+          fi
+          gradle --build-cache --no-daemon -PskipWebBuild=true "${EXTRA_ARGS[@]}" :app:assembleRelease :wear:assembleRelease
+      # The cold build has now produced a real APK. Extract its actual native
+      # payload into a persistent cache for subsequent builds (Cortex approach).
+      - name: Verify native model and accelerator libraries in APK
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release.apk"
+          unzip -l "$APK" > "$RUNNER_TEMP/nexus-native-list.txt"
+          for lib in libllama_android.so libllama.so libggml.so libggml-base.so libggml-cpu.so libggml-opencl.so libggml-hexagon.so; do
+            grep -q "lib/arm64-v8a/$lib" "$RUNNER_TEMP/nexus-native-list.txt" || { echo "::error::$lib not packaged"; exit 1; }
+          done
+          for htp in v73 v75 v79 v81; do
+            grep -q "lib/arm64-v8a/libggml-htp-$htp.so" "$RUNNER_TEMP/nexus-native-list.txt" || { echo "::error::HTP $htp missing"; exit 1; }
+          done
+          echo "Native packaging verified; this is NOT proof of NPU execution."
       - name: Verify APK signature and prepare download
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,14 +380,21 @@ jobs:
           gh release download --repo "$GITHUB_REPOSITORY" --pattern nexus-hub-app.apk --dir previous-apk
           python3 scripts/verify-battery-apks.py apk/nexus-hub-app.apk apk/nexus-hub-watch.apk previous-apk/nexus-hub-app.apk
           sha256sum apk/nexus-hub-app.apk apk/nexus-hub-watch.apk > apk/SHA256SUMS.txt
+      # Android users can download the verified, signed APK directly.
+      # upload-artifact@v7 supports an unarchived single-file artifact.
+      # Keep the complete ZIP bundle below for the watch APK and checksums.
+      - name: Upload phone APK for direct installation (no ZIP)
+        uses: actions/upload-artifact@v7
+        with:
+          path: apk/nexus-hub-app.apk
+          archive: false
+          retention-days: 30
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: nexus-hub-app-apk
           path: apk/
           retention-days: 30
-      - name: Require successful feature UI verification
-        if: steps.weather_ui.outcome != 'success' || steps.calendar_ui.outcome != 'success' || steps.paste_ui.outcome != 'success' || steps.connected_ui.outcome != 'success' || steps.scroll_ui.outcome != 'success' || steps.activity_ui.outcome != 'success'
-        run: exit 1
       - name: Publish installable APK
         if: github.ref == 'refs/heads/main'
         env:

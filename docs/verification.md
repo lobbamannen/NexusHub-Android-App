@@ -1,3 +1,24 @@
+# Verifieringsöversikt – 2026-10-31 (dokumentationssynk)
+
+Den här översikten skiljer aktuell implementerad kod från tidigare dokumenterade Actions-/enhetstester. Äldre avsnitt nedan är bevarad historik och får inte tolkas som verifiering av nyare Gemma- eller EmbeddingGemma-funktioner.
+
+## Status och kontrollkällor
+- **Gemma 4 E2B:** gemensam import-/inferensruntime och profilkontrakt, tillhörande Kotlin- och React-kod, testspecifikationer och [runtimebeskrivning](gemma-runtime.md). Tidigare faktisk Gemma-inferens på Galaxy S26 Ultra är belagd som separat äldre test; senare livscykelförändringar kräver ny fysisk verifiering.
+- **EmbeddingGemma 2 270M:** separat CPU-baserad LiteRT-LM-modellimport, dokument-/query-embedding, hybridrankning, lokalt versionsbundet index, idéförslag och Retrieval Lab är kodlagda; se [implementation och provplan](embeddinggemma2-ideas.md). Fysisk modellimport, indexets fullständighet, svarskvalitet, RAM-/CPU-profil samt samexistens med Gemma 4 är ännu inte slutverifierade i en installerad signerad APK.
+- **Connections/Graph, Guardian, Command, läsande Cortex-vy:** dokumenterad testomfattning och tidigare automatiska resultat finns i [connected-library-verification](connected-library-verification.md); användarens aktuella telefondata är inte kontrollerade här.
+- **Bakgrundssynk och aktivitetslogg:** Android WorkManager för beständigt mottagningsarbete och SQLite-händelsejournal finns i koden. [Genomförandeplanen](superpowers/plans/2026-10-30-background-sync-activity.md) uppger lokalt passerad obligatorisk JavaScript-svit och kvarstående native-/UI-/publiceringskontroller.
+- **GitHub original och lokalt index:** inga modellgenererade svar eller vektorer får beskrivas som kanoniska GitHub-register. Automatisk mottagningsuppladdning får inte sammanblandas med automatisk återspelning av osparade redigeringsutkast.
+
+## Verifieringskrav före påstående om full produktleverans
+
+1. Bekräfta rätt kodrevision och godkänd Actions-körning inklusive signerad telefon-APK, Androidtester, native-bindningar och relevanta UI-tester.
+2. Installera rätt APK ovanpå befintlig version på Samsung. Bekräfta verklig GGUF-import, Gemma WARM/COLD, sampling utan onödig modellomladdning, avbryt, minnestryck och återupptagning.
+3. Importera verklig EmbeddingGemma 2 `.litertlm` och verifiera SHA, dokument- och query-vektorer, hybrid-/lexikal fallback, ändrad käll-SHA, avbrott/indexåterupptag, ett och flera dokument samt källhänvisning utan påhittade belägg.
+4. Kontrollera verklig inkorgsleverans vid appbyte/offline/återanslutning, loggexport, konflikt, radering medan uppladdning väntar och att osparade utkast **inte** skickas automatiskt.
+5. Registrera fysisk enhetsverifiering och aktuell release/Actions-länk här först när den har observerats. Ingen signerad APK eller faktisk telefonsuccé påstås genom enbart dokumentationsändringen.
+
+---
+
 # Aktuell verifieringsöversikt – 2026-10-27
 
 ## Senaste appleveransen och dokumentationssynk

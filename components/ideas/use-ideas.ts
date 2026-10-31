@@ -199,6 +199,6 @@ export function useIdeas() {
     for (const [id, draft] of Object.entries(drafts)) merged.set(id, draft);
     const items = [...merged.values()].sort((a, b) => b.idea.updatedAt.localeCompare(a.idea.updatedAt));
     const current = selected ? merged.get(selected) : undefined;
-    return { numbering, items, current, drafts, pending, selected, ready, loading, error, stale, confirmedIds, busy, remote, backups, resolveConflict, restoreVersion, create, open, close, edit, save, discard, continueEditing, fetchRemote, reload, remove };
+    return { numbering, items, savedItems: rows, current, drafts, pending, selected, ready, loading, error, stale, confirmedIds, busy, remote, backups, resolveConflict, restoreVersion, create, open, close, edit, save, discard, continueEditing, fetchRemote, reload, remove };
 }
 export type IdeasController = ReturnType<typeof useIdeas>;

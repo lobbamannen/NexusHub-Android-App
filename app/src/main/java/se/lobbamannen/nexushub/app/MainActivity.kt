@@ -31,6 +31,8 @@ class MainActivity : Activity() {
     companion object {
         private const val HOST = "appassets.androidplatform.net"
         private const val HOME = "https://appassets.androidplatform.net/index.html"
+        private const val PICK_MODEL = 1003
+        private const val PICK_EMBEDDING_MODEL = 1004
         private const val PICK_FILE = 1001
         private const val SAVE_FILE = 1002
         private const val MAX_FILE_BYTES = 64 * 1024 * 1024
@@ -112,7 +114,7 @@ class MainActivity : Activity() {
         webView.addJavascriptInterface(NativeBridge(), "Android")
         nexusMessages = NexusMessageBridge(this, webView)
         nexusMessages.install()
-        pendingDestination = se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider.destination(intent.getStringExtra("nexus.destination").orEmpty())
+        pendingDestination = destinationForIntent(intent)
         pendingSeries = intent.getStringExtra("nexus.series")?.take(200)
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
@@ -205,9 +207,14 @@ class MainActivity : Activity() {
         super.onNewIntent(intent)
         setIntent(intent)
         captureShare(intent)
-        pendingDestination=se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider.destination(intent.getStringExtra("nexus.destination").orEmpty())
+        pendingDestination=destinationForIntent(intent)
         if(trustedDocument)openPendingDestination()
         intent.getStringExtra("nexus.series")?.take(200)?.let { pendingSeries = it; if (trustedDocument) openPendingSeries() }
+    }
+    private fun destinationForIntent(value: Intent): String? {
+        val target=value.getStringExtra("nexus.destination").orEmpty()
+        if (Regex("intelligence\\?run=[a-fA-F0-9-]{36}").matches(target))return target
+        return se.lobbamannen.nexushub.app.weather.WeatherWidgetProvider.destination(target)
     }
     private fun openPendingDestination(){
         val target=pendingDestination ?: return
@@ -219,8 +226,14 @@ class MainActivity : Activity() {
         pendingSeries = null
         webView.evaluateJavascript("location.hash=" + JSONObject.quote("serier?item=" + Uri.encode(target)) + ";", null)
     }
+    override fun onStart() { super.onStart(); GemmaRuntime.get(applicationContext).onForeground() }
     override fun onResume() { super.onResume(); NexusTelemetry.foreground(); if (::nexusMessages.isInitialized) nexusMessages.resume() }
-    override fun onStop() { NexusTelemetry.background(); if (::nexusMessages.isInitialized) nexusMessages.stop(); super.onStop() }
+    override fun onStop() {
+        GemmaRuntime.get(applicationContext).onBackground()
+        NexusTelemetry.background()
+        if (::nexusMessages.isInitialized) nexusMessages.stop()
+        super.onStop()
+    }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (::nexusMessages.isInitialized) nexusMessages.permissions(requestCode)
@@ -259,6 +272,99 @@ class MainActivity : Activity() {
         @JavascriptInterface fun listIncoming(): String = if (trustedDocument) incomingShares.list() else "[]"
         @JavascriptInterface fun readIncomingFile(id: String, fileId: String): String = if (trustedDocument) incomingShares.read(id, fileId) else ""
         @JavascriptInterface fun removeIncoming(id: String): Boolean = trustedDocument && incomingShares.remove(id)
+
+
+        // Local model only. No job queue, document analysis or GitHub writes.
+        @JavascriptInterface fun gemmaStatus():String =
+            if(trustedDocument)try{GemmaRuntime.get(applicationContext).status().toString()}
+            catch(e:Exception){JSONObject().put("error",e.message).toString()} else "{}"
+
+        @JavascriptInterface fun gemmaSaveProfile(raw:String):String =
+            if(trustedDocument)try{
+                require(raw.length<=16000)
+                GemmaRuntime.get(applicationContext).saveProfile(JSONObject(raw)).toString()
+            }catch(e:Exception){JSONObject().put("error",e.message?:"Felaktiga modellinställningar").toString()} else "{}"
+
+        @JavascriptInterface fun gemmaImportModel():Boolean {
+            if(!trustedDocument)return false
+            runOnUiThread {
+                try {
+                    startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        type="*/*"
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        putExtra(Intent.EXTRA_MIME_TYPES,arrayOf("application/octet-stream","application/x-gguf","*/*"))
+                    },PICK_MODEL)
+                }catch(e:ActivityNotFoundException){notifyUser("Androids dokumentväljare saknas")}
+            }
+            return true
+        }
+        @JavascriptInterface fun gemmaDeleteModel():Boolean =
+            trustedDocument && try{GemmaRuntime.get(applicationContext).deleteModel();true}catch(_:Exception){false}
+        @JavascriptInterface fun gemmaUnloadModel():Boolean =
+            trustedDocument && try{GemmaRuntime.get(applicationContext).unload();true}catch(_:Exception){false}
+        @JavascriptInterface fun gemmaCancel():Boolean =
+            trustedDocument && try{GemmaRuntime.get(applicationContext).cancel();true}catch(_:Exception){false}
+
+        /** EmbeddingGemma 2 is explicitly imported; the existing GGUF is untouched. */
+        @JavascriptInterface fun embeddingStatus():String =
+            if(trustedDocument) EmbeddingGemmaRuntime.get(applicationContext).status().toString() else "{}"
+
+        @JavascriptInterface fun embeddingImportModel():Boolean {
+            if(!trustedDocument)return false
+            runOnUiThread {
+                try {
+                    startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        type="*/*"
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                    }, PICK_EMBEDDING_MODEL)
+                }catch(e:Exception){notifyUser("Kunde inte öppna modellväljaren: "+e.message)}
+            }
+            return true
+        }
+
+        @JavascriptInterface fun embeddingRun(raw:String,requestId:String):Boolean {
+            if(!trustedDocument || raw.length !in 2..35000 ||
+                !Regex("[a-fA-F0-9-]{36}").matches(requestId))return false
+            io.execute {
+                val result=try {
+                    // Sequential model lifecycle: never keep both engines loaded.
+                    GemmaRuntime.get(applicationContext).unload()
+                    JSONObject().put("ok",true)
+                        .put("result",EmbeddingGemmaRuntime.get(applicationContext).embed(JSONObject(raw)))
+                }catch(e:Exception) {
+                    JSONObject().put("ok",false).put("error",(e.message?:"Embedding misslyckades").take(500))
+                }.put("requestId",requestId)
+                val literal=JSONObject.quote(result.toString())
+                runOnUiThread {
+                    if(trustedDocument && !isFinishing && !isDestroyed)
+                        webView.evaluateJavascript(
+                            "window.dispatchEvent(new CustomEvent('nexus-embedding-result',{detail:JSON.parse("+literal+")}));",null)
+                }
+            }
+            return true
+        }
+
+        /** Only this explicit chat can invoke Gemma. It runs away from the UI thread. */
+        @JavascriptInterface fun gemmaChatSend(raw:String,requestId:String):Boolean {
+            if(!trustedDocument || raw.length !in 2..36000 ||
+                !Regex("[a-fA-F0-9-]{36}").matches(requestId))return false
+            io.execute {
+                val answer=try {
+                    val result=GemmaClient.get(applicationContext).chat(org.json.JSONArray(raw))
+                    JSONObject().put("requestId",requestId).put("ok",true).put("result",result)
+                }catch(e:Exception){
+                    JSONObject().put("requestId",requestId).put("ok",false)
+                        .put("error",(e.message?:"Gemma kunde inte slutföra svaret").take(500))
+                }
+                val literal=JSONObject.quote(answer.toString())
+                runOnUiThread {
+                    if(trustedDocument && !isFinishing && !isDestroyed)
+                        webView.evaluateJavascript(
+                            "window.dispatchEvent(new CustomEvent('nexus-gemma-chat',{detail:JSON.parse("+literal+")}));",null)
+                }
+            }
+            return true
+        }
 
         @JavascriptInterface fun getGithubToken(): String = if (trustedDocument) credentials.get() else ""
         @JavascriptInterface fun setGithubToken(token: String): Boolean {
@@ -406,7 +512,30 @@ class MainActivity : Activity() {
     @Deprecated("Legacy WebView file result API")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == PICK_FILE) {
+        if (requestCode == PICK_MODEL) {
+            val uri=if(resultCode==RESULT_OK)data?.data else null
+            if(uri!=null)io.execute {
+                try {
+                    GemmaRuntime.get(applicationContext).importModel(uri)
+                    activityEvent("intelligence_model_imported","succeeded","Gemma 4 E2B importerad")
+                    notifyUser("Modellen har importerats och verifierats.")
+                }catch(e:Exception){
+                    activityEvent("intelligence_model_import_failed","failed","Gemma-import misslyckades")
+                    notifyUser("Modellimport: "+(e.message?:"okänt fel").take(200))
+                }
+            }
+        } else if(requestCode == PICK_EMBEDDING_MODEL) {
+            val uri=if(resultCode==RESULT_OK)data?.data else null
+            if(uri!=null)io.execute {
+                try {
+                    GemmaRuntime.get(applicationContext).unload()
+                    EmbeddingGemmaRuntime.get(applicationContext).importModel(uri)
+                    notifyUser("EmbeddingGemma 2 installerad och testad.")
+                }catch(e:Exception) {
+                    notifyUser("EmbeddingGemma 2: "+(e.message?:"Importfel").take(220))
+                }
+            }
+        } else if (requestCode == PICK_FILE) {
             val callback = fileCallback; fileCallback = null
             val selected = linkedSetOf<Uri>()
             if (resultCode == RESULT_OK) {

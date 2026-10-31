@@ -180,6 +180,51 @@ Första Actions-bygget skapar en beständig signeringsnyckel och sparar den som 
 
 Installera senare APK:er ovanpå appen. Avinstallera inte och rensa inte appdata för att uppdatera. Lokala debug-byggen har en annan signeringsidentitet; använd det signerade Actions-bygget för normal användning.
 
+## Lokal AI, retrieval och NexusHubs intelligens
+
+NexusHub skiljer på **vanlig, deterministisk kod** och modeller som används för tydligt avgränsade uppgifter. GitHub-original, register, SHA-skyddad synk, köer, Connections, Guardian och aktivitetslogg kräver ingen generativ AI. Modeller styr inte godtyckliga filer eller skriver automatiskt till GitHub.
+
+### Gemma 4 E2B – generering på telefonen
+
+Den gemensamma Android-runtimen använder `GemmaClient.kt` → `GemmaRuntime.kt` → `IntelligenceRuntime.kt` (llama.cpp med valbar Hexagon HTP/NPU-backend). Modellen är en manuellt importerad GGUF; samma globala profil återanvänds för uttryckliga chattanrop. Native-inställningar kan kräva omladdning, medan enbart samplingändringar inte ska göra det. Modellen startar inte automatiskt vid appstart, sparad idé eller synk. Läs [runtimekontraktet](docs/gemma-runtime.md) för importer, profil, återanvändning, stopp och verifieringsgränser.
+
+### EmbeddingGemma 2 – lokal sökning och källbelägg
+
+Den textbaserade **EmbeddingGemma 2 270M**-modellen importeras separat i `.litertlm`-format med Androids filväljare och används lokalt med LiteRT-LM på CPU. Den är **inte** samma motor eller modellformat som Gemma 4. Den används för embedding av textfrågor och dokumentfönster, inte för att själv skriva svaret.
+
+- **Idéinkorgen:** sökbar lokalt härledd korpus av `Ideer/*.json`, läsbara textbilagor i `Ideer/Bilagor/` och text i den tillfälliga `NexusHub inkorg/`. Källidentitet, blob-SHA och lokala text-/profilhashar följer varje fönster.
+- **Hybrid retrieval:** lexikal ranking tillsammans med 256-dimensionella L2-normaliserade embeddings (ursprungligen 768 dimensioner); rankningslistorna kombineras med Reciprocal Rank Fusion, `K=60`. Utan modell eller giltigt embeddingindex används lexikal reservsökning.
+- **Retrieval Lab:** diagnostik för utvalda dokument, träffar, utdrag, sökläge och källstöd. Högst sex utvalda textfönster kan överlämnas till Gemma 4 för ett källbundet svar; semantisk likhet är förslag, **inte** en verifierad relation eller ett belägg för att innehållet är sant.
+- **Beständig härledd data:** fönster och vektorer sparas enbart lokalt i appens lagring. Modell-SHA, chunkformat och källversion avgör om befintligt index får återanvändas. Ingen ny kanonisk GitHub-databas, molntjänst eller automatisk arkivering skapas.
+- **Avgränsning:** endast stödda `.md`, `.txt` och relevanta `.json` upp till 2 MiB ingår; `.pdf` och `.docx` får inte felaktigt beskrivas som innehållslästa. En fullständig verifierad lokal GitHub-replika krävs före indexering. Modellimport, indexering och inferens är separata resursbegränsade moment.
+
+Se [EmbeddingGemma 2 och idéinkorgen](docs/embeddinggemma2-ideas.md) för promptformat, import, index, ranking, fallback och relevanta telefonprov. **Kod och dokumentation innebär inte i sig att den signerade APK:n är publicerad eller fysiskt testad.** Rapportera separat senaste lyckade Actions-körning samt verklig installation och prestanda på Samsung Galaxy S26 Ultra.
+
+### Connections, Guardian, Command, Cortex och aktivitetslogg
+
+- **Connections/Graph:** härleder kandidatrelationer ur dokument, idéer, nyheter, filmer och serier. Bekräftade manuella relationer har ett versionsskyddat original i `Databas/System/NexusHub/connections.json` när registret finns. Kontrollerad struktur- och textmatchning är inte automatisk semantisk sanning.
+- **Guardian:** verifierbara hälsokontroller på befintliga objekt och lokala index. Okänd status eller misslyckad kontroll ska visas, inte döljas som grönt.
+- **Command:** avgränsad deterministisk navigering/kommandotolkning utan en allmän autonom agent.
+- **Cortex:** läser träningsarkivet i `Databas/Cortex/Data/`; Cortex-appen förblir ansvarig för skrivningar.
+- **Aktivitetslogg:** telefonlokal SQLite-journal över verkliga operationer, resultat och synk, inte sidvisningar. WorkManager fortsätter särskilt **mottagna och uttryckligen sparade** inkorgsfiler under Androids bakgrundsvillkor; vanliga osparade redigeringsutkast auto-publiceras inte.
+
+[Verifierad funktionell omfattning](docs/connected-library-verification.md) · [Bakgrund och aktivitet](docs/superpowers/plans/2026-10-30-background-sync-activity.md) · [Verifieringsöversikt](docs/verification.md).
+
+## Gemma 4 E2B – central lokal AI-runtime
+
+Gemma använder **en gemensam runtime och en global modellprofil**. Det innebär att chatten och framtida uttryckligen aktiverade AI-funktioner använder samma importerade GGUF, native-motor och sparade inställningar. De tidigare automatiska Nexus Intelligence-jobben och AI-publiceringsflödena är avvecklade; **idésparning, synk och forskningsinkorg startar inte Gemma**.
+
+- `GemmaConfig.kt` – beprövade NPU-standardvärden samt validering och bevarande av äldre sparade inställningar.
+- `GemmaRuntime.kt` – användning vid behov, WARM/COLD-återanvändning, 30 sekunders bakgrundsrespit och minnessäker avlastning.
+- `GemmaClient.kt` – gemensam ingång för chatten och framtida, explicit aktiverade uppgifter.
+- `IntelligenceRuntime.kt` – befintlig llama.cpp/Hexagon-motor bakom den nya runtimen; GGUF-import, motorlås, inferens, backendkontroll och telemetri.
+- `MainActivity.kt`, `NexusHubApplication.kt` – Android-brygga och livscykelhändelser.
+- `components/intelligence/NexusIntelligence.tsx` – chatt, gemensamma inställningar och normal körtelemetri. `GemmaConfigTest.kt` kontrollerar profilreglerna.
+
+**Samplingvärden** som temperatur och top-p ska inte ladda om modellen; motorparametrar som backend och kontext gör det. Sparade telefoninställningar skriver över standardvärdena. Gemma-chatten har tidigare testats med verkliga svar på S26 Ultra (rapporterat Hexagon HTP, 36/36 lager). **Den senare runtime-refaktoreringen är ännu inte slutverifierad i ny APK på telefonen.**
+
+Läs [Gemma-runtime: kodkarta, start/stopp, profilkontrakt och verifiering](docs/gemma-runtime.md) innan Gemma får nya uppgifter i idéinkorgen.
+
 ## Utveckling
 
 Node 22+, Java 17, Android SDK 35 och Gradle 8.11.1.
@@ -211,6 +256,20 @@ Viktiga filer:
 | `.github/workflows/android-apk.yml` | APK-bygge och publicerad installationsfil |
 
 Äldre Site-poster som enbart finns i Sites D1/R2 kopieras inte automatiskt till den här appen. GitHub-innehållet är gemensamt. Befintliga Site-data lämnas orörda. Gamla `copy:`-bokmärken kan därför sakna en lokal originalkopia i Android; appen ska inte låtsas att dessa bytes finns.
+
+
+
+### APK-byggen och native-cache
+
+GitHub Actions-workflowet `.github/workflows/android-apk.yml` bygger **produktions-React och signerade Android-/Wear-APK:er**. De tidigare enhetstesterna, designkontrollerna, lintjobben och sex fristående Playwright-verifieringarna körs **inte längre som obligatoriska steg vid varje APK-bygge**. Testkoden finns kvar för uttrycklig felsökning eller separat verklighetstest; koden har inte raderats. APK-signatur, native-bibliotek, tidigare signeringsidentitet och leveransfiler kontrolleras fortfarande.
+
+- Pinnad llama.cpp-källkod cachas separat per `llama-revision.txt`.
+- Snapdragon OpenCL-/Hexagon-bibliotek återanvänds via sin egen cache med versions- och patchkontroll.
+- **Cortex-mönster för native:** Vid cachemiss byggs CMake normalt och de faktiskt paketerade `libllama_android.so`, `libllama.so`, `libggml.so`, `libggml-base.so`, `libggml-cpu.so` extraheras ur release-APK:n. SHA-256-lista sparas i cache. Vid exakt cacheträff verifieras listan och `-PusePrebuiltNative=true` gör att Gradle paketerar förkompilerade bibliotek utan att köra CMake.
+- Cache-nyckeln inkluderar llama-revisionen, native-källor, CMake, CPU-auditpatch och Gradle-konfiguration. Ändringar där ger nytt native-bygge. Den native-kompilerade binärens inbyggda Git-SHA är kompileringsrevisionen; APK-versionen anges separat av GitHub Actions.
+- Ingen cacheträff får ersätta saknade bibliotek: pipeline avbryts vid bruten checksumma eller saknade `.so`. Installerad app och importerad GGUF påverkas inte av cacheändringarna.
+
+**Verifieringsgräns:** Ett grönt Actions-bygge betyder korrekt kompilering, paketering och signeringskontroller – inte att alla funktioner testats på telefon. Den första körningen som fyller en ny native-cache kan fortfarande vara långsam; tidsvinsten måste mätas på en senare cacheträff.
 
 ## Verifiering
 

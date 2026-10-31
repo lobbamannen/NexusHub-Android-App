@@ -133,6 +133,38 @@ export async function removeIncoming(item:Incoming){
  await syncIncoming();
 }
 
+/** Queue a whole selection before synchronizing. Each item keeps its own durable
+ * delete marker and conflict verification; unrelated destinations are untouched. */
+export async function removeIncomingBatch(items:Incoming[]):Promise<{deleted:number;pending:number;failed:string[]}>{
+ const chosen=[...new Map(items.map(item=>[item.id,item])).values()];
+ if(!chosen.length)return {deleted:0,pending:0,failed:[]};
+ const running=chosen.filter(item=>active.has(item.id));
+ if(running.length)throw Error('Vänta tills pågående överföring är klar innan dessa poster raderas.');
+ const registered:string[]=[];
+ for(const item of chosen){
+  const latest=await durableGet<Incoming>('incoming:v1:'+item.id)||item;
+  latest.deleting=true;latest.sharedError='';
+  await saveIncomingItem(latest);
+  registered.push(item.id);
+ }
+ // Stop native upload workers only after every deletion intent is persisted.
+ const cancellationErrors:string[]=[];
+ for(const id of registered){
+  try{await cancelBackgroundIncoming(id);}
+  catch(e:any){cancellationErrors.push(id+': '+(e?.message||String(e)));}
+ }
+ // A running sync may have used an earlier snapshot. Always run one fresh pass.
+ if(syncing)await syncing;
+ await syncIncoming();
+ const remaining=new Map((await incomingItems()).map(item=>[item.id,item]));
+ const failed=chosen.flatMap(item=>{
+  const current=remaining.get(item.id);
+  if(!current)return [];
+  return [(item.files[0]?.name||item.id)+': '+(current.sharedError||'Radering väntar på synkronisering')];
+ });
+ return {deleted:chosen.length-failed.length,pending:failed.length,failed:[...cancellationErrors,...failed]};
+}
+
 let intakeQueue:Promise<unknown>=Promise.resolve();
 /** Content hashes, not filenames, decide whether a selected document already exists. */
 export function intakeIncomingFiles(files:File[]){

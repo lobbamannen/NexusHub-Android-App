@@ -2,21 +2,30 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+// A verified native .so cache can be packaged without re-running CMake.
+// On a cache miss, externalNativeBuild remains enabled as before.
+val usePrebuiltNative = providers.gradleProperty("usePrebuiltNative")
+    .map { it.toBoolean() }.getOrElse(false)
 android {
     sourceSets["main"].java.srcDir("../shared/src/main/java")
     namespace = "se.lobbamannen.nexushub.app"
     buildFeatures { buildConfig = true }
     testOptions {unitTests.isIncludeAndroidResources = true}
     compileSdk = 35
+    ndkVersion = "28.2.13676358"
     defaultConfig {
         applicationId = "se.lobbamannen.nexushub.app"
         buildConfigField("String", "POSTHOG_PROJECT_TOKEN", "\"" + (providers.environmentVariable("POSTHOG_PROJECT_TOKEN").orNull ?: "") + "\"")
         buildConfigField("String", "POSTHOG_HOST", "\"" + (providers.environmentVariable("POSTHOG_HOST").orNull ?: "") + "\"")
+        ndk { abiFilters += listOf("arm64-v8a") }
+        if (!usePrebuiltNative) externalNativeBuild { cmake { cppFlags += listOf("-O3", "-fPIC", "-std=c++17"); cFlags += listOf("-O3", "-fPIC"); arguments += listOf("-DANDROID_STL=c++_shared") } }
         minSdk = 26
         targetSdk = 35
         versionCode = providers.environmentVariable("ANDROID_VERSION_CODE").orNull?.toInt() ?: 1
         versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orNull ?: "1.0"
     }
+    if (!usePrebuiltNative) externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+    packaging { jniLibs { useLegacyPackaging = true } }
     signingConfigs {
         create("release") {
             val keyPath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
@@ -38,7 +47,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 }
 dependencies {
  testImplementation("org.robolectric:robolectric:4.14.1")
@@ -48,6 +57,7 @@ dependencies {
     implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.1"))
     implementation("com.squareup.okhttp3:okhttp")
     implementation("androidx.webkit:webkit:1.12.1")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.18.1")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     testImplementation("junit:junit:4.13.2")
