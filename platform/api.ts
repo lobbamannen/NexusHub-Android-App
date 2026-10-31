@@ -142,7 +142,16 @@ export function installLocalApi(): void {
   // response can prove that an interrupted write actually committed.
   // Recover confirmed writes even if the WebView was terminated after GitHub accepted them.
   void durableEntries<any>('outbox-receipt:v1:').then(entries=>{
-    for(const [,receipt] of entries)if(receipt?.path&&receipt?.commit)writeBarrier.record(receipt.path,receipt.commit);
+    // Rehydrate only the newest confirmed revision per resource. UUID sort order
+    // is not commit order and must not resurrect an older write barrier.
+    const newest=new Map<string,{commit:string;completedAt:string}>();
+    for(const [,receipt] of entries) {
+      if(!receipt?.path||!/^[a-f0-9]{40}$/.test(receipt.commit||''))continue;
+      const old=newest.get(receipt.path);
+      if(!old||String(old.completedAt)<String(receipt.completedAt))
+        newest.set(receipt.path,receipt);
+    }
+    for(const [path,receipt] of newest)writeBarrier.record(path,receipt.commit);
   }).catch(()=>{});
   configureOutbox(dispatch,async(item,receipt)=>{
     apiEpoch++;
@@ -151,8 +160,14 @@ export function installLocalApi(): void {
     if(path==='/api/media-register'&&item.body.kind==='json'){
       try{const kind=JSON.parse(item.body.text).kind;if(['films','series'].includes(kind))paths.push('/api/'+kind);}catch{}
     }
+    // For reconciled acknowledgements the route may contain no commit SHA.
+    // Read a fresh GitHub head before dropping the durable outbox entry;
+    // failure keeps the already-confirmed receipt for a safe local retry.
+    const commit=receipt.commit||await github('databas').head();
+    if(!/^[a-f0-9]{40}$/.test(commit))throw Error('GitHub-versionen kunde inte bekräftas.');
+    receipt.commit=commit;
     for(const target of paths){
-      if(receipt.commit)writeBarrier.record(target,receipt.commit);
+      writeBarrier.record(target,commit);
       for(const [key] of await durableEntries('api-read:v1:'+target)){
         if(key==='api-read:v1:'+target||key.startsWith('api-read:v1:'+target+'?'))await durableDelete(key);
       }
