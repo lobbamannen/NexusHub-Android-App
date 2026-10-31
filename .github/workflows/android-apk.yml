@@ -318,7 +318,7 @@ jobs:
       - name: Build production React UI
         run: |
           npm ci
-          node --test tests/idea-relations.test.mjs tests/idea-excerpt.test.mjs
+          node --test tests/idea-relations.test.mjs tests/idea-excerpt.test.mjs tests/incoming-sync.test.mjs
           npm run build
 
       - name: Restore stable private signing identity
