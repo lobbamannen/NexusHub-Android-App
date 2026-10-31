@@ -206,7 +206,7 @@ export function relationExcerpt(corpus:Corpus,hit:Hit,maxChars=1600):{text:strin
   const after=combined.indexOf('\\n\\n',end-160);
   if(after>=end-160&&after<=end+120)end=after;
   const originalLength=combined.length;
-  combined=(begin>0?'[…]\\n':'')+combined.slice(begin,end).trim()+(end<originalLength?'\\n[…]':'');
+  combined=(begin>0?'[…]\n':'')+combined.slice(begin,end).trim()+(end<originalLength?'\n[…]':'');
  }
  return {text:combined,windowIndex:index,sha:doc.sha,contextIndices:indices};
 }
