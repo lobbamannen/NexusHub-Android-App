@@ -3,3 +3,10 @@
 .portal-shell .nh-incoming .nh-transfer-notice{display:flex;align-items:flex-start;gap:12px;padding:15px;border:1px solid #74e2ad40;border-radius:14px;background:#0b1210;color:#a0e4c6;line-height:1.6;margin:0}.portal-shell .nh-incoming .nh-transfer-notice svg{flex:none}.portal-shell .nh-incoming .nh-transfer-complete{color:#8ad9b4}.portal-shell .nh-incoming .nh-transfer-receipt{padding:14px;margin:14px 0;border:1px solid #ffffff18;border-radius:14px;background:#0b0b0e;min-width:0}.portal-shell .nh-incoming .nh-transfer-receipt.confirmed{border-color:#74e2ad35}.portal-shell .nh-incoming .nh-transfer-receipt-title{display:flex;gap:10px;align-items:flex-start}.portal-shell .nh-incoming .nh-transfer-receipt-title>svg{flex:none;color:#8ad9b4}.portal-shell .nh-incoming .nh-transfer-receipt-title>div{min-width:0}.portal-shell .nh-incoming .nh-transfer-receipt strong{display:block;font-size:14px;color:#e2eee7}.portal-shell .nh-incoming .nh-transfer-receipt small{display:block;color:#a1a1aa;overflow-wrap:anywhere;font-size:11px;margin-top:5px}.portal-shell .nh-incoming .nh-transfer-receipt a{display:flex;align-items:center;gap:10px;min-height:48px;padding-top:13px;margin-top:13px;border-top:1px solid #ffffff12;color:#c4b5fd;overflow-wrap:anywhere}.portal-shell .nh-incoming .nh-transfer-receipt a>span{flex:1;min-width:0}.portal-shell .nh-incoming .nh-transfer-receipt a>svg{flex:none}.portal-shell .nh-incoming .nh-incoming-pending-target{display:grid;gap:4px;overflow-wrap:anywhere;font-size:12px}
 
 .portal-shell .nh-incoming-cloud-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#a5d8c5;font-size:12px;line-height:1.5;margin:12px 0}
+
+/* Bulk deletion controls reuse the existing inbox selection state. */
+.nh-incoming-batch-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.65rem;margin:1rem 0}
+.nh-incoming-batch-actions .portal-toggle{margin-right:auto}
+.nh-incoming-batch-actions button{display:inline-flex;align-items:center;gap:.4rem}
+.nh-incoming-batch-delete{color:var(--text-color,#f3b2b2)}
+@media(max-width:540px){.nh-incoming-batch-actions .portal-toggle{flex-basis:100%}}
