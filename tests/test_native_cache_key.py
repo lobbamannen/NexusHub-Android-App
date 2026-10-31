@@ -51,6 +51,23 @@ class NativeCacheKeyTests(unittest.TestCase):
         self.write("app/build.gradle.kts", "different NDK flags")
         self.assertNotEqual(before, MODULE.fingerprint(self.root)[0])
 
+    def test_native_fallback_download_name_matches_uploaded_artifact(self):
+        import re
+        workflow = (SCRIPT.parents[1] / ".github/workflows/android-apk.yml").read_text(encoding="utf-8")
+        download = re.search(r"^\s+CORE_ARTIFACT:\s*(.+)$", workflow, re.MULTILINE)
+        upload = re.search(
+            r"- name: Preserve compiled core as immutable fallback artifact[\s\S]*?\n\s+name:\s*(.+)",
+            workflow,
+        )
+        self.assertIsNotNone(download, "fallback download must declare its exact artifact name")
+        self.assertIsNotNone(upload, "compiled core must be preserved under an exact artifact name")
+        digest = "ab" * 32
+        expression = "${{ steps.native-key.outputs.digest }}"
+        wanted = download.group(1).strip().replace(expression, digest)
+        produced = upload.group(1).strip().replace(expression, digest)
+        self.assertEqual(wanted, produced, "fallback must find the immutable artifacts this workflow uploads")
+        self.assertEqual(produced, "nexus-core-prebuilt-" + digest)
+
 
 if __name__ == "__main__":
     unittest.main()

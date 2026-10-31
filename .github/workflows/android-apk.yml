@@ -99,7 +99,7 @@ jobs:
         if: steps.cache-core-native.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          CORE_ARTIFACT: nexus-core-prebuilt-v2-${{ steps.native-key.outputs.digest }}
+          CORE_ARTIFACT: nexus-core-prebuilt-${{ steps.native-key.outputs.digest }}
         run: |
           set -euo pipefail
           RUN_ID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$CORE_ARTIFACT&per_page=100" \
