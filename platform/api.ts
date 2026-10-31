@@ -23,7 +23,7 @@ import * as bookmarks from '@/app/api/document-bookmarks/route';
 import * as posters from '@/app/api/posters/route';
 import * as economy from '@/app/api/economy/route';
 import * as fallback from '@/app/api/[[...path]]/route';
-import { initializeStorage, durableGet, durableSet, durableDelete } from './local-store';
+import { initializeStorage, durableGet, durableSet, durableDelete,durableEntries } from './local-store';
 import { configureOutbox, enqueueMutation, isQueuedMutation, noteGithubFailure } from './outbox';
 import { replicaReader } from './mirror-access';
 import { createMirrorWriteBarrier } from '@/lib/mirror-write-barrier.mjs';
@@ -139,7 +139,22 @@ export function installLocalApi(): void {
   const nativeFetch = globalThis.fetch.bind(globalThis);
   // Reconciliation deliberately bypasses the offline cache: only a current GitHub
   // response can prove that an interrupted write actually committed.
-  configureOutbox(dispatch);
+  configureOutbox(dispatch,async(item,receipt)=>{
+    apiEpoch++;
+    const path=new URL(item.path,location.origin).pathname;
+    const paths=[path];
+    if(path==='/api/media-register'&&item.body.kind==='json'){
+      try{const kind=JSON.parse(item.body.text).kind;if(['films','series'].includes(kind))paths.push('/api/'+kind);}catch{}
+    }
+    for(const target of paths){
+      if(receipt.commit)writeBarrier.record(target,receipt.commit);
+      for(const [key] of await durableEntries('api-read:v1:'+target)){
+        if(key==='api-read:v1:'+target||key.startsWith('api-read:v1:'+target+'?'))await durableDelete(key);
+      }
+    }
+    // The actual remote confirmation is not lost if the local integration is interrupted.
+    window.dispatchEvent(new Event('nexus-github-changed'));
+  });
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const raw = input instanceof Request ? input.url : String(input);
     const url = new URL(raw, location.href);

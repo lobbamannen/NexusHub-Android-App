@@ -12,17 +12,18 @@ export interface PendingWrite {
   status: WriteStatus; attempts: number; error: string; uncertain: boolean;
   body: StoredBody; contentType: string;
 }
-type Receipt = { status: number; completedAt: string };
+type Receipt = { status: number; completedAt: string; commit?: string; integrated?: boolean };
 type Dispatcher = (request: Request) => Promise<Response>;
 const PREFIX = 'outbox:v1:';
 let dispatch: Dispatcher;
+let integrate: ((item:PendingWrite,receipt:Receipt)=>Promise<void>) | undefined;
 let chain: Promise<unknown> = Promise.resolve();
 let networkFailure = false;
 let observing = false;
 function changed() { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('nexus-outbox-changed')); }
 function completed(item: PendingWrite) { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('nexus-write-completed', { detail: { id: item.id, path: item.path } })); }
 export function noteGithubFailure() { if (observing) networkFailure = true; }
-export function configureOutbox(handler: Dispatcher) { dispatch = handler; }
+export function configureOutbox(handler: Dispatcher, onConfirmed?: (item:PendingWrite,receipt:Receipt)=>Promise<void>) { dispatch = handler; integrate=onConfirmed; }
 export function isQueuedMutation(request: Request) {
   return request.method === 'POST' && /^\/api\/(calendar|series-watch-settings|watch-history|ideas|films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
 }
@@ -151,17 +152,34 @@ async function reconcile(item: PendingWrite): Promise<Response | null> {
   }
   return complete ? Response.json({ ...data, saved: true, reconciled: true, source: 'github' }) : null;
 }
-async function finish(item: PendingWrite, response: Response) {
-  // Retain a credential-free receipt to prevent duplicate delivery after a render/restart.
-  const receipt: Receipt = { status: response.status, completedAt: new Date().toISOString() };
-  await durableSet('outbox-receipt:v1:' + item.id, receipt);
+async function integrateReceipt(item: PendingWrite, receipt: Receipt) {
+  // Idempotent: a crash between remote success and local integration must not resend.
+  if(!receipt.integrated) {
+    await integrate?.(item,receipt);
+    receipt.integrated=true;
+    await durableSet('outbox-receipt:v1:' + item.id,receipt);
+  }
   await durableDelete(PREFIX + item.id);
   changed(); completed(item);
+}
+async function finish(item: PendingWrite, response: Response) {
+  // The durable receipt precedes cache integration and deletion of the pending work.
+  let data:any=null;
+  try{data=await response.clone().json();}catch{/* A successful response may be non-JSON. */}
+  const receipt: Receipt = { status: response.status, completedAt: new Date().toISOString(),
+    commit: /^[a-f0-9]{40}$/.test(data?.commit||'') ? data.commit : undefined };
+  await durableSet('outbox-receipt:v1:' + item.id, receipt);
+  await integrateReceipt(item,receipt);
   telemetry('github_write_confirmed',{category:categoryForPath(item.path),latency_bucket:bucketDuration(Date.now()-Date.parse(item.createdAt))});
   for(const event of confirmedActions(item.path,item.body))telemetry(event.name as Parameters<typeof telemetry>[0],event.properties);
   return response;
 }
 async function execute(item: PendingWrite): Promise<Response> {
+  const completedReceipt=await durableGet<Receipt>('outbox-receipt:v1:' + item.id);
+  if(completedReceipt) {
+    await integrateReceipt(item,completedReceipt);
+    return Response.json({saved:true,reconciled:true,source:'local-receipt'});
+  }
   if (item.uncertain) {
     try { const checked = await reconcile(item); if (checked) return finish(item, checked); } catch { /* original request below retains its SHA */ }
   }
