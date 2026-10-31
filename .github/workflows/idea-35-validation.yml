@@ -20,5 +20,5 @@ jobs:
         run: |
           npm run check
           npm run check:design
-          node --test tests/mirror-write-barrier.test.mjs tests/replica-read.test.mjs tests/replica-plan.test.mjs tests/replica-projections.test.mjs tests/replica-sync.test.mjs tests/economy-intelligence.test.mjs tests/connected-library.test.mjs tests/story-cover-posters.test.mjs tests/local-posters.test.mjs tests/calendar-view.test.mjs tests/idea-intelligence-regressions.test.mjs tests/incoming-sync.test.mjs
+          node --test tests/mirror-write-barrier.test.mjs tests/replica-read.test.mjs tests/replica-plan.test.mjs tests/replica-projections.test.mjs tests/replica-sync.test.mjs tests/economy-intelligence.test.mjs tests/connected-library.test.mjs tests/story-cover-posters.test.mjs tests/calendar-view.test.mjs tests/idea-intelligence-regressions.test.mjs tests/incoming-sync.test.mjs
       - run: npm run build
