@@ -39,7 +39,7 @@ class EmbeddingGemmaRuntime private constructor(private val context: Context) {
     // Private model is atomically replaced during import. Hash once per unchanged
     // file identity rather than reading ~165 MB before every embedding batch.
     // Never cache failures, and invalidate on model replacement.
-    private data class VerifiedFile(val inode: Long, val size: Long, val modifiedNs: Long, val digest: String)
+    private data class VerifiedFile(val inode: Long, val size: Long, val modifiedMs: Long, val digest: String)
     private var verifiedFile: VerifiedFile? = null
 
     private fun verifiedModelHash(expected: String): String {
@@ -47,22 +47,22 @@ class EmbeddingGemmaRuntime private constructor(private val context: Context) {
             "Ingen verifierad modell-SHA finns registrerad."
         }
         val stat = Os.stat(file.absolutePath)
+        val modified = file.lastModified()
         val cached = verifiedFile
         if (cached != null &&
             cached.inode == stat.st_ino &&
             cached.size == stat.st_size &&
-            cached.modifiedNs == stat.st_mtim.tv_sec * 1_000_000_000L + stat.st_mtim.tv_nsec &&
+            cached.modifiedMs == modified &&
             cached.digest == expected
         ) return expected
         val actual = sha256(file)
         require(actual == expected) { "Modellens SHA-256 matchar inte verifierad import." }
         val checked = Os.stat(file.absolutePath)
         require(stat.st_ino == checked.st_ino && stat.st_size == checked.st_size &&
-            stat.st_mtim.tv_sec == checked.st_mtim.tv_sec &&
-            stat.st_mtim.tv_nsec == checked.st_mtim.tv_nsec) {
+            modified == file.lastModified()) {
             "Modellfilen ändrades under verifiering."
         }
-        verifiedFile = VerifiedFile(stat.st_ino,stat.st_size,stat.st_mtim.tv_sec * 1_000_000_000L + stat.st_mtim.tv_nsec,actual)
+        verifiedFile = VerifiedFile(stat.st_ino,stat.st_size,modified,actual)
         return actual
     }
 
