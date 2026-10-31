@@ -11,6 +11,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.util.UUID
+import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application=Application::class,sdk=[34])
@@ -50,6 +51,11 @@ class BackgroundIntakeTest {
         assertTrue(store.cancel(id,remoteDeleted=true));assertTrue(store.job(id)!!.getJSONObject("receipt").getBoolean("deleted"))
     }
     private class Server:BackgroundIntakeTransport {
+        override fun uploadFileBlob(file:File,shouldCancel:()->Boolean):String {
+            if(shouldCancel())throw BackgroundIntakeFailure("Cancelled",499)
+            val body=JSONObject().put("content",Base64.encodeToString(file.readBytes(),Base64.NO_WRAP)).put("encoding","base64")
+            return request("/git/blobs","POST",body)
+        }
         var head="a".repeat(40);var files=JSONArray();var prepared=JSONArray();var history=false;var loseReply=false;var writes=0;var refWrites=0;var cancelled=false;var cancelAfterBlob=false
         override fun request(path:String,method:String,body:JSONObject?):String {
             if(method!="GET")writes++
@@ -87,6 +93,32 @@ class BackgroundIntakeTest {
         assertEquals(0,server.refWrites)
     }
 
+    @Test fun nativeSharedFilesUseTheExistingQueueWithoutBase64Copies(){
+        val context=RuntimeEnvironment.getApplication<Application>()
+        val item=input();val id=item.getString("id")
+        val file=item.getJSONArray("files").getJSONObject(0)
+        val fid=file.getString("id")
+        val bytes=Base64.decode(file.getString("base64"),Base64.DEFAULT)
+        val oldMeta=BackgroundIntakeProtocol.prepare(item).last().sha
+        val originalDir=File(context.filesDir,"incoming-v1/$id").apply{mkdirs()}
+        File(originalDir,fid).writeBytes(bytes)
+        file.remove("base64")
+        file.put("sha",BackgroundIntakeProtocol.hash(bytes))
+        val store=BackgroundIntakeStore(context)
+        assertEquals("pending",store.stageShared(item,IncomingShareStore(context)).getString("state"))
+        assertEquals(oldMeta,store.job(id)!!.getString("manifestSha"))
+        assertEquals(bytes.toList(),File(store.fileDirectory(id),fid).readBytes().toList())
+        val raw=store.payloadForUpload(id)
+        assertFalse(raw.getJSONArray("files").getJSONObject(0).has("base64"))
+        val entries=BackgroundIntakeProtocol.prepareLocal(raw,store.fileDirectory(id))
+        assertEquals(oldMeta,entries.last().sha)
+        assertTrue(entries.first().source?.isFile==true)
+        val server=Server()
+        val receipt=BackgroundIntakeGitHub(server).uploadFromFiles(raw,store.fileDirectory(id))
+        assertEquals(oldMeta,receipt.getString("manifestSha"))
+        assertEquals(1,server.refWrites)
+        assertEquals("succeeded",store.update(id,"succeeded",receipt=receipt).getString("state"))
+    }
     @Test fun zeroByteFilesAreDurableAndContentChecked(){
         val store=BackgroundIntakeStore(RuntimeEnvironment.getApplication());val item=input();val file=item.getJSONArray("files").getJSONObject(0)
         file.put("base64","").put("sha",BackgroundIntakeProtocol.hash(ByteArray(0)));store.stage(item)

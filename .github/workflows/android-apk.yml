@@ -355,6 +355,11 @@ jobs:
             EXTRA_ARGS+=("-PusePrebuiltNative=true")
           fi
           gradle --build-cache --no-daemon -PskipWebBuild=true "${EXTRA_ARGS[@]}" :app:assembleRelease :wear:assembleRelease
+      # The audit PR checks native intake and data-protection contracts on the
+      # compiled Android app. Keep this focused; don't restore the old broad CI.
+      - name: Verify native intake with Robolectric (audit PR only)
+        if: github.event_name == 'pull_request'
+        run: gradle --build-cache --no-daemon -PskipWebBuild=true -PusePrebuiltNative=true :app:testDebugUnitTest --tests 'se.lobbamannen.nexushub.app.BackgroundIntakeTest'
       # The cold build has now produced a real APK. Extract its actual native
       # payload into a persistent cache for subsequent builds (Cortex approach).
       - name: Verify native model and accelerator libraries in APK

@@ -14,9 +14,11 @@ GitHub Actions verifierar TypeScript, designoriginal (36 hashkontrollerade,
 Android-APK:n måste dessutom byggas och kontrolleras; faktisk installation,
 Gemma/EmbeddingGemma-samspelet och NPU-hårdvara kräver separat telefonprovning.
 
-Kända avgränsningar: delade original större än den nuvarande säkra
-Base64-transportbudgeten bevaras med en synlig felstatus i stället för att
-orsaka upprepad OutOfMemoryError. Ingen automatisk TTL-rensning av kvittenser
+Delade Android-original kopieras strömmande till privat lagring med en
+filgräns på 64 MiB och paketgräns på 128 MiB. Importen lämnar därefter
+filreferenser i befintlig WorkManager-kö och strömmar filernas Base64 direkt
+till GitHub utan att skapa ett stort Base64-objekt i minnet. Ursprungliga
+filer och kvittenser skyddas vid avbrott. Ingen automatisk TTL-rensning av kvittenser
 eller raderingsskydd har införts. Modulvis koddelning kräver en uppmätt
 telefonvinst innan den ska behållas.
 
