@@ -1,7 +1,7 @@
 # NexusHub · EmbeddingGemma 2 och intelligent idéinkorg
 
 ## Syfte och implementation
-Den här grenen utökar den verifierade **Android**-versionen av NexusHub. EmbeddingGemma 2 (text 270M) kör lokalt med LiteRT-LM; Gemma 4 E2B fortsätter använda befintlig llama.cpp/Hexagon-runtime. Ingen modell laddas automatiskt vid appstart.
+NexusHubs **Android**-implementation omfattar följande lokala sökfunktioner. EmbeddingGemma 2 (text 270M) kör lokalt med LiteRT-LM; Gemma 4 E2B fortsätter använda befintlig llama.cpp/Hexagon-runtime. Ingen modell laddas automatiskt vid appstart.
 
 - **Idéinkorg:** ett härlett, lokalt och dokumentversionsbundet index över `Ideer/*.json`, textdokument i `Ideer/Bilagor/` och `NexusHub inkorg/`. Den senare är fortfarande tillfällig och exkluderas inte från *förslagsindexet*. Ingen automatisk arkivering, flytt eller radering.
 - **Retrieval Lab:** samma index och sökalgoritm, men med möjlighet att skicka högst sex hämtade chunkar till befintlig Gemma 4 för ett källbaserat svar. Testa ett valt dokument via dokumentväljaren, sedan flera dokument. Detta är en beständig diagnostikvy.
