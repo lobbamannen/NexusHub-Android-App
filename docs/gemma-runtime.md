@@ -1,6 +1,6 @@
 # Gemma 4 E2B – gemensam runtime i NexusHub Android
 
-**Status 2026-10-30:** Implementerad på utvecklingsgrenen `codex/nexus-intelligence-foundation-20261030`. NexusHubs fristående Gemma-chatt och Hexagon HTP/NPU 36/36 lager har tidigare verifierats på Galaxy S26 Ultra med verkliga svar och runtime-telemetri. **Den nya livscykel-/profilrefaktoreringen måste fortfarande byggverifieras och testas på telefonen.** Detta dokument är inte en kvittens på att den senaste APK:n är färdig eller installerad.
+**Status 2026-10-31:** Gemensam runtime implementerad i NexusHubs Android-kod. NexusHubs fristående Gemma-chatt och Hexagon HTP/NPU 36/36 lager har tidigare verifierats på Galaxy S26 Ultra med verkliga svar och runtime-telemetri. **Den nya livscykel-/profilrefaktoreringen måste fortfarande byggverifieras och testas på telefonen.** Detta dokument är inte en kvittens på att den senaste APK:n är färdig eller installerad.
 
 ## Syfte och avgränsning
 
