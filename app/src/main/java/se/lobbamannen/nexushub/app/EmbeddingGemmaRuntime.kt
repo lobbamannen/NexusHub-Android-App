@@ -36,6 +36,35 @@ class EmbeddingGemmaRuntime private constructor(private val context: Context) {
     @Volatile private var importing = false
     @Volatile private var processing = false
     @Volatile private var progress = 0L
+    // Private model is atomically replaced during import. Hash once per unchanged
+    // file identity rather than reading ~165 MB before every embedding batch.
+    // Never cache failures, and invalidate on model replacement.
+    private data class VerifiedFile(val inode: Long, val size: Long, val modifiedNs: Long, val digest: String)
+    private var verifiedFile: VerifiedFile? = null
+
+    private fun verifiedModelHash(expected: String): String {
+        require(Regex("[0-9a-f]{64}").matches(expected)) {
+            "Ingen verifierad modell-SHA finns registrerad."
+        }
+        val stat = Os.stat(file.absolutePath)
+        val cached = verifiedFile
+        if (cached != null &&
+            cached.inode == stat.st_ino &&
+            cached.size == stat.st_size &&
+            cached.modifiedNs == stat.st_mtim.tv_sec * 1_000_000_000L + stat.st_mtim.tv_nsec &&
+            cached.digest == expected
+        ) return expected
+        val actual = sha256(file)
+        require(actual == expected) { "Modellens SHA-256 matchar inte verifierad import." }
+        val checked = Os.stat(file.absolutePath)
+        require(stat.st_ino == checked.st_ino && stat.st_size == checked.st_size &&
+            stat.st_mtim.tv_sec == checked.st_mtim.tv_sec &&
+            stat.st_mtim.tv_nsec == checked.st_mtim.tv_nsec) {
+            "Modellfilen ändrades under verifiering."
+        }
+        verifiedFile = VerifiedFile(stat.st_ino,stat.st_size,stat.st_mtim.tv_sec * 1_000_000_000L + stat.st_mtim.tv_nsec,actual)
+        return actual
+    }
 
     fun status(): JSONObject = JSONObject()
         .put("installed", file.isFile && file.length() > 50L * 1024 * 1024)
@@ -115,6 +144,7 @@ class EmbeddingGemmaRuntime private constructor(private val context: Context) {
                 check(embedding(test, "title: test | text: En teknisk rapport om programmering.").size == 256)
             }
             // The current verified model is not modified until the new one is runnable.
+            verifiedFile = null
             Os.rename(pending.absolutePath, file.absolutePath)
             check(prefs.edit().putString("sha256", digest).putString("name", name).commit())
             status()
@@ -129,9 +159,7 @@ class EmbeddingGemmaRuntime private constructor(private val context: Context) {
         check(!importing && !processing) { "EmbeddingGemma arbetar redan." }
         check(file.isFile && file.length() > 50L * 1024 * 1024) { "Importera EmbeddingGemma 2 först." }
         val hash = prefs.getString("sha256", "") ?: ""
-        require(Regex("[0-9a-f]{64}").matches(hash) && sha256(file) == hash) {
-            "Modellens SHA-256 matchar inte verifierad import."
-        }
+        verifiedModelHash(hash)
         val items = payload.getJSONArray("items")
         require(items.length() in 1..8) { "Högst åtta textfönster per anrop." }
         processing = true
