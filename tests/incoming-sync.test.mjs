@@ -111,7 +111,7 @@ test('bulk delete retains failed original for retry without affecting forwarded 
  const {m}=await setup();
  const first=await m.saveIncoming([new File(['a'],'one.md')]);
  const second=await m.saveIncoming([new File(['b'],'two.md')]);
- first.sent={'idea:test:'+first.files[0].id:{path:'Ideer/Bilagor/file.md',sha:'a'.repeat(40)}};
+ first.sent={['idea:test:'+first.files[0].id]:{path:'Ideer/Bilagor/file.md',sha:'a'.repeat(40)}};
  first.shared=shared;second.shared=shared;
  await m.saveIncomingItem(first);await m.saveIncomingItem(second);
  const cloud=new Map([first,second].map(item=>[item.id,{...shared,metadata:{id:item.id,files:[]}}]));
