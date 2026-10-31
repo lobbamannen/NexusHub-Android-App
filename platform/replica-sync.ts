@@ -97,8 +97,11 @@ async function cycle(force=false){
    await db().prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('mirror_manifest:'+repo,JSON.stringify({commit:snapshot.commit,fetchedAt:snapshot.fetchedAt,files})).run();
    await durableSet('replica-inventory:v1:'+repo,{commit:snapshot.commit,files});
    await durableSet('replica-recent:v1:'+repo,{commit:snapshot.commit,recent:snapshot.recent||[]});
-   await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:progress.checkedAt});
+   // Atomically expose only the verified manifest first. A failed publication
+   // keeps the prior completion marker, so the next cycle retries rather than
+   // silently treating an unpublished snapshot as complete.
    await durableSet('replica-published:v1:'+repo,{commit:snapshot.commit,fetchedAt:snapshot.fetchedAt,files});
+   await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:progress.checkedAt});
    await durableSet('replica-errors:v1:'+repo,{});
    // Retire stale failures from the former 20-file worker after successful copying.
    await db().batch(['mirror_error:','mirror_file_errors:'].map(prefix=>db().prepare('DELETE FROM settings WHERE key=?').bind(prefix+repo)));
