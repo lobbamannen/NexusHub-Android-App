@@ -74,6 +74,6 @@ Chatten visar backend, accelererade lager, kontext, tokenantal, prefill/decoding
 ## Verifieringsgräns och godkännande
 
 - **Tidigare verklig telefonkörning:** Gemma-chatt gav riktiga svar och rapporterade Hexagon HTP NPU 36/36 lager. Detta föregick den nya runtime-refaktoreringen.
-- **Kodläge:** filerna ovan är skapade och kopplade på utvecklingsgrenen; konfigurationen har enhetstester.
+- **Kodläge:** filerna ovan ingår i den samlade Android-implementationen; konfigurationen har enhetstester. Den faktiska installationen och slutverifieringen redovisas separat.
 - **Återstående verifiering:** senaste GitHub Actions-byggets utfall och installation på riktig telefon, `WARM/COLD`, ändring av endast sampling utan modellomladdning, ändring av native-inställning med omladdning, background/foreground inom/efter 30 s och minnestryck.
 - Markera inte en ny APK som verifierad förrän dessa relevanta kontroller har genomförts. Publicera inte nya idéinkorgsjobb för att kompensera för en ofärdig bas.
