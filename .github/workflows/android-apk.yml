@@ -379,7 +379,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs apk/nexus-hub-watch.apk
           gh release download --repo "$GITHUB_REPOSITORY" --pattern nexus-hub-app.apk --dir previous-apk
           python3 scripts/verify-battery-apks.py apk/nexus-hub-app.apk apk/nexus-hub-watch.apk previous-apk/nexus-hub-app.apk
-          sha256sum apk/nexus-hub-app.apk apk/nexus-hub-watch.apk > apk/SHA256SUMS.txt
+          (cd apk && sha256sum nexus-hub-app.apk nexus-hub-watch.apk > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt)
       # Android users can download the verified, signed APK directly.
       # upload-artifact@v7 supports an unarchived single-file artifact.
       # Keep the complete ZIP bundle below for the watch APK and checksums.
@@ -394,6 +394,9 @@ jobs:
         run: |
           cd apk
           zip -q ../nexus-hub-app-bundle.zip nexus-hub-app.apk nexus-hub-watch.apk INSTALLATION.md SHA256SUMS.txt
+          cd ..
+          mkdir -p "$RUNNER_TEMP/nexus-zip-verify"
+          (cd "$RUNNER_TEMP/nexus-zip-verify" && unzip -q "$GITHUB_WORKSPACE/nexus-hub-app-bundle.zip" && sha256sum --check SHA256SUMS.txt)
       - name: Upload phone and watch ZIP bundle
         uses: actions/upload-artifact@v7
         with:
@@ -406,7 +409,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "app-v1.0.${GITHUB_RUN_NUMBER}" apk/nexus-hub-app.apk apk/nexus-hub-watch.apk apk/INSTALLATION.md apk/SHA256SUMS.txt --title "Nexus Hub App 1.0.${GITHUB_RUN_NUMBER}" --notes-file docs/android-install.md
+          TAG="app-v1.0.${GITHUB_RUN_NUMBER}"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "::error::Release tag $TAG already exists; refusing to repoint an existing build."
+            exit 1
+          fi
+          gh release create "$TAG" apk/nexus-hub-app.apk apk/nexus-hub-watch.apk apk/INSTALLATION.md apk/SHA256SUMS.txt --target "$GITHUB_SHA" --title "Nexus Hub App 1.0.${GITHUB_RUN_NUMBER}" --notes-file docs/android-install.md
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha)" = "$GITHUB_SHA"
       - name: Remove runner signing material
         if: always()
         run: rm -rf "$RUNNER_TEMP/nexushub-signing"
