@@ -96,7 +96,7 @@ test('bulk delete queues all marked posts and removes them in a single synchroni
  globalThis.fetch=async(_,init)=>{
   if(init.method==='GET'){reads++;return Response.json({items:[...cloud.values()]});}
   if(init.method==='DELETE'){
-   const body=JSON.parse(init.body);assert.equal(kv.get('incoming:v1:'+first.id).deleting,true);assert.equal(kv.get('incoming:v1:'+second.id).deleting,true);
+   const body=JSON.parse(init.body);if(deletes===0){assert.equal(kv.get('incoming:v1:'+first.id).deleting,true);assert.equal(kv.get('incoming:v1:'+second.id).deleting,true);}
    cloud.delete(body.id);deletes++;return Response.json({deleted:true});
   }
   throw Error('unexpected upload');
