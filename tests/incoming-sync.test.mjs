@@ -83,3 +83,51 @@ test('Android idea attachment drafts never enter the autonomous intake queue',as
  const {m}=await setup();let queued=0;window.Android={queueIncoming(){queued++;return '{}';},incomingJobs(){return '[]';}};
  await m.saveIncoming([new File(['draft'],'draft.md')],'',['idea:test']);assert.equal(queued,0);
 });
+
+
+test('bulk delete queues all marked posts and removes them in a single synchronized pass',async()=>{
+ const {m,kv}=await setup();
+ const first=await m.saveIncoming([new File(['first'],'first.md')]);
+ const second=await m.saveIncoming([new File(['second'],'second.md')]);
+ const third=await m.saveIncoming([new File(['third'],'third.md')]);
+ const cloud=new Map([first,second,third].map(item=>[item.id,{...shared,metadata:{id:item.id,files:[]}}]));
+ for(const item of [first,second,third]){item.shared=shared;await m.saveIncomingItem(item);}
+ let reads=0,deletes=0;
+ globalThis.fetch=async(_,init)=>{
+  if(init.method==='GET'){reads++;return Response.json({items:[...cloud.values()]});}
+  if(init.method==='DELETE'){
+   const body=JSON.parse(init.body);assert.equal(kv.get('incoming:v1:'+first.id).deleting,true);assert.equal(kv.get('incoming:v1:'+second.id).deleting,true);
+   cloud.delete(body.id);deletes++;return Response.json({deleted:true});
+  }
+  throw Error('unexpected upload');
+ };
+ const result=await m.removeIncomingBatch([first,second,first]);
+ assert.deepEqual(result,{deleted:2,pending:0,failed:[]});
+ assert.equal(deletes,2);assert.equal(reads,1);
+ assert.deepEqual((await m.incomingItems()).map(i=>i.id),[third.id]);
+ assert.ok(kv.has('incoming-removed:v1:'+first.id));assert.ok(kv.has('incoming-removed:v1:'+second.id));
+});
+test('bulk delete retains failed original for retry without affecting forwarded documents',async()=>{
+ const {m}=await setup();
+ const first=await m.saveIncoming([new File(['a'],'one.md')]);
+ const second=await m.saveIncoming([new File(['b'],'two.md')]);
+ first.sent={'idea:test:'+first.files[0].id:{path:'Ideer/Bilagor/file.md',sha:'a'.repeat(40)}};
+ first.shared=shared;second.shared=shared;
+ await m.saveIncomingItem(first);await m.saveIncomingItem(second);
+ const cloud=new Map([first,second].map(item=>[item.id,{...shared,metadata:{id:item.id,files:[]}}]));
+ let failedOnce=true,deletes=0;
+ globalThis.fetch=async(_,init)=>{
+  if(init.method==='GET')return Response.json({items:[...cloud.values()]});
+  if(init.method==='DELETE'){const body=JSON.parse(init.body);deletes++;
+   if(body.id===second.id&&failedOnce){failedOnce=false;throw Error('GitHub unavailable');}
+   cloud.delete(body.id);return Response.json({deleted:true});}
+  throw Error('unexpected upload');
+ };
+ const result=await m.removeIncomingBatch([first,second]);
+ assert.equal(result.deleted,1);assert.equal(result.pending,1);assert.match(result.failed[0],/two.md: GitHub unavailable/);
+ const pending=(await m.incomingItems())[0];
+ assert.equal(pending.id,second.id);assert.equal(pending.deleting,true);
+ assert.equal(await pending.files[0].blob.text(),'b');
+ await m.syncIncoming();assert.equal((await m.incomingItems()).length,0);
+ assert.equal(deletes,3);
+});
