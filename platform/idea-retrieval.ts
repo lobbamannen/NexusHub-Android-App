@@ -1,3 +1,4 @@
+import {readableIdeaExcerpt} from './idea-excerpt';
 import {replicaReader} from './mirror-access';
 import {durableGet,durableSet} from './local-store';
 import {embedBatch,embeddingStatus,type EmbedItem} from './embedding-bridge';
@@ -181,32 +182,10 @@ export async function relatedReports(corpus:Corpus,idea:{id:string;text:string},
 }
 export function sourceLink(path:string,commit:string){return 'https://github.com/lobbamannen/Databas/blob/'+commit+'/'+path.split('/').map(encodeURIComponent).join('/')}
 
-// Reconstruct the matched passage from the same immutable corpus document and SHA.
-// Adjacent overlapping windows are merged before choosing natural paragraph boundaries.
-export function relationExcerpt(corpus:Corpus,hit:Hit,maxChars=1600):{text:string;windowIndex:number;sha:string;contextIndices:number[]}|null{
+// A passage is exported only from the exact SHA associated with the retrieval hit.
+export function relationExcerpt(corpus:Corpus,hit:Hit,maxChars=2600):{text:string;windowIndex:number;sha:string;contextIndices:number[]}|null{
  const doc=corpus.docs.find(d=>d.path===hit.chunk.path&&d.sha===hit.chunk.sha);
  if(!doc||doc.chunks[hit.chunk.index]?.id!==hit.chunk.id)return null;
- const index=hit.chunk.index;
- const indices=[index-1,index,index+1].filter(i=>i>=0&&i<doc.chunks.length);
- let combined='';
- for(const i of indices){
-  const part=doc.chunks[i].text;
-  if(!combined){combined=part;continue;}
-  let overlap=0;
-  for(let n=Math.min(200,combined.length,part.length);n>0;n--){if(combined.endsWith(part.slice(0,n))){overlap=n;break;}}
-  combined+=(overlap?'':'\\n')+part.slice(overlap);
- }
- const target=doc.chunks[index].text.slice(0,Math.min(110,doc.chunks[index].text.length));
- const anchor=Math.max(0,combined.indexOf(target));
- if(combined.length>maxChars){
-  const start=Math.max(0,Math.min(anchor-200,combined.length-maxChars));
-  let end=Math.min(combined.length,start+maxChars);
-  const before=combined.lastIndexOf('\\n\\n',start+150);
-  const begin=before>=start-120&&before<anchor?before+2:start;
-  const after=combined.indexOf('\\n\\n',end-160);
-  if(after>=end-160&&after<=end+120)end=after;
-  const originalLength=combined.length;
-  combined=(begin>0?'[…]\n':'')+combined.slice(begin,end).trim()+(end<originalLength?'\n[…]':'');
- }
- return {text:combined,windowIndex:index,sha:doc.sha,contextIndices:indices};
+ const excerpt=readableIdeaExcerpt(doc.chunks,hit.chunk.index,maxChars);
+ return excerpt?{...excerpt,sha:doc.sha}:null;
 }
