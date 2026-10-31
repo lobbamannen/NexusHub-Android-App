@@ -20,7 +20,6 @@ class IncomingShareStore(private val context: Context) {
     companion object {
         private const val MAX_FILE_BYTES = 64L * 1024 * 1024
         private const val MAX_PACKAGE_BYTES = 128L * 1024 * 1024
-        private const val MAX_TRANSPORT_BYTES = 16L * 1024 * 1024
     }
     @Synchronized fun encodedSize(id:String,fileId:String):Long {
         require(uuid.matches(id) && uuid.matches(fileId))
@@ -38,7 +37,12 @@ class IncomingShareStore(private val context: Context) {
         try { output.write(metadata.toString().toByteArray(Charsets.UTF_8));atomic.finishWrite(output) }
         catch(e:Exception) {atomic.failWrite(output);throw e}
     }
-    fun safeForBase64(length:Long):Boolean=length in 0..MAX_TRANSPORT_BYTES
+    @Synchronized fun localFile(id:String,fileId:String):File {
+        require(uuid.matches(id)&&uuid.matches(fileId)) { "Ogiltig originalidentitet." }
+        val file=File(File(root,id),fileId)
+        require(file.isFile) { "Det lokala originalet saknas." }
+        return file
+    }
     private val uuid = Regex("^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$")
     @Suppress("DEPRECATION")
     fun receive(intent: Intent): Boolean {

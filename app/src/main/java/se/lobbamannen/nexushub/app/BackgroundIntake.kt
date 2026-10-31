@@ -14,34 +14,23 @@ object BackgroundIntake {
     /** Android ACTION_SEND originals are already safe in IncomingShareStore, even before WebView startup. */
     fun importShares(context:Context){
         val shares=IncomingShareStore(context)
+        val store=BackgroundIntakeStore(context)
         val items=org.json.JSONArray(shares.list())
-        for(i in 0 until items.length()) {
+        for(i in 0 until items.length()){
             try {
                 val item=items.getJSONObject(i)
                 val id=item.getString("id")
-                if(item.optString("importError").isNotBlank()||BackgroundIntakeStore(context).job(id)!=null)continue
+                if(item.optString("importError").isNotBlank()||store.job(id)!=null)continue
                 val files=item.getJSONArray("files")
-                var total=0L
-                var rejected:String?=null
-                for(n in 0 until files.length()) {
-                    val file=files.getJSONObject(n)
-                    if(file.has("error")){rejected=file.optString("error","Den delade filen kunde inte tas emot.");break}
-                    val size=shares.encodedSize(id,file.getString("id"))
-                    total+=size
-                    if(!shares.safeForBase64(total)) {
-                        rejected="Det delade paketet är för stort för säker uppladdning (max 16 MiB i denna version). Originalet är kvar lokalt."
-                        break
-                    }
+                val failed=(0 until files.length()).map{files.getJSONObject(it)}
+                    .firstOrNull{it.has("error")}
+                if(failed!=null){
+                    shares.markImportError(id,failed.optString("error","Delad fil kunde inte kopieras."))
+                    continue
                 }
-                if(rejected!=null){shares.markImportError(id,rejected);continue}
-                for(n in 0 until files.length()) {
-                    val file=files.getJSONObject(n)
-                    val bytes=shares.read(id,file.getString("id"))
-                    require(bytes.isNotEmpty()||file.optString("sha")==BackgroundIntakeProtocol.hash(ByteArray(0))) { "Originalet kunde inte läsas." }
-                    file.put("base64",bytes)
-                }
-                enqueue(context,item)
-            }catch(_:Exception){/* Retain the original and retry recoverable staging errors. */}
+                val job=store.stageShared(item,shares)
+                if(job.optString("state") in setOf("pending","running"))schedule(context,id)
+            }catch(_:Exception){/* The source remains durable and can be retried on restart. */}
         }
     }
 }
@@ -58,7 +47,7 @@ class BackgroundIntakeWorker(context:Context,params:WorkerParameters):Worker(con
             try {
                 setForegroundAsync(ForegroundInfo(7402,ActiveSyncService.notification(applicationContext,"Laddar upp mottaget material till GitHub"),android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)).get()
                 store.update(id,"running")
-                val receipt=BackgroundIntakeGitHub(GithubCredentialStore(applicationContext).get()).upload(store.payload(id)){isStopped||store.cancellationRequested(id)}
+                val receipt=BackgroundIntakeGitHub(GithubCredentialStore(applicationContext).get()).uploadFromFiles(store.payloadForUpload(id),store.fileDirectory(id)){isStopped||store.cancellationRequested(id)}
                 if(receipt.optBoolean("deleted")){store.cancel(id,remoteDeleted=true)}else{
                     store.update(id,"succeeded",receipt=receipt)
                     if(store.cancellationRequested(id))store.cancel(id)
