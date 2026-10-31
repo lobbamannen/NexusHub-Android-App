@@ -264,6 +264,56 @@ jobs:
           echo "Accelerator libraries staged:"
           ls -lh "$DEST"
 
+      # Cortex Scout pattern: compile the core once, cache it BEFORE building
+      # either APK, and use only verified staged native libraries for packaging.
+      # Avoid losing an expensive successful CMake build to a later APK failure.
+      - name: Compile core native libraries on cache miss
+        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
+        run: |
+          set -euo pipefail
+          gradle --build-cache --no-daemon -PskipWebBuild=true :app:buildCMakeRelWithDebInfo
+          DEST=".cache/core-native-libs/arm64-v8a"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          find app/build/intermediates/cxx/RelWithDebInfo -type f -name '*.so' -exec cp -v {} "$DEST/" \;
+          for lib in libllama_android.so libllama.so libggml.so libggml-base.so libggml-cpu.so; do
+            test -s "$DEST/$lib" || { echo "::error::CMake did not produce $lib"; exit 1; }
+          done
+          NDK_CXX="$ANDROID_HOME/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
+          if [ -s "$NDK_CXX" ]; then cp "$NDK_CXX" "$DEST/"; fi
+          printf '%s\n' "$(tr -d '\r\n' < llama-revision.txt)" > "$DEST/llama-commit.txt"
+          (cd "$DEST" && sha256sum ./*.so > SHA256SUMS && sha256sum --check SHA256SUMS)
+
+      - name: Preserve compiled core as immutable fallback artifact
+        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-core-prebuilt-${{ hashFiles('llama-revision.txt', 'app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/src/main/cpp/*.c', 'app/src/main/cpp/*.h', 'app/src/main/cpp/*.hpp', 'scripts/patch-llama-cpu-jarvis-audit.py', 'scripts/run-llama-cpu-jarvis-audit.py', 'app/build.gradle.kts', 'gradle/libs.versions.toml') }}
+          path: .cache/core-native-libs/arm64-v8a/
+          retention-days: 30
+          if-no-files-found: error
+
+
+      - name: Save compiled core libraries for future APK builds
+        if: steps.cache-core-native.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/core-native-libs/arm64-v8a
+          key: ${{ steps.cache-core-native.outputs.cache-primary-key }}
+
+      - name: Validate and stage newly compiled core libraries
+        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
+        run: |
+          set -euo pipefail
+          SRC=".cache/core-native-libs/arm64-v8a"
+          DEST="app/src/main/jniLibs/arm64-v8a"
+          test "$(cat "$SRC/llama-commit.txt")" = "$(tr -d '\r\n' < llama-revision.txt)"
+          (cd "$SRC" && sha256sum --check SHA256SUMS)
+          mkdir -p "$DEST"
+          cp -v "$SRC"/*.so "$DEST/"
+          echo "PREBUILT_NATIVE=true" >> "$GITHUB_ENV"
+          echo "Native core compiled, saved, and staged before APK packaging."
+
       # Keep expensive UI/design suites separate; run focused retrieval regressions.
       - name: Build production React UI
         run: |
@@ -283,8 +333,8 @@ jobs:
           set -a
           source .github/posthog.env
           set +a
-          # Only the cache-hit path disables CMake; on a miss Gradle compiles
-          # the native core normally. App/Kotlin/UI still rebuild every time.
+          # All successful paths stage verified native binaries before this step.
+          # App/Kotlin/UI still rebuild on every changed input.
           EXTRA_ARGS=()
           if [ "${PREBUILT_NATIVE:-false}" = "true" ]; then
             EXTRA_ARGS+=("-PusePrebuiltNative=true")
@@ -292,43 +342,6 @@ jobs:
           gradle --build-cache --no-daemon -PskipWebBuild=true "${EXTRA_ARGS[@]}" :app:assembleRelease :wear:assembleRelease
       # The cold build has now produced a real APK. Extract its actual native
       # payload into a persistent cache for subsequent builds (Cortex approach).
-      - name: Collect compiled core libraries from signed APK
-        if: steps.cache-core-native.outputs.cache-hit != 'true'
-        run: |
-          set -euo pipefail
-          APK="app/build/outputs/apk/release/app-release.apk"
-          DEST=".cache/core-native-libs/arm64-v8a"
-          mkdir -p "$DEST"
-          for lib in libllama_android.so libllama.so libggml.so libggml-base.so libggml-cpu.so; do
-            unzip -p "$APK" "lib/arm64-v8a/$lib" > "$DEST/$lib"
-            test -s "$DEST/$lib" || { echo "::error::Missing native core library $lib"; exit 1; }
-          done
-          # Additional native dependencies are copied when packaged by CMake.
-          for lib in libllama-common.so libc++_shared.so; do
-            if unzip -Z1 "$APK" | grep -qx "lib/arm64-v8a/$lib"; then
-              unzip -p "$APK" "lib/arm64-v8a/$lib" > "$DEST/$lib"
-            fi
-          done
-          printf '%s\n' "$(tr -d '\r\n' < llama-revision.txt)" > "$DEST/llama-commit.txt"
-          (cd "$DEST" && sha256sum ./*.so > SHA256SUMS && sha256sum --check SHA256SUMS)
-          echo "Core native cache populated from actual release APK binaries."
-
-      - name: Preserve core binaries as immutable fallback artifact
-        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexus-core-prebuilt-${{ hashFiles('llama-revision.txt', 'app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/src/main/cpp/*.c', 'app/src/main/cpp/*.h', 'app/src/main/cpp/*.hpp', 'scripts/patch-llama-cpu-jarvis-audit.py', 'scripts/run-llama-cpu-jarvis-audit.py', 'app/build.gradle.kts', 'gradle/libs.versions.toml') }}
-          path: .cache/core-native-libs/arm64-v8a/
-          retention-days: 30
-          if-no-files-found: error
-
-      - name: Save compiled core libraries for future APK builds
-        if: steps.cache-core-native.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: .cache/core-native-libs/arm64-v8a
-          key: ${{ steps.cache-core-native.outputs.cache-primary-key }}
-
       - name: Verify native model and accelerator libraries in APK
         run: |
           set -euo pipefail
