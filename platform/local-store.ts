@@ -62,7 +62,13 @@ export async function durableEntries<T = unknown>(prefix = ''): Promise<Array<[s
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) return;
-      if (typeof cursor.key !== 'string' || !cursor.key.startsWith(prefix)) return;
+      // An empty prefix must scan past non-string IndexedDB keys; those may
+      // sort before string keys. A nonempty prefix starts at its string lower bound.
+      if (typeof cursor.key !== 'string') {
+        if (!prefix) cursor.continue();
+        return;
+      }
+      if (!cursor.key.startsWith(prefix)) return;
       entries.push([cursor.key, cursor.value]);
       cursor.continue();
     };
