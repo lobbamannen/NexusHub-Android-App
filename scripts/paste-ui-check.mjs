@@ -1,11 +1,12 @@
-import{chromium}from'playwright';import{spawn}from'node:child_process';import fs from'node:fs/promises';import assert from'node:assert/strict';
-const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5182','--strictPort'],{stdio:'ignore'});let browser,page;
+import{chromium}from'playwright';import {randomUUID} from 'node:crypto';import{spawn}from'node:child_process';import fs from'node:fs/promises';import assert from'node:assert/strict';
+const runId=randomUUID();
+const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5182','--strictPort'],{stdio:'ignore',env:{...process.env,NEXUS_TEST_RUN_ID:runId}});let browser,page;
 const raw='  # Research 😎 åäö\r\n\r\n```mermaid\ngraph TD\n A-->B\n```\n[Webb](https://example.com/?a=1&b=2)\n<script>alert("text only")</script>\n\n';
 try{
  const url='http://127.0.0.1:5182/tests/ui/paste-preview.html';let ready=false;
  for(let i=0;i<60;i++){
   if(server.exitCode!==null)throw Error('Vite avslutades före UI-testet.');
-  try{const response=await fetch(url,{cache:'no-store'});if(response.ok&&response.headers.get('content-type')?.includes('text/html')){ready=true;break;}}catch{}
+  try{const response=await fetch(url,{cache:'no-store'});if(response.ok){const identity=await fetch('http://127.0.0.1:5182/__nexus-test-run',{cache:'no-store'});if(identity.ok&&(await identity.text())===runId){ready=true;break;}}}catch{}
   await new Promise(r=>setTimeout(r,250));
  }
  if(!ready)throw Error('Rätt Vite-server kunde inte verifieras.');
