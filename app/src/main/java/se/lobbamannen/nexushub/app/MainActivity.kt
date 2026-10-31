@@ -358,7 +358,7 @@ class MainActivity : Activity() {
             try { GemmaReplyStore.begin(applicationContext,requestId) }
             catch(_:Exception){ModelRunCoordinator.releaseGemma(requestId);return false}
             io.execute {
-                val answer=ModelRunCoordinator.run(requestId,"gemma") {
+                val answer=try { ModelRunCoordinator.run(requestId,"gemma") {
                     val response=try {
                         val result=GemmaClient.get(applicationContext).chat(org.json.JSONArray(raw))
                         JSONObject().put("requestId",requestId).put("ok",true).put("result",result)
@@ -366,6 +366,11 @@ class MainActivity : Activity() {
                         JSONObject().put("requestId",requestId).put("ok",false)
                             .put("error",(e.message?:"Gemma kunde inte slutföra svaret").take(500))
                     }
+                    GemmaReplyStore.complete(applicationContext,requestId,response)
+                    response
+                }}catch(e:Exception) {
+                    val response=JSONObject().put("requestId",requestId).put("ok",false)
+                        .put("error",(e.message?:"Gemma-körningen kunde inte slutföras").take(500))
                     GemmaReplyStore.complete(applicationContext,requestId,response)
                     response
                 }

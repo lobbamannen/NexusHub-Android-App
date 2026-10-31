@@ -9,6 +9,7 @@ internal object ModelRunCoordinator {
     private var activeId: String? = null
     private var activeKind: String? = null
     private var reservedGemma: String? = null
+    private val cancelled = mutableSetOf<String>()
 
     fun reserveGemma(id: String): Boolean = synchronized(state) {
         if (reservedGemma != null) false else { reservedGemma = id; true }
@@ -20,7 +21,11 @@ internal object ModelRunCoordinator {
     fun <T> run(id: String, kind: String, action: () -> T): T {
         gate.lock()
         try {
-            synchronized(state) { activeId = id; activeKind = kind }
+            synchronized(state) {
+                activeId = id; activeKind = kind
+                if (kind == "gemma" && cancelled.remove(id))
+                    throw java.util.concurrent.CancellationException("Gemma-begäran avbröts innan modellen blev tillgänglig.")
+            }
             return action()
         } finally {
             synchronized(state) {
@@ -31,7 +36,8 @@ internal object ModelRunCoordinator {
         }
     }
     fun cancelGemma(id: String, action: () -> Unit): Boolean = synchronized(state) {
-        if (activeId != id || activeKind != "gemma") false
-        else { action(); true }
+        if (reservedGemma != id) false
+        else if (activeId == id && activeKind == "gemma") { action(); true }
+        else { cancelled.add(id); true }
     }
 }
