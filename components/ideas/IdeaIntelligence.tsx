@@ -8,6 +8,9 @@ import {embeddingStatus,importEmbeddingModel} from '@/platform/embedding-bridge'
 type Idea={id:string;text:string};
 export type IdeaIntelligenceSummary={counts:Record<string,number>;indexed:boolean;running:boolean;error:string};
 type Decision={state:'dismissed'|'reviewed';sha:string;at:string};
+type CachedMatch={signature:string;results:RelationCandidate[]};
+const MATCH_CACHE_VERSION='idea-relations:v3:';
+const corpusSignature=(corpus:Corpus)=>JSON.stringify([corpus.profile,corpus.incomplete,corpus.docs.map(d=>[d.path,d.sha,d.chunks.length])]);
 const evidenceLabel=(kind:RelationCandidate['evidenceClass'])=>kind==='direct'?'Direkt ämnesunderlag':kind==='background'?'Kompletterande bakgrund':'Osäkert samband';
 const key=(id:string,path:string)=>'nexus-idea-decision:v1:'+id+':'+path;
 export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];onSummaryChange?:(summary:IdeaIntelligenceSummary)=>void}){
@@ -19,27 +22,58 @@ export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];o
  const ideasKey=JSON.stringify(ideas.map(i=>[i.id,i.text]));
  const list=useMemo(()=>ideas.filter(i=>i.text?.trim()),[ideasKey]);
  const current=list.find(i=>i.id===selected)||list[0];
- const update=useCallback(async()=> {
+ const listRef=useRef(list);
+ listRef.current=list;
+ const listKeyRef=useRef(ideasKey);
+ const update=useCallback(async(force=false)=> {
   if(abort.current)abort.current.abort();
   const controller=new AbortController();abort.current=controller;const token=++seq.current;
-  setRunning(true);setError('');setMatches({});setMessage('Verifierar lokala dokument');
+  setRunning(true);setError('');setMessage('Kontrollerar ändringar');
   try{
    const found=await buildIdeaCorpus((m,done,total)=>{if(token===seq.current){setMessage(m);setProgress({done,total})}},controller.signal);
-   if(token!==seq.current)return;
-   setCorpus(found);const next:Record<string,RelationCandidate[]>={};const states:Record<string,Decision>={};
-   for(const idea of list){if(controller.signal.aborted)break;
-    next[idea.id]=await relatedReportCandidates(found,idea);
-    for(const candidate of next[idea.id]){const hit=candidate.hit;const d=await durableGet<Decision>(key(idea.id,hit.chunk.path));if(d)states[key(idea.id,hit.chunk.path)]=d;}
-    if(token===seq.current)setMatches({...next});
+   if(token!==seq.current||controller.signal.aborted)return;
+   setCorpus(found);
+   const signature=corpusSignature(found),next:Record<string,RelationCandidate[]>={},states:Record<string,Decision>={};
+   const currentIdeas=listRef.current;
+   let recalculated=0,reused=0;
+   for(const idea of currentIdeas){
+    if(controller.signal.aborted||token!==seq.current)return;
+    const cacheKey=MATCH_CACHE_VERSION+idea.id;
+    const ideaSignature=JSON.stringify([signature,idea.text]);
+    const cached=force?undefined:await durableGet<CachedMatch>(cacheKey);
+    if(cached?.signature===ideaSignature){
+     next[idea.id]=cached.results;reused++;
+    }else{
+     next[idea.id]=await relatedReportCandidates(found,idea);
+     if(controller.signal.aborted||token!==seq.current)return;
+     await durableSet(cacheKey,{signature:ideaSignature,results:next[idea.id]} satisfies CachedMatch);
+     recalculated++;
+    }
+    for(const candidate of next[idea.id]){
+     const hit=candidate.hit,d=await durableGet<Decision>(key(idea.id,hit.chunk.path));
+     if(d)states[key(idea.id,hit.chunk.path)]=d;
+    }
+    if(token===seq.current){setMatches({...next});setDecisions({...states});}
    }
-   setDecisions(states);setMessage(found.incomplete?'Delvis indexerat – fortsätt för att indexera resterande fönster.':'Indexet är uppdaterat.');
-  }catch(e:any){if(!controller.signal.aborted&&token===seq.current)setError(e.message||'Indexering misslyckades.')}
-  finally{if(token===seq.current){setRunning(false);abort.current=null;setStatus(embeddingStatus())}}
- },[list]);
- useEffect(()=>{let active=true;const starter=()=>{if(active)void update()};starter();
+   if(token!==seq.current||controller.signal.aborted)return;
+   setMessage((found.incomplete?'Delvis indexerat. ':'')+recalculated+' idéer analyserade · '+reused+' återanvända.');
+  }catch(e:any){
+   if(!controller.signal.aborted&&token===seq.current)setError(e.message||'Indexering misslyckades.');
+  }finally{
+   if(token===seq.current){setRunning(false);abort.current=null;setStatus(embeddingStatus());}
+  }
+ },[]);
+ useEffect(()=>{
+  const starter=()=>void update();
+  starter();
   window.addEventListener('nexus-github-changed',starter);
-  return()=>{active=false;seq.current++;abort.current?.abort();window.removeEventListener('nexus-github-changed',starter)};
+  return()=>{seq.current++;abort.current?.abort();window.removeEventListener('nexus-github-changed',starter)};
  },[update]);
+ useEffect(()=>{
+  if(listKeyRef.current===ideasKey)return;
+  listKeyRef.current=ideasKey;
+  void update();
+ },[ideasKey,update]);
  useEffect(()=>{const timer=setInterval(()=>setStatus(embeddingStatus()),2500);return()=>clearInterval(timer)},[]);
  const decision=async(ideaId:string,hit:Hit,state:Decision['state'])=>{
   try{const item={state,sha:hit.chunk.sha,at:new Date().toISOString()};const k=key(ideaId,hit.chunk.path);
@@ -63,7 +97,7 @@ export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];o
   try{await navigator.clipboard.writeText(text);setMessage('Versionsbundet underlag kopierat till urklipp.')}catch{setError('Kopiering blockerad av Android/WebView.')}
  };
  return <section className="panel nh-idea-intelligence" aria-label="Intelligent idéinkorg">
-  <div className="nh-gemma-row"><h2><BrainCircuit size={19}/> Intelligenta samband</h2><button className="secondary" type="button" disabled={running} onClick={()=>void update()}><RefreshCw size={16}/> Kontrollera dokument</button></div>
+  <div className="nh-gemma-row"><h2><BrainCircuit size={19}/> Intelligenta samband</h2><button className="secondary" type="button" disabled={running} onClick={()=>void update(true)}><RefreshCw size={16}/> Kontrollera dokument</button></div>
   <p className="nh-source-caption">Förslag från GitHub-verifierade dokumentversioner. Inga original eller kopplingar ändras automatiskt.</p>
   {!status.installed&&<div className="nh-idea-intro"><strong>EmbeddingGemma 2 är inte installerad.</strong><p>Nyckelordssökning fungerar ändå. Importera den officiella textmodellen för semantiska samband.</p>
    <button className="secondary" type="button" onClick={()=>importEmbeddingModel()} disabled={status.importing}>Importera .litertlm</button>
