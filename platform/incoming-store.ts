@@ -160,7 +160,7 @@ export async function removeIncomingBatch(items:Incoming[]):Promise<{deleted:num
  const failed=chosen.flatMap(item=>{
   const current=remaining.get(item.id);
   if(!current)return [];
-  return [item.files[0]?.name||item.id+': '+(current.sharedError||'Radering väntar på synkronisering')];
+  return [(item.files[0]?.name||item.id)+': '+(current.sharedError||'Radering väntar på synkronisering')];
  });
  return {deleted:chosen.length-failed.length,pending:failed.length,failed:[...cancellationErrors,...failed]};
 }
