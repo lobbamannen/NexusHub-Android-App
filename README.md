@@ -180,6 +180,36 @@ Första Actions-bygget skapar en beständig signeringsnyckel och sparar den som 
 
 Installera senare APK:er ovanpå appen. Avinstallera inte och rensa inte appdata för att uppdatera. Lokala debug-byggen har en annan signeringsidentitet; använd det signerade Actions-bygget för normal användning.
 
+## Lokal AI, retrieval och NexusHubs intelligens
+
+NexusHub skiljer på **vanlig, deterministisk kod** och modeller som används för tydligt avgränsade uppgifter. GitHub-original, register, SHA-skyddad synk, köer, Connections, Guardian och aktivitetslogg kräver ingen generativ AI. Modeller styr inte godtyckliga filer eller skriver automatiskt till GitHub.
+
+### Gemma 4 E2B – generering på telefonen
+
+Den gemensamma Android-runtimen använder `GemmaClient.kt` → `GemmaRuntime.kt` → `IntelligenceRuntime.kt` (llama.cpp med valbar Hexagon HTP/NPU-backend). Modellen är en manuellt importerad GGUF; samma globala profil återanvänds för uttryckliga chattanrop. Native-inställningar kan kräva omladdning, medan enbart samplingändringar inte ska göra det. Modellen startar inte automatiskt vid appstart, sparad idé eller synk. Läs [runtimekontraktet](docs/gemma-runtime.md) för importer, profil, återanvändning, stopp och verifieringsgränser.
+
+### EmbeddingGemma 2 – lokal sökning och källbelägg
+
+Den textbaserade **EmbeddingGemma 2 270M**-modellen importeras separat i `.litertlm`-format med Androids filväljare och används lokalt med LiteRT-LM på CPU. Den är **inte** samma motor eller modellformat som Gemma 4. Den används för embedding av textfrågor och dokumentfönster, inte för att själv skriva svaret.
+
+- **Idéinkorgen:** sökbar lokalt härledd korpus av `Ideer/*.json`, läsbara textbilagor i `Ideer/Bilagor/` och text i den tillfälliga `NexusHub inkorg/`. Källidentitet, blob-SHA och lokala text-/profilhashar följer varje fönster.
+- **Hybrid retrieval:** lexikal ranking tillsammans med 256-dimensionella L2-normaliserade embeddings (ursprungligen 768 dimensioner); rankningslistorna kombineras med Reciprocal Rank Fusion, `K=60`. Utan modell eller giltigt embeddingindex används lexikal reservsökning.
+- **Retrieval Lab:** diagnostik för utvalda dokument, träffar, utdrag, sökläge och källstöd. Högst sex utvalda textfönster kan överlämnas till Gemma 4 för ett källbundet svar; semantisk likhet är förslag, **inte** en verifierad relation eller ett belägg för att innehållet är sant.
+- **Beständig härledd data:** fönster och vektorer sparas enbart lokalt i appens lagring. Modell-SHA, chunkformat och källversion avgör om befintligt index får återanvändas. Ingen ny kanonisk GitHub-databas, molntjänst eller automatisk arkivering skapas.
+- **Avgränsning:** endast stödda `.md`, `.txt` och relevanta `.json` upp till 2 MiB ingår; `.pdf` och `.docx` får inte felaktigt beskrivas som innehållslästa. En fullständig verifierad lokal GitHub-replika krävs före indexering. Modellimport, indexering och inferens är separata resursbegränsade moment.
+
+Se [EmbeddingGemma 2 och idéinkorgen](docs/embeddinggemma2-ideas.md) för promptformat, import, index, ranking, fallback och relevanta telefonprov. **Kod och dokumentation innebär inte i sig att den signerade APK:n är publicerad eller fysiskt testad.** Rapportera separat senaste lyckade Actions-körning samt verklig installation och prestanda på Samsung Galaxy S26 Ultra.
+
+### Connections, Guardian, Command, Cortex och aktivitetslogg
+
+- **Connections/Graph:** härleder kandidatrelationer ur dokument, idéer, nyheter, filmer och serier. Bekräftade manuella relationer har ett versionsskyddat original i `Databas/System/NexusHub/connections.json` när registret finns. Kontrollerad struktur- och textmatchning är inte automatisk semantisk sanning.
+- **Guardian:** verifierbara hälsokontroller på befintliga objekt och lokala index. Okänd status eller misslyckad kontroll ska visas, inte döljas som grönt.
+- **Command:** avgränsad deterministisk navigering/kommandotolkning utan en allmän autonom agent.
+- **Cortex:** läser träningsarkivet i `Databas/Cortex/Data/`; Cortex-appen förblir ansvarig för skrivningar.
+- **Aktivitetslogg:** telefonlokal SQLite-journal över verkliga operationer, resultat och synk, inte sidvisningar. WorkManager fortsätter särskilt **mottagna och uttryckligen sparade** inkorgsfiler under Androids bakgrundsvillkor; vanliga osparade redigeringsutkast auto-publiceras inte.
+
+[Verifierad funktionell omfattning](docs/connected-library-verification.md) · [Bakgrund och aktivitet](docs/superpowers/plans/2026-10-30-background-sync-activity.md) · [Verifieringsöversikt](docs/verification.md).
+
 ## Gemma 4 E2B – central lokal AI-runtime
 
 Gemma använder **en gemensam runtime och en global modellprofil**. Det innebär att chatten och framtida uttryckligen aktiverade AI-funktioner använder samma importerade GGUF, native-motor och sparade inställningar. De tidigare automatiska Nexus Intelligence-jobben och AI-publiceringsflödena är avvecklade; **idésparning, synk och forskningsinkorg startar inte Gemma**.
