@@ -78,7 +78,9 @@ jobs:
       # A UI/workflow-only change cannot invalidate compiled .so cache.
       - name: Fingerprint native build inputs
         id: native-key
-        run: python3 scripts/native-cache-key.py
+        run: |
+          python3 -m unittest discover -s tests -p test_native_cache_key.py -v
+          python3 scripts/native-cache-key.py
 
       # Cortex pattern: package exact native .so files, NOT ephemeral .cxx intermediates.
       # The cache key includes the pinned llama revision and all local native inputs.
