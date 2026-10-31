@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: read
 concurrency:
   group: nexus-hub-android-signing-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -82,8 +83,35 @@ jobs:
           path: .cache/core-native-libs/arm64-v8a
           key: ${{ runner.os }}-nexus-core-prebuilt-v1-ndk28.2-cmake3.22-${{ hashFiles('llama-revision.txt', 'app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/src/main/cpp/*.c', 'app/src/main/cpp/*.h', 'app/src/main/cpp/*.hpp', 'scripts/patch-llama-cpu-jarvis-audit.py', 'scripts/run-llama-cpu-jarvis-audit.py', 'app/build.gradle.kts', 'gradle/libs.versions.toml') }}
 
+      # GitHub may evict or fail to expose a saved cache even on an identical
+      # native-input hash. An immutable Actions artifact is an independently
+      # retrievable fallback; neither a source change nor a model change can
+      # silently reuse an incompatible core binary.
+      - name: Restore native core from prior signed-build artifact
+        if: steps.cache-core-native.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CORE_ARTIFACT: nexus-core-prebuilt-${{ hashFiles('llama-revision.txt', 'app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/src/main/cpp/*.c', 'app/src/main/cpp/*.h', 'app/src/main/cpp/*.hpp', 'scripts/patch-llama-cpu-jarvis-audit.py', 'scripts/run-llama-cpu-jarvis-audit.py', 'app/build.gradle.kts', 'gradle/libs.versions.toml') }}
+        run: |
+          set -euo pipefail
+          RUN_ID=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name == env.CORE_ARTIFACT and .expired == false) | .workflow_run.id' | head -n 1 || true)
+          if [ -z "$RUN_ID" ]; then
+            echo "No previous immutable native artifact found; CMake will compile."
+            exit 0
+          fi
+          DEST=".cache/core-native-libs/arm64-v8a"
+          mkdir -p "$DEST"
+          if ! gh run download "$RUN_ID" --name "$CORE_ARTIFACT" --dir "$DEST"; then
+            rm -rf "$DEST"
+            echo "Native artifact download failed; CMake will compile."
+            exit 0
+          fi
+          echo "NATIVE_FROM_ARTIFACT=true" >> "$GITHUB_ENV"
+          echo "Restored exact native-input artifact from run $RUN_ID."
+
       - name: Validate and stage cached core libraries
-        if: steps.cache-core-native.outputs.cache-hit == 'true'
+        if: steps.cache-core-native.outputs.cache-hit == 'true' || env.NATIVE_FROM_ARTIFACT == 'true'
         run: |
           set -euo pipefail
           SRC=".cache/core-native-libs/arm64-v8a"
@@ -284,6 +312,15 @@ jobs:
           printf '%s\n' "$(tr -d '\r\n' < llama-revision.txt)" > "$DEST/llama-commit.txt"
           (cd "$DEST" && sha256sum ./*.so > SHA256SUMS && sha256sum --check SHA256SUMS)
           echo "Core native cache populated from actual release APK binaries."
+
+      - name: Preserve core binaries as immutable fallback artifact
+        if: steps.cache-core-native.outputs.cache-hit != 'true' && env.NATIVE_FROM_ARTIFACT != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-core-prebuilt-${{ hashFiles('llama-revision.txt', 'app/src/main/cpp/CMakeLists.txt', 'app/src/main/cpp/*.cpp', 'app/src/main/cpp/*.c', 'app/src/main/cpp/*.h', 'app/src/main/cpp/*.hpp', 'scripts/patch-llama-cpu-jarvis-audit.py', 'scripts/run-llama-cpu-jarvis-audit.py', 'app/build.gradle.kts', 'gradle/libs.versions.toml') }}
+          path: .cache/core-native-libs/arm64-v8a/
+          retention-days: 30
+          if-no-files-found: error
 
       - name: Save compiled core libraries for future APK builds
         if: steps.cache-core-native.outputs.cache-hit != 'true'
