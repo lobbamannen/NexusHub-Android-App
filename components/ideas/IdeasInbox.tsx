@@ -24,6 +24,9 @@ export default function IdeasInbox({ ideas, onOpenPlan }: { ideas: IdeasControll
     const [intelligence,setIntelligence]=useState<IdeaIntelligenceSummary>({counts:{},indexed:false,running:false,error:''});
     const onSummaryChange=useCallback((summary:IdeaIntelligenceSummary)=>setIntelligence(summary),[]);
     const shown = inboxIdeas(ideas.items,ideas.pending,ideas.drafts) as typeof ideas.items;
+    // Matching uses saved GitHub sources. Editor drafts must not enqueue inference.
+    const matchable = ideas.savedItems.filter(({idea,sha})=>
+        /^[a-f0-9]{40}$/.test(sha||'')&&!['completed','dismissed'].includes(idea.status));
     const totalMatches=Object.values(intelligence.counts).reduce((sum,count)=>sum+count,0);
     const matchedIdeas=Object.keys(intelligence.counts).length;
     const onIntelligencePage=section==='intelligence';
@@ -58,7 +61,7 @@ export default function IdeasInbox({ ideas, onOpenPlan }: { ideas: IdeasControll
         {!shown.length && <div className="hub-empty"><Lightbulb size={35}/><strong>{ideas.loading ? 'Hämtar idéer…' : 'Här börjar nästa idé'}</strong><p>{'En mening räcker. Du kan alltid fortsätta senare.'}</p>{<button className="secondary" disabled={!ideas.ready} onClick={ideas.create}>Skriv en idé <Plus size={16}/></button>}</div>}
     </>}
     {(section==='inbox'||onIntelligencePage) && <div className="nh-idea-intelligence-subpage" hidden={!onIntelligencePage}>
-      <IdeaIntelligence ideas={shown.map(({idea})=>({id:idea.id,text:idea.text}))} onSummaryChange={onSummaryChange}/>
+      <IdeaIntelligence ideas={matchable.map(({idea})=>({id:idea.id,text:idea.text}))} onSummaryChange={onSummaryChange}/>
     </div>}
     {!onIntelligencePage && <details className="panel settings-panel"><summary>Idéhistorik per dag</summary>{Object.entries(ideas.numbering.entries.reduce<Record<string,number>>((counts,entry)=>{const day=ideaDay(entry.createdAt);counts[day]=(counts[day]||0)+1;return counts;},{})).sort(([a],[b])=>b.localeCompare(a)).map(([day,count])=><p key={day}>{day} · {count} idéer</p>)}</details>}
     </section>;

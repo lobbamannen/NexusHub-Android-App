@@ -57,9 +57,15 @@ export function rankIdeaRelations(ideaText:string,searches:Hit[][],limit=6):Rela
   const strong=shortIdea
    ? semantic>=0.73&&distinct>=1&&titleFocused&&entry.focusedWindows>=1
    : semantic>=0.76&&(distinct>=2||independent)&&coverage>=0.04;
-  const possible=shortIdea
+  // Lexical fallback remains useful without inventing a semantic score.
+  // Require distinctive terms in actual body text, not generic title overlap.
+  const lexicalOnly=best.cosine==null&&best.reason==='lexical';
+  const lexicalPossible=lexicalOnly&&entry.focusedWindows>=1&&(shortIdea
+   ? distinct>=1&&titleFocused
+   : distinct>=2&&(titleFocused||coverage>=0.20));
+  const possible=lexicalPossible||(shortIdea
    ? semantic>=0.70&&distinct>=1&&(titleFocused||entry.focusedWindows>=2)
-   : semantic>=0.72&&(distinct>=2||independent)||semantic>=0.80&&distinct>=1;
+   : semantic>=0.72&&(distinct>=2||independent)||semantic>=0.80&&distinct>=1);
   if(!strong&&!possible)continue;
   // Evidence and ranking are independent: a high retrieval score cannot create facts.
   // Adjacent / overlapping retrieval windows are a single passage, not independent support.
@@ -82,7 +88,7 @@ export function rankIdeaRelations(ideaText:string,searches:Hit[][],limit=6):Rela
   const background=!direct&&bodyCoverage.size>=1;
   const evidenceClass:EvidenceClass=direct?'direct':background?'background':'uncertain';
   const score=semantic*0.7+Math.min(distinct,6)*0.035+Math.min(entry.probes.size,3)*0.025+Math.min(entry.windows.size,3)*0.01+Math.min(entry.titleMatches.size,2)*0.13+Math.min(entry.focusedWindows,4)*0.025;
-  output.push({hit:best,evidenceClass,evidenceTerms:[...bodyCoverage],distinctPassages:clusters.length,confidence:strong?'strong':'possible',evidenceCount:entry.windows.size,matchedProbes:entry.probes.size,score,reason:titleFocused?'Ämnet finns i dokumentets titel eller avsnitt och stöds av innehållet':strong?'Semantiskt samband med särskiljande stöd':'Möjligt samband – behöver granskas'});
+  output.push({hit:best,evidenceClass,evidenceTerms:[...bodyCoverage],distinctPassages:clusters.length,confidence:strong?'strong':'possible',evidenceCount:entry.windows.size,matchedProbes:entry.probes.size,score,reason:lexicalOnly?'Textmatchning med särskiljande ämnesord – semantisk bedömning saknas':titleFocused?'Ämnet finns i dokumentets titel eller avsnitt och stöds av innehållet':strong?'Semantiskt samband med särskiljande stöd':'Möjligt samband – behöver granskas'});
  }
  return output.sort((a,b)=>({direct:2,background:1,uncertain:0}[b.evidenceClass]-{direct:2,background:1,uncertain:0}[a.evidenceClass])||Number(b.confidence==='strong')-Number(a.confidence==='strong')||b.score-a.score||a.hit.chunk.path.localeCompare(b.hit.chunk.path)).slice(0,limit);
 }

@@ -9,7 +9,7 @@ type Idea={id:string;text:string};
 export type IdeaIntelligenceSummary={counts:Record<string,number>;indexed:boolean;running:boolean;error:string};
 type Decision={state:'dismissed'|'reviewed';sha:string;at:string};
 type CachedMatch={signature:string;results:RelationCandidate[]};
-const MATCH_CACHE_VERSION='idea-relations:v3:';
+const MATCH_CACHE_VERSION='idea-relations:v4:';
 const corpusSignature=(corpus:Corpus)=>JSON.stringify([corpus.profile,corpus.incomplete,corpus.docs.map(d=>[d.path,d.sha,d.chunks.length])]);
 const evidenceLabel=(kind:RelationCandidate['evidenceClass'])=>kind==='direct'?'Direkt ämnesunderlag':kind==='background'?'Kompletterande bakgrund':'Osäkert samband';
 const key=(id:string,path:string)=>'nexus-idea-decision:v1:'+id+':'+path;
@@ -75,6 +75,15 @@ export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];o
   void update();
  },[ideasKey,update]);
  useEffect(()=>{const timer=setInterval(()=>setStatus(embeddingStatus()),2500);return()=>clearInterval(timer)},[]);
+ // A completed import or profile replacement invalidates the lexical/old-model view.
+ // Polling processing/progress alone must not restart work.
+ const modelKey=JSON.stringify([status.installed,status.modelSha256,status.profileVersion]);
+ const modelKeyRef=useRef(modelKey);
+ useEffect(()=>{
+  if(modelKeyRef.current===modelKey)return;
+  modelKeyRef.current=modelKey;
+  void update();
+ },[modelKey,update]);
  const decision=async(ideaId:string,hit:Hit,state:Decision['state'])=>{
   try{const item={state,sha:hit.chunk.sha,at:new Date().toISOString()};const k=key(ideaId,hit.chunk.path);
    await durableSet(k,item);setDecisions(old=>({...old,[k]:item}));}catch(e:any){setError('Beslutet kunde inte sparas lokalt: '+e.message)}
@@ -91,7 +100,10 @@ export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];o
  const chosen=matches[current?.id||'']||[];
  const handoff=async()=>{
   if(!current||!corpus)return;
-  const accepted=chosen.filter(c=>decisions[key(current.id,c.hit.chunk.path)]?.state!=='dismissed');
+  const accepted=chosen.filter(c=>{
+   const d=decisions[key(current.id,c.hit.chunk.path)];
+   return !(d?.state==='dismissed'&&d.sha===c.hit.chunk.sha);
+  });
   const text=['NexusHub – versionsbunden idéöverlämning','Databas commit: '+corpus.commit,'Idé-ID: '+current.id,'Idétext:\n'+current.text,'','Föreslagna forskningsunderlag (ej verifierade relationer):',
    ...accepted.map(({hit,confidence,evidenceClass,evidenceTerms,distinctPassages,reason,evidenceCount,matchedProbes},i)=>{const excerpt=relationExcerpt(corpus,hit);return '\n'+(i+1)+'. '+hit.chunk.path+'\nSHA: '+hit.chunk.sha+'\nKälla: '+sourceLink(hit.chunk.path,corpus.commit)+'\nEvidensklass: '+evidenceLabel(evidenceClass)+' (automatisk bedömning, ej verifierad)\nHittade ämnesord: '+(evidenceTerms.join(', ')||'inga')+'; distinkta textområden: '+distinctPassages+'\nRetrievalstyrka: '+(confidence==='strong'?'Stark kandidat':'Möjlig kandidat')+'\nMatchningsorsak: '+reason+'\nRetrieval: '+hit.reason+'; lexikal rang '+(hit.lexicalRank??'–')+'; semantisk rang '+(hit.semanticRank??'–')+'; cosine '+(hit.cosine?.toFixed(3)??'–')+'; idéavsnitt '+matchedProbes+'; matchande fönster '+evidenceCount+' (inte oberoende belägg)\nProfil: '+corpus.profile+'\nBästa fönsterindex: '+hit.chunk.index+'; närliggande fönster: '+(excerpt?.contextIndices.join(', ')??'saknas')+'\nRelevant utdrag:\n'+(excerpt?.text??'[Källversion saknas – kontrollera index]');})].join('\n');
   try{await navigator.clipboard.writeText(text);setMessage('Versionsbundet underlag kopierat till urklipp.')}catch{setError('Kopiering blockerad av Android/WebView.')}
@@ -107,7 +119,7 @@ export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];o
   {corpus&&<p className="nh-source-caption">{corpus.docs.length} dokument · {corpus.semanticReady}/{corpus.semanticTotal} semantiska textfönster · {corpus.unsupportedFiles?corpus.unsupportedFiles+' PDF/DOCX väntar på textextraktion · ':''}{corpus.incomplete?'Ofullständigt index':'Aktuellt index'} · Git {corpus.commit.slice(0,9)}</p>}
   {!!list.length&&<><label className="field">Välj idé<select value={current?.id||''} onChange={e=>setSelected(e.target.value)}>{list.map(i=><option key={i.id} value={i.id}>{i.text.replace(/\s+/g,' ').slice(0,85)}</option>)}</select></label>
    {!running&&!chosen.length&&<p className="muted small">Inga tillräckligt starka relationskandidater hittades. Det betyder inte att samband saknas.</p>}
-   {chosen.map(candidate=>{const hit=candidate.hit;const d=decisions[key(current.id,hit.chunk.path)],suppressed=d?.state==='dismissed'&&d.sha===hit.chunk.sha;
+   {chosen.map(candidate=>{const hit=candidate.hit;const stored=decisions[key(current.id,hit.chunk.path)],d=stored?.sha===hit.chunk.sha?stored:undefined,suppressed=d?.state==='dismissed';
     return <article key={hit.chunk.path} className="nh-idea-match" style={{opacity:suppressed ? 0.55 : 1}}>
      <div className="nh-gemma-row"><strong>{hit.chunk.title}</strong><small>{evidenceLabel(candidate.evidenceClass)} · {hit.reason==='hybrid'?'Hybridträff':hit.reason==='semantic'?'Semantisk träff':'Textträff'}</small></div>
      <p className="nh-source-caption">{candidate.reason} · {candidate.matchedProbes} idéavsnitt · {candidate.evidenceCount} träfffönster ({candidate.distinctPassages} separata textområden). Automatisk ämnesbedömning, inte verifierad relation.</p><p>{hit.chunk.text.slice(0,460)}{hit.chunk.text.length>460?'…':''}</p>

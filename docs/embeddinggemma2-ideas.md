@@ -10,8 +10,14 @@ NexusHubs **Android**-implementation omfattar följande lokala sökfunktioner. E
 - **Indexer:** originalbyte läses endast från komplett verifierad GitHub-replika. Varje indexpost innehåller källans Git-blob-SHA, titel, chunk-ID och lokalt beräknad sourceHash. Rå dokumenttext och vektorer lagras som härledda data på telefonen, inte i Databas. Modell-SHA, runtimeprotokoll och chunkversion ingår i profilen. Endast matchande profil får användas.
 - **Versionsskydd:** ändrade Git-filer indexeras om; identiska fönster återanvänder vektorer. All indexering kontrollerar GitHub-replikans commit före fullbordan. En inkompatibel embeddingprofil används inte.
 - **Relationer:** semantiska träffar är förslag, aldrig verifierade relationer. Lokala granskad-/avfärdad-markeringar är inte permanenta GitHub-bilagor; sådana sparas genom appens befintliga bilageflöde.
-- **Fallback:** när modellen eller embeddingindex saknas används lexikal sökning. Begärt och faktiskt läge skiljs i Retrieval Lab.
+- **Fallback:** när modellen eller embeddingindex saknas används lexikal sökning. Idéinkorgen får visa tydligt ämnesstödda textträffar som möjliga kandidater; de får inget påhittat cosine-värde eller stark semantisk klassning. Begärt och faktiskt läge skiljs i Retrieval Lab.
 - **Minnesbudget:** Native-bryggan accepterar max åtta textfönster om 3500 tecken per batch, med gräns på inkommande JSON och återkoppling per unikt request-ID. När embeddingkörningen är färdig stängs LiteRT-motorn innan Gemma 4 får starta.
+
+## Uppdatering av förslag
+- Idéinkorgens matchning använder sparade idéversioner, inte texten medan ett utkast redigeras. En ny sparad version eller färdig GitHub-synk utlöser uppdatering medan idéinkorgen är monterad.
+- Slutförd modellimport eller ändrad embeddingprofil startar om indexeringen automatiskt i den öppna idéinkorgen. Oförändrad statuspollning startar inte om arbetet.
+- Granskad/avfärdad gäller den aktuella dokument-SHA:n. En ny dokumentversion bedöms på nytt; både visning och kopierat ChatGPT-underlag använder samma versionsregel.
+- Detta är ingen beständig bakgrundsagent. Inga nya Gemma 4-uppdrag eller automatiska GitHub-relationer skapas.
 
 ## Installation
 1. Hämta **text-only CPU** EmbeddingGemma 2 från [LiteRT Community](https://huggingface.co/litert-community/embeddinggemma-2-text-270m-litert-lm/blob/main/embeddinggemma-2-text-270m.litertlm) (cirka 165 MB). Importera under Idéinkorg eller Retrieval Lab. Den gamla MediaPipe `.task`-filen kan inte användas.
