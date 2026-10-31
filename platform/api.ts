@@ -26,6 +26,7 @@ import * as fallback from '@/app/api/[[...path]]/route';
 import { initializeStorage, durableGet, durableSet, durableDelete,durableEntries } from './local-store';
 import { configureOutbox, enqueueMutation, isQueuedMutation, noteGithubFailure } from './outbox';
 import { replicaReader } from './mirror-access';
+import { github } from '@/lib/github';
 import { createMirrorWriteBarrier } from '@/lib/mirror-write-barrier.mjs';
 export { pendingWrites, retryPendingWrites, discardPendingWrite, cancelQueuedEdits } from './outbox';
 
@@ -126,7 +127,7 @@ async function dispatchWithCache(request: Request) {
 }
 
 const readUiLocal=localFirstReader({
- get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(writeBarrier.blocked(url.pathname,current?.commit||null))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data){try{await observeSnapshot(url.pathname,data);}catch{/* Optional history projection. */}return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
+ get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(await writeBarrier.blockedAsync(url.pathname,current?.commit||null,(expected:string,actual:string)=>github('databas').isAncestor(expected,actual)))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data){try{await observeSnapshot(url.pathname,data);}catch{/* Optional history projection. */}return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
  refresh:(request:Request)=>{telemetry('local_read_fallback',{resource:resourceForPath(new URL(request.url).pathname),outcome:'network'});return dispatchWithCache(request);},
  changed:()=>window.dispatchEvent(new Event('nexus-github-changed')),
  failure:(key:string,at:string)=>signalStale(key,at),
@@ -139,6 +140,10 @@ export function installLocalApi(): void {
   const nativeFetch = globalThis.fetch.bind(globalThis);
   // Reconciliation deliberately bypasses the offline cache: only a current GitHub
   // response can prove that an interrupted write actually committed.
+  // Recover confirmed writes even if the WebView was terminated after GitHub accepted them.
+  void durableEntries<any>('outbox-receipt:v1:').then(entries=>{
+    for(const [,receipt] of entries)if(receipt?.path&&receipt?.commit)writeBarrier.record(receipt.path,receipt.commit);
+  }).catch(()=>{});
   configureOutbox(dispatch,async(item,receipt)=>{
     apiEpoch++;
     const path=new URL(item.path,location.origin).pathname;

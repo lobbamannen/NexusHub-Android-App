@@ -12,7 +12,7 @@ export interface PendingWrite {
   status: WriteStatus; attempts: number; error: string; uncertain: boolean;
   body: StoredBody; contentType: string;
 }
-type Receipt = { status: number; completedAt: string; commit?: string; integrated?: boolean };
+type Receipt = { status: number; completedAt: string; commit?: string; integrated?: boolean; path?: string };
 type Dispatcher = (request: Request) => Promise<Response>;
 const PREFIX = 'outbox:v1:';
 let dispatch: Dispatcher;
@@ -167,7 +167,8 @@ async function finish(item: PendingWrite, response: Response) {
   let data:any=null;
   try{data=await response.clone().json();}catch{/* A successful response may be non-JSON. */}
   const receipt: Receipt = { status: response.status, completedAt: new Date().toISOString(),
-    commit: /^[a-f0-9]{40}$/.test(data?.commit||'') ? data.commit : undefined };
+    commit: /^[a-f0-9]{40}$/.test(data?.commit||'') ? data.commit : undefined,
+    path: new URL(item.path,location.origin).pathname };
   await durableSet('outbox-receipt:v1:' + item.id, receipt);
   await integrateReceipt(item,receipt);
   telemetry('github_write_confirmed',{category:categoryForPath(item.path),latency_bucket:bucketDuration(Date.now()-Date.parse(item.createdAt))});
