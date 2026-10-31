@@ -12,11 +12,15 @@ const loadMirrorIndex=async()=>{
   const movie=await replicaReader.json('databas','Media/poster-catalog.json');
   if(!movie)return null;
   const snapshot={commit:mirror.commit,truncated:false,tree:mirror.files.map((f:any)=>({...f,type:'blob'}))};
-  const story=mirror.files.some((f:any)=>f.path==='Media/story-covers/catalog.json')
-    ?await replicaReader.json('databas','Media/story-covers/catalog.json'):null;
-  if(mirror.files.some((f:any)=>f.path==='Media/story-covers/catalog.json')&&!story)
-    throw Error('Berättelseomslagens lokala katalog kunde inte verifieras.');
-  return buildPosterIndex(snapshot,movie,story);
+  try {
+    const story=mirror.files.some((f:any)=>f.path==='Media/story-covers/catalog.json')
+      ?await replicaReader.json('databas','Media/story-covers/catalog.json'):null;
+    if(mirror.files.some((f:any)=>f.path==='Media/story-covers/catalog.json')&&!story)
+      throw Error('Berättelseomslagens lokala katalog kunde inte verifieras.');
+    return buildPosterIndex(snapshot,movie,story);
+  } catch(error:any) {
+    return {...buildPosterIndex(snapshot,movie),storyError:error?.message||'Berättelseomslagen kunde inte verifieras.'};
+  }
 };
 const loadLiveIndex=async()=>{
   const client=github('databas'),snapshot=await client.snapshot();

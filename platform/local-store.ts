@@ -57,12 +57,13 @@ export async function durableEntries<T = unknown>(prefix = ''): Promise<Array<[s
   const db = await openStorage();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('kv', 'readonly');
-    const request = tx.objectStore('kv').openCursor();
+    const request = tx.objectStore('kv').openCursor(prefix ? IDBKeyRange.lowerBound(prefix) : undefined);
     const entries: Array<[string, T]> = [];
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) return;
-      if (typeof cursor.key === 'string' && cursor.key.startsWith(prefix)) entries.push([cursor.key, cursor.value]);
+      if (typeof cursor.key !== 'string' || !cursor.key.startsWith(prefix)) return;
+      entries.push([cursor.key, cursor.value]);
       cursor.continue();
     };
     tx.oncomplete = () => resolve(entries);
