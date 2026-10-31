@@ -20,11 +20,13 @@ REQUIRED = (
     "llama-revision.txt",
     "app/src/main/cpp/CMakeLists.txt",
     "app/build.gradle.kts",
-    "gradle/libs.versions.toml",
+    "gradle.properties",
+    "build.gradle.kts",
+    "settings.gradle.kts",
     "scripts/patch-llama-cpu-jarvis-audit.py",
     "scripts/run-llama-cpu-jarvis-audit.py",
 )
-OPTIONAL = ("gradle.properties",)
+OPTIONAL = ()
 TOOLCHAIN = "android-arm64-v8a:ndk-28.2.13676358:cmake-3.22.1"
 SCHEMA = "nexus-core-native-inputs-v2"
 
