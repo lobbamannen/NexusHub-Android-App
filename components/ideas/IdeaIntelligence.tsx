@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {BrainCircuit,RefreshCw,CheckCircle2,AlertTriangle,Copy,ExternalLink,Search} from 'lucide-react';
-import {buildIdeaCorpus,relatedReportCandidates,sourceLink,type Corpus,type Hit} from '@/platform/idea-retrieval';
+import {buildIdeaCorpus,relatedReportCandidates,relationExcerpt,sourceLink,type Corpus,type Hit} from '@/platform/idea-retrieval';
 import {durableGet,durableSet} from '@/platform/local-store';
 import type {RelationCandidate} from '@/platform/idea-relations';
 import {embeddingStatus,importEmbeddingModel} from '@/platform/embedding-bridge';
@@ -48,7 +48,7 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
   if(!current||!corpus)return;
   const accepted=chosen.filter(c=>decisions[key(current.id,c.hit.chunk.path)]?.state!=='dismissed');
   const text=['NexusHub – versionsbunden idéöverlämning','Databas commit: '+corpus.commit,'Idé-ID: '+current.id,'Idétext:\n'+current.text,'','Föreslagna forskningsunderlag (ej verifierade relationer):',
-   ...accepted.map(({hit},i)=>'\n'+(i+1)+'. '+hit.chunk.path+'\nSHA: '+hit.chunk.sha+'\nKälla: '+sourceLink(hit.chunk.path,corpus.commit)+'\nRelevant utdrag: '+hit.chunk.text.slice(0,850))].join('\n');
+   ...accepted.map(({hit,confidence,reason,evidenceCount,matchedProbes},i)=>{const excerpt=relationExcerpt(corpus,hit);return '\n'+(i+1)+'. '+hit.chunk.path+'\nSHA: '+hit.chunk.sha+'\nKälla: '+sourceLink(hit.chunk.path,corpus.commit)+'\nBedömning: '+(confidence==='strong'?'Stark kandidat':'Möjlig kandidat')+' (ej verifierad)\nMatchningsorsak: '+reason+'\nRetrieval: '+hit.reason+'; lexikal rang '+(hit.lexicalRank??'–')+'; semantisk rang '+(hit.semanticRank??'–')+'; cosine '+(hit.cosine?.toFixed(3)??'–')+'; idéavsnitt '+matchedProbes+'; matchande fönster '+evidenceCount+' (inte oberoende belägg)\nProfil: '+corpus.profile+'\nBästa fönsterindex: '+hit.chunk.index+'; närliggande fönster: '+(excerpt?.contextIndices.join(', ')??'saknas')+'\nRelevant utdrag:\n'+(excerpt?.text??'[Källversion saknas – kontrollera index]');})].join('\n');
   try{await navigator.clipboard.writeText(text);setMessage('Versionsbundet underlag kopierat till urklipp.')}catch{setError('Kopiering blockerad av Android/WebView.')}
  };
  return <section className="panel nh-idea-intelligence" aria-label="Intelligent idéinkorg">
