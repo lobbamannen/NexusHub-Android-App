@@ -47,7 +47,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 }
 dependencies {
  testImplementation("org.robolectric:robolectric:4.14.1")
@@ -57,6 +57,7 @@ dependencies {
     implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.1"))
     implementation("com.squareup.okhttp3:okhttp")
     implementation("androidx.webkit:webkit:1.12.1")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.18.1")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     testImplementation("junit:junit:4.13.2")

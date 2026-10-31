@@ -1,7 +1,7 @@
 name: Build Nexus Hub App APK
 on:
   push:
-    branches: [main, codex/nexus-intelligence-foundation-20261030]
+    branches: [main, codex/nexus-intelligence-foundation-20261030, codex/embeddinggemma2-ideas-20261030]
   workflow_dispatch:
 permissions:
   contents: write
@@ -236,11 +236,11 @@ jobs:
           echo "Accelerator libraries staged:"
           ls -lh "$DEST"
 
-      # Compile the production app without running unit, design or browser tests.
-      # Tests remain in source for explicit/manual execution, not as APK build gates.
+      # Keep expensive UI/design suites separate; run focused retrieval regressions.
       - name: Build production React UI
         run: |
           npm ci
+          node --test tests/idea-relations.test.mjs tests/idea-excerpt.test.mjs
           npm run build
 
       - name: Restore stable private signing identity

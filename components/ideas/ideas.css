@@ -37,3 +37,31 @@
 .nh-archive-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;user-select:text;margin:14px 0}
 .nh-task-editor .modal-heading h2{gap:12px}
 .nh-task-editor .nh-idea-editor-body{padding-top:6px}
+
+
+.nh-idea-intelligence,.nh-retrieval-lab{margin:16px 0;display:grid;gap:14px;min-width:0}
+.nh-idea-intelligence .nh-gemma-row,.nh-retrieval-lab .nh-gemma-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.nh-idea-intelligence .nh-gemma-row h2,.nh-retrieval-lab .nh-gemma-row h2{display:flex;align-items:center;gap:8px;font-size:1.1rem;margin:0}
+.nh-idea-intelligence .field,.nh-retrieval-lab .field{display:grid;gap:5px}
+.nh-idea-intelligence select,.nh-retrieval-lab select,.nh-retrieval-lab textarea{width:100%;min-width:0;padding:11px;border-radius:12px;background:var(--surface-secondary,#191c29);color:inherit;border:1px solid rgba(180,190,210,.2)}
+.nh-idea-intro{display:grid;gap:8px}.nh-idea-intro p{margin:0}
+.nh-idea-match{padding:13px;border:1px solid rgba(160,175,200,.16);border-radius:14px;overflow-wrap:anywhere;display:grid;gap:8px}
+.nh-idea-match p{margin:0;line-height:1.5}.nh-idea-match .nh-gemma-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.nh-idea-match a,.nh-idea-intro a{display:inline-flex;align-items:center;gap:4px}
+.nh-idea-match .nh-source-caption{font-size:12px;opacity:.7}
+.nh-retrieval-lab details{min-width:0}.nh-retrieval-lab progress,.nh-idea-intelligence progress{width:100%}
+
+/* The intelligence analysis lives on its own Ideas subpage; the inbox shows only summaries. */
+.nh-idea-intelligence-subpage[hidden]{display:none!important}
+.nh-idea-intelligence-back{display:inline-flex;align-items:center;gap:9px;justify-self:start;margin:4px 0 0;min-height:44px}
+.nh-idea-intelligence-entry{width:100%;min-width:0;min-height:72px;display:flex;align-items:center;gap:13px;padding:13px 16px;border:1px solid #ba83ff43;border-radius:18px;background:linear-gradient(115deg,#23142f90,#100e1699 72%);color:#ede7f4;text-align:left;box-shadow:inset 0 1px #ffffff13;cursor:pointer}
+.nh-idea-intelligence-entry:hover{border-color:#c293ff9c;background:linear-gradient(115deg,#301c3eaa,#15101e)}
+.nh-idea-intelligence-entry-icon{flex-shrink:0;width:44px;height:44px;display:grid;place-items:center;border:1px solid #bd87ff44;border-radius:13px;background:#bb83ff16;color:#ca9cff}
+.nh-idea-intelligence-entry-text{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}
+.nh-idea-intelligence-entry-text strong{font-size:15px;line-height:1.2}
+.nh-idea-intelligence-entry-text small{font-size:12px;color:#a99eaf;line-height:1.45}
+.nh-idea-intelligence-total{flex-shrink:0;min-width:27px;min-height:27px;display:grid;place-items:center;border-radius:9px;background:#ba83ff22;border:1px solid #ba83ff44;color:#e2c4ff;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums}
+.nh-idea-intelligence-chevron{flex-shrink:0;color:#bcb2c6}
+.nh-idea-match-count{display:inline-flex;align-items:center;align-self:flex-start;gap:7px;max-width:100%;padding:6px 10px;border:1px solid #b88cff44;border-radius:9px;background:#b88cff11;color:#d8b4fe;font-size:12px;line-height:1.3;font-weight:550}
+.nh-idea-intelligence-subpage .nh-idea-intelligence{margin:14px 0 0}
+@media(max-width:600px){.nh-idea-intelligence-entry{padding:12px;gap:10px}.nh-idea-intelligence-entry-icon{width:40px;height:40px}.nh-idea-intelligence-entry-text strong{font-size:14px}.nh-idea-intelligence-entry-text small{font-size:11px}}
