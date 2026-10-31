@@ -6,10 +6,11 @@ import type {RelationCandidate} from '@/platform/idea-relations';
 import {embeddingStatus,importEmbeddingModel} from '@/platform/embedding-bridge';
 
 type Idea={id:string;text:string};
+export type IdeaIntelligenceSummary={counts:Record<string,number>;indexed:boolean;running:boolean;error:string};
 type Decision={state:'dismissed'|'reviewed';sha:string;at:string};
 const evidenceLabel=(kind:RelationCandidate['evidenceClass'])=>kind==='direct'?'Direkt ämnesunderlag':kind==='background'?'Kompletterande bakgrund':'Osäkert samband';
 const key=(id:string,path:string)=>'nexus-idea-decision:v1:'+id+':'+path;
-export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
+export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];onSummaryChange?:(summary:IdeaIntelligenceSummary)=>void}){
  const [corpus,setCorpus]=useState<Corpus|null>(null),[status,setStatus]=useState(embeddingStatus);
  const [running,setRunning]=useState(false),[message,setMessage]=useState(''),[progress,setProgress]=useState({done:0,total:0});
  const [error,setError]=useState(''),[matches,setMatches]=useState<Record<string,RelationCandidate[]>>({});
@@ -44,6 +45,15 @@ export default function IdeaIntelligence({ideas}:{ideas:Idea[]}){
   try{const item={state,sha:hit.chunk.sha,at:new Date().toISOString()};const k=key(ideaId,hit.chunk.path);
    await durableSet(k,item);setDecisions(old=>({...old,[k]:item}));}catch(e:any){setError('Beslutet kunde inte sparas lokalt: '+e.message)}
  };
+ const summary=useMemo<IdeaIntelligenceSummary>(()=>{
+  const counts:Record<string,number>={};
+  for(const [id,candidates] of Object.entries(matches)){
+   const visible=candidates.filter(({hit})=>{const d=decisions[key(id,hit.chunk.path)];return !(d?.state==='dismissed'&&d.sha===hit.chunk.sha)});
+   if(visible.length)counts[id]=visible.length;
+  }
+  return {counts,indexed:!!corpus,running,error};
+ },[matches,decisions,corpus,running,error]);
+ useEffect(()=>onSummaryChange?.(summary),[onSummaryChange,summary]);
  const chosen=matches[current?.id||'']||[];
  const handoff=async()=>{
   if(!current||!corpus)return;
