@@ -49,7 +49,8 @@ test('short EmbeddingGemma idea prefers focused research over incidental mention
 test('incidental EmbeddingGemma mention is background',()=>{
  const idea='Lägga till EmbeddingGemma till NexusHub. Jämför EmbeddingGemma 1 mot EmbeddingGemma 2';
  const report=hit('general-research','Lokal inbäddning (EmbeddingGemma 2) används för semantisk likhet.',0.84);
- const found=rankIdeaRelations(idea,[[report]]);
+ const second={...report,chunk:{...report.chunk,id:'general-research#3',index:3,text:'EmbeddingGemma kan även nämnas vid automatisk dokumenthantering.'}};
+ const found=rankIdeaRelations(idea,[[report,second]]);
  assert.equal(found[0]?.evidenceClass,'background');
 });
 test('overlapping windows are one distinct passage',()=>{
