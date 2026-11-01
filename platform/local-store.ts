@@ -53,6 +53,23 @@ async function writeValue(store: string, key: IDBValidKey, value: unknown, remov
 export function durableGet<T = unknown>(key: string): Promise<T | undefined> { return readValue<T>('kv', key); }
 export function durableSet(key: string, value: unknown): Promise<void> { return writeValue('kv', key, value); }
 export function durableDelete(key: string): Promise<void> { return writeValue('kv', key, undefined, true); }
+/** Key-only enumeration avoids materializing unrelated large cached values. */
+export async function durableKeys(prefix = ''): Promise<string[]> {
+  const db = await openStorage();
+  return new Promise((resolve,reject) => {
+    const tx=db.transaction('kv','readonly');
+    const request=tx.objectStore('kv').openKeyCursor(prefix?IDBKeyRange.lowerBound(prefix):undefined);
+    const keys:string[]=[];
+    request.onsuccess=()=>{
+      const cursor=request.result;if(!cursor)return;
+      if(typeof cursor.key!=='string'){if(!prefix)cursor.continue();return;}
+      if(!cursor.key.startsWith(prefix))return;
+      keys.push(cursor.key);cursor.continue();
+    };
+    tx.oncomplete=()=>resolve(keys);
+    tx.onabort=()=>reject(tx.error||request.error||new Error('Cache key enumeration failed.'));
+  });
+}
 export async function durableEntries<T = unknown>(prefix = ''): Promise<Array<[string, T]>> {
   const db = await openStorage();
   return new Promise((resolve, reject) => {

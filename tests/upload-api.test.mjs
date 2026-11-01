@@ -3,13 +3,16 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 import ts from 'typescript';
-const sqlite=new DatabaseSync(':memory:');sqlite.exec(readFileSync(new URL('../drizzle/0000_orange_spyke.sql',import.meta.url),'utf8').replaceAll('--> statement-breakpoint',''));
+const schemaSource=readFileSync(new URL('../platform/storage-schema.ts',import.meta.url),'utf8');
+const schema=schemaSource.match(/export const STORAGE_SCHEMA = `([\s\S]*?)`;/)?.[1];
+assert.ok(schema,'use the actual Android schema');
+const sqlite=new DatabaseSync(':memory:');sqlite.exec(schema);
 const objects=new Map();
 const db={prepare(sql){let args=[];const s={bind(...values){args=values;return s;},async first(){return sqlite.prepare(sql).get(...args)||null;},async all(){return {results:sqlite.prepare(sql).all(...args)};},async run(){const r=sqlite.prepare(sql).run(...args);return {meta:{changes:Number(r.changes)}};}};return s;},async batch(statements){sqlite.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());sqlite.exec('COMMIT');return r;}catch(e){sqlite.exec('ROLLBACK');throw e;}}};
 const bucket={async put(key,value){objects.set(key,new Uint8Array(value).slice());},async get(key){const b=objects.get(key);return b?{body:new Blob([b]).stream(),async arrayBuffer(){return b.slice().buffer;}}:null;},async delete(key){objects.delete(key);}};
 globalThis.__nexusUploadTest={env:{DB:db,BUCKET:bucket}};
 async function compile(path,replace){let source=readFileSync(new URL(path,import.meta.url),'utf8');source=replace(source).replace(/from '@\/lib\/errors.mjs'/g,"from '"+new URL('../lib/errors.mjs',import.meta.url).href+"'").replace(/from '\.\/domain.mjs'/g,"from '"+new URL('../lib/domain.mjs',import.meta.url).href+"'");const out=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;return import('data:text/javascript;base64,'+Buffer.from(out).toString('base64'));}
-const store=await compile('../lib/store.ts',s=>s.replace(/import\s*\{\s*env\s*\}\s*from 'cloudflare:workers';/,"const {env}=globalThis.__nexusUploadTest;"));
+const store=await compile('../lib/store.ts',s=>s.replace(/import\s*\{\s*env\s*\}\s*from '@\/platform\/env';/,"const {env}=globalThis.__nexusUploadTest;"));
 globalThis.__nexusUploadTest.store=store;let writes=0;
 globalThis.__nexusUploadTest.github={async sendFileToGitHub(id){writes++;const receipt={state:'sent',path:'00-Inkorg/'+id};await db.prepare('INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)').bind('github_file:'+id,JSON.stringify(receipt)).run();return receipt;}};
 const route=await compile('../app/api/[[...path]]/route.ts',s=>s.replace(/import \{[^}]+\} from '@\/lib\/mirror-audit';/, '').replace(/import \{[^}]+\} from '@\/lib\/mirror';/, '').replace(/import \{([^}]+)\} from '@\/lib\/github';/,(_,names)=>'const {'+names+'}=globalThis.__nexusUploadTest.github;').replace(/import \{([^}]+)\} from '@\/lib\/store';/,(_,names)=>'const {'+names+'}=globalThis.__nexusUploadTest.store;').replace("from '@/lib/domain.mjs'","from '"+new URL('../lib/domain.mjs',import.meta.url).href+"'"));

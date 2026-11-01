@@ -28,4 +28,16 @@ inline std::string without_stop_suffix(const std::string& text, const std::vecto
     }
     return text.substr(0, keep);
 }
+// Complete markers are never user text; incomplete prefixes are held only while streaming.
+inline size_t first_stop(const std::string& text, const std::vector<std::string>& stops) {
+    size_t at = std::string::npos;
+    for (const auto& stop : stops) if (!stop.empty()) at = std::min(at, text.find(stop));
+    return at;
+}
+inline std::string publishable_text(const std::string& text, const std::vector<std::string>& stops, bool partial) {
+    std::string safe = text.substr(0, first_stop(text, stops));
+    if (partial) safe = without_stop_suffix(safe, stops);
+    return safe.substr(0, complete_utf8_prefix(safe));
+}
+
 }

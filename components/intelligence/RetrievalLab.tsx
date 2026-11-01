@@ -7,16 +7,17 @@ export default function RetrievalLab(){
  const [corpus,setCorpus]=useState<Corpus|null>(null),[status,setStatus]=useState(embeddingStatus),[running,setRunning]=useState(false);
  const [selectionMode,setSelectionMode]=useState<'baseline'|'diverse'>('diverse');
  const [progress,setProgress]=useState(''),[error,setError]=useState(''),[query,setQuery]=useState(''),[scope,setScope]=useState('all');
+ const [sourceNotice,setSourceNotice]=useState('');
  const [hits,setHits]=useState<Hit[]>([]),[reply,setReply]=useState(''),[metrics,setMetrics]=useState<Record<string,any>>({});
  const abort=useRef<AbortController|null>(null),runId=useRef(0);
- const load=async()=>{abort.current?.abort();const c=new AbortController();const token=++runId.current;abort.current=c;setRunning(true);setError('');setProgress('Startar indexering');
-  try{const next=await buildIdeaCorpus((p,n,total)=>setProgress(p+' '+n+'/'+total),c.signal);if(token!==runId.current||c.signal.aborted)return;setCorpus(next);setProgress(next.incomplete?'Delvis indexerat. Kör igen för att fortsätta.':'Indexet klart.')}
-  catch(e:any){if(!c.signal.aborted)setError(e.message)}finally{setRunning(false);setStatus(embeddingStatus())}};
+ const load=async()=>{abort.current?.abort();const c=new AbortController();const token=++runId.current;abort.current=c;setRunning(true);setError('');setProgress('Startar indexering');setReply('');setHits([]);setMetrics({});setSourceNotice('');
+  try{const next=await buildIdeaCorpus((p,n,total)=>{if(token===runId.current&&!c.signal.aborted)setProgress(p+' '+n+'/'+total)},c.signal);if(token!==runId.current||c.signal.aborted)return;setCorpus(next);setProgress(next.incomplete?'Delvis indexerat. Kör igen för att fortsätta.':'Indexet klart.')}
+  catch(e:any){if(!c.signal.aborted&&token===runId.current)setError(e.message)}finally{if(token===runId.current){setRunning(false);setStatus(embeddingStatus());abort.current=null}}};
  useEffect(()=>{setStatus(embeddingStatus());const t=setInterval(()=>setStatus(embeddingStatus()),2500);return()=>{clearInterval(t);abort.current?.abort()}},[]);
- const ask=async()=>{if(!corpus||!query.trim())return;const controller=new AbortController();abort.current=controller;const token=++runId.current;setRunning(true);setProgress('Söker källor');setError('');setReply('');setHits([]);
+ const ask=async()=>{if(!corpus||!query.trim())return;abort.current?.abort();const controller=new AbortController();abort.current=controller;const token=++runId.current;setRunning(true);setProgress('Söker källor');setError('');setReply('');setHits([]);setSourceNotice('');
   try{
    const filtered=scope==='all'?undefined:(c:any)=>c.path===scope;
-   const result=await searchCorpus(corpus,query,filtered);
+   const result=await searchCorpus(corpus,query,filtered,32,controller.signal);
    if(controller.signal.aborted||token!==runId.current)return;
    const baseline=result.hits.slice(0,6);
    const selected=selectRagEvidence(result.hits,selectionMode,6);setHits(selected);
@@ -29,15 +30,17 @@ export default function RetrievalLab(){
    while(evidence.length&&lead.length+formatRagEvidence(evidence).length>11500)evidence.pop();
    if(!evidence.length)throw Error('Frågan är för stor för ett dokumentbundet svar. Ingen text har kapats.');
    const prompt=lead+formatRagEvidence(evidence);
-   if(evidence.length<selected.length)setProgress('Källurval begränsat till '+evidence.length+' kompletta utdrag.');
+   const limited=evidence.length<selected.length?'Källurval begränsat till '+evidence.length+' av '+selected.length+' kompletta utdrag.':'';
+   setSourceNotice(limited);
+   const sentStats={...stats,selectedCount:evidence.length,selectedChunkIds:evidence.map(h=>h.chunk.id).join(' | '),selectedDocumentCount:new Set(evidence.map(h=>h.chunk.path)).size,omittedSourceCount:selected.length-evidence.length,promptCharacters:prompt.length,sourceWindows:evidence.map(h=>h.chunk.path+'#'+h.chunk.index+' (0–'+h.chunk.text.length+')').join(' | ')};
    setHits(evidence);
-   setMetrics({...stats,promptCharacters:prompt.length,sourceWindows:selected.map(h=>h.chunk.path+'#'+h.chunk.index+' (0–'+h.chunk.text.length+')').join(' | ')});
+   setMetrics(sentStats);
    const started=performance.now();
    setProgress('Gemma genererar svar');
    const out=await gemmaRag(prompt,controller.signal);
    if(controller.signal.aborted||token!==runId.current)return;
    setReply(out.text||'Gemma lämnade inget svar.');
-   setMetrics({...stats,promptCharacters:prompt.length,sourceWindows:selected.map(h=>h.chunk.path+'#'+h.chunk.index).join(' | '),gemmaDurationMs:Math.round(performance.now()-started),gemmaTelemetry:out.telemetry||{},finishReason:out.finishReason});
+   setMetrics({...sentStats,gemmaDurationMs:Math.round(performance.now()-started),gemmaTelemetry:out.telemetry||{},finishReason:out.finishReason});
   }catch(e:any){if(!controller.signal.aborted&&token===runId.current)setError(e.message||'RAG misslyckades.')}finally{if(token===runId.current){setRunning(false);abort.current=null;}}};
  return <section className="panel nh-retrieval-lab" aria-label="Retrieval Lab">
   <div className="nh-gemma-row"><h2><BookOpen size={19}/> Retrieval Lab · RAG</h2><button className="secondary" onClick={()=>void load()} disabled={running}><RefreshCw size={16}/> {corpus?'Synka index':'Indexera dokument'}</button></div>
@@ -45,6 +48,7 @@ export default function RetrievalLab(){
   <p className="nh-source-caption">EmbeddingGemma 2: {status.installed?'Installerad':'Saknas'} · {status.backend||'CPU'} · {status.modelSha256?.slice(0,16)||'ingen profil'}</p>
   {!status.installed&&<div><button className="secondary" onClick={()=>importEmbeddingModel()}>Importera EmbeddingGemma 2 .litertlm</button> <a href="https://huggingface.co/litert-community/embeddinggemma-2-text-270m-litert-lm/blob/main/embeddinggemma-2-text-270m.litertlm" target="_blank" rel="noopener noreferrer">Officiell modell</a></div>}
   {running&&<p role="status"><Activity size={15}/>{progress||'Bearbetar frågan…'} <button type="button" className="secondary" onClick={()=>{abort.current?.abort();setProgress('Avbrytning begärd');}}>Avbryt arbete</button></p>}
+  {sourceNotice&&<p className="info-note" role="status">{sourceNotice}</p>}
   {error&&<p className="error-banner" role="alert"><AlertTriangle size={15}/>{error}</p>}
   {corpus&&<p className="nh-source-caption">{corpus.docs.length} dokument · {corpus.semanticReady}/{corpus.semanticTotal} embeddingfönster · {corpus.incomplete?'Delvis klart':'Komplett'} · {corpus.unsupportedFiles?corpus.unsupportedFiles+' PDF/DOCX utan textextraktion · ':''}Commit {corpus.commit.slice(0,12)}</p>}
   <label className="field">Dokumentomfång<select value={scope} onChange={e=>setScope(e.target.value)}><option value="all">Alla idéer och forskningsrapporter</option>{corpus?.docs.map(d=><option key={d.path} value={d.path}>{d.title.slice(0,70)} ({d.kind})</option>)}</select></label>

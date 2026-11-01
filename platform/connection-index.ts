@@ -1,5 +1,5 @@
 import {replicaReader} from './mirror-access';
-import {durableGet,durableSet} from './local-store';
+import {derivedGet as durableGet,derivedSet as durableSet} from './derived-cache';
 import {connectionNodes,connectionEdges,contentCandidate,extractReferences} from '@/lib/connections.mjs';
 
 const pause=()=>new Promise(resolve=>setTimeout(resolve,0));
@@ -18,7 +18,7 @@ export async function buildConnectionIndex(documents:any[],signal:AbortSignal,pr
  for(const n of readable){
   if(signal.aborted)throw new DOMException('Avbruten','AbortError');
   try{
-   const fileMeta=files.find(f=>f.path===n.path),cacheKey='connections:extract:v3:'+fileMeta.sha+':'+n.path;let p=await durableGet<any>(cacheKey);
+   const fileMeta=files.find(f=>f.path===n.path),cacheKey='connections:extract:v4:'+fileMeta.sha+':'+n.path;let p=await durableGet<any>(cacheKey);
    if(!p){const file=await replicaReader.file('databas',n.path);if(!file||file.commit!==commit)throw Error('Kopian kunde inte verifieras.');const raw=new TextDecoder('utf-8',{fatal:true}).decode(file.bytes);let body=raw,record:any=null;
     if(n.path.endsWith('.json')){const data=JSON.parse(raw);record=data.record||data;body=[record.text,record.body,record.content,JSON.stringify({...record,text:undefined,body:undefined,content:undefined})].filter(x=>typeof x==='string').join('\n');}
     const refs=extractReferences(body,n.path);const sourceIds=new Set<string>();

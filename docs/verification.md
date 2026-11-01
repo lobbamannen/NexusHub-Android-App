@@ -130,3 +130,7 @@ Actions-körning 16 har byggt signerad release-APK, kört Android lint och verif
 - APK: https://github.com/lobbamannen/NexusHub-Android-App/releases/download/app-v1.0.16/nexus-hub-app.apk (2578612 bytes).
 - `Ideer/README.md` och `Ideer/schema.json` i Databas återlästa och verifierade. Github-Databas 1.0.7 publicerad och synkad till pluginrepot med återlästa källfiler.
 - Installera ovanpå befintlig app; telefonverifiering av denna version återstår till Robins normala användning.
+
+## Idé 35 – kompletterad eftergranskning 2026-11-01
+
+Aktuell beslutsmatris och evidens finns i [idea-35-completion.md](idea-35-completion.md). Den ersätter tidigare allmänna bedömningar av historiska tester: samtliga gällande tester kan nu köras med `npm run test:current`, och undantagna Site-referenser har individuella beslut. Senaste designkontroll verifierar 36 originalhashar och redovisar 6 undantag separat. Äldre siffror och versionslänkar ovan beskriver sina respektive historiska körningar. Fysisk telefonverifiering av denna komplettering är inte utförd.

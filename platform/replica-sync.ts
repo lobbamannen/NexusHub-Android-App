@@ -104,6 +104,15 @@ async function cycle(force=false){
    // silently treating an unpublished snapshot as complete.
    await durableSet('replica-published:v1:'+repo,{commit:snapshot.commit,fetchedAt:snapshot.fetchedAt,files});
    await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:progress.checkedAt});
+   // A corruption request for a superseded blob cannot be satisfied by the new
+   // head's download plan. Retire that request only after publication succeeds.
+   // Keep all immutable versions and bytes: readers already pinned to the former
+   // manifest still own those originals, and may issue a fresh repair request.
+   const currentVersions=new Set(files.map(file=>file.path+'\0'+file.sha));
+   for(const [key,record] of repairs){
+    if(!currentVersions.has(record.path+'\0'+record.sha))await durableDelete(key);
+   }
+
    await durableSet('replica-errors:v1:'+repo,{});
    // Retire stale failures from the former 20-file worker after successful copying.
    await db().batch(['mirror_error:','mirror_file_errors:'].map(prefix=>db().prepare('DELETE FROM settings WHERE key=?').bind(prefix+repo)));

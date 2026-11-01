@@ -359,7 +359,15 @@ jobs:
       # compiled Android app. Keep this focused; don't restore the old broad CI.
       - name: Verify native intake with Robolectric (audit PR only)
         if: github.event_name == 'pull_request'
-        run: gradle --build-cache --no-daemon -PskipWebBuild=true -PusePrebuiltNative=true :app:testDebugUnitTest --tests 'se.lobbamannen.nexushub.app.BackgroundIntakeTest'
+        run: gradle --build-cache --no-daemon -PskipWebBuild=true -PusePrebuiltNative=true :app:testDebugUnitTest --tests 'se.lobbamannen.nexushub.app.BackgroundIntakeTest' --tests 'se.lobbamannen.nexushub.app.IncomingShareStoreTest' --tests 'se.lobbamannen.nexushub.app.ModelRunCoordinatorTest' --tests 'se.lobbamannen.nexushub.app.ChatContextBudgetTest'
+      - name: Preserve focused Android test results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: idea35-native-test-results
+          path: app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
+          retention-days: 14
       # The cold build has now produced a real APK. Extract its actual native
       # payload into a persistent cache for subsequent builds (Cortex approach).
       - name: Verify native model and accelerator libraries in APK

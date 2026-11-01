@@ -32,8 +32,22 @@ test('series Vill se writer accepts only a fixed canonical GitHub path with vers
  assert.equal(result.sha,expectedHash);
  assert.equal(writes,1);
  await assert.rejects(c.writeSeriesRegister('../bad',content),/Ogiltig version/);
- await assert.rejects(c.writeSeriesRegister(expectedSha,'x'.repeat(900001)),/för stort serieregister/);
  assert.equal(writes,1);
  const cOther=githubClient('token',async()=>{throw Error('should never call');},'lobbamannen/ChatGPT-Plugin');
  await assert.rejects(cOther.writeSeriesRegister(expectedSha,content),/bara skrivas i Databas/);
+});
+
+test('series writer preserves a large register without the removed legacy 900000-character cap',async()=>{
+ const content=JSON.stringify({schemaVersion:1,series:[],note:'x'.repeat(900001)});
+ const bytes=new TextEncoder().encode(content),hash=await gitBlobSha(bytes);
+ let writes=0;
+ const c=githubClient('test',async(_url,options)=>{
+  writes++;
+  const sent=Buffer.from(JSON.parse(options.body).content,'base64');
+  assert.equal(sent.length,bytes.length);
+  assert.equal(await gitBlobSha(sent),hash);
+  return Response.json({content:{sha:hash},commit:{sha:'b'.repeat(40)}});
+ });
+ assert.equal((await c.writeSeriesRegister('a'.repeat(40),content)).sha,hash);
+ assert.equal(writes,1);
 });

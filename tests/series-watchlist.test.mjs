@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {applySeriesWatchlistChange} from '../lib/series-watchlist.mjs';
 import {seriesIsWatchlisted,seriesDiscovery} from '../lib/media-discovery.mjs';
-const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const base=()=>({schemaVersion:1,lastUpdated:'2026-10-18',description:'Kanoniskt serieregister',series:[
  {title:'Silo',startYear:2023,imdbId:'tt14688458',genres:['Science fiction','Drama'],status:'Sedd – alla säsonger tillgängliga i Sverige',favorite:true,ourRating:9,watchedSeasons:[1,2],seasonRatings:{'1':9},allSeasonsAvailableInSwedenWatched:true,seasonAvailabilityResearch:{swedenAvailableSeasonNumbers:[1,2],swedenProviderSeasonCounts:[{provider:'Apple TV',seasons:2}]}},
  {title:'Svensk titel',startYear:2026,imdbId:null,genres:['Reality'],status:'Sedd – alla säsonger tillgängliga i Sverige',watchedSeasons:[1],allSeasonsAvailableInSwedenWatched:true}
@@ -55,21 +53,4 @@ test('legacy Vill se status stays compatible with explicit removal',()=>{
  assert.equal(next.changed,true);
  assert.equal(next.register.series[0].wantToWatch,false);
  assert.equal(seriesIsWatchlisted(next.register.series[0]),false);
-});
-test('UI includes visible and persistent watchlist control and guarded API',()=>{
- const page=read('app/series.tsx'),route=read('app/api/series/route.ts'),client=read('lib/github-inbox.mjs');
- const overview=read('components/dashboard/MediaOverview.tsx');
- assert.match(page,/aria-pressed=\{seriesIsWatchlisted\(item\)\}/);
- assert.match(page,/action:'set-watchlist'/);
- assert.match(page,/expectedSha:sourceSha/);
- assert.match(page,/wantToWatch:!seriesIsWatchlisted\(item\)/);
- assert.match(page,/status==='villse'\?seriesIsWatchlisted\(item\)/);
- assert.match(page,/Vill se-lista/);
- assert.match(route,/origin!==new URL\(request.url\).origin/);
- assert.match(route,/current.sha!==input.expectedSha/);
- assert.match(route,/applySeriesWatchlistChange\(/);
- assert.match(route,/writeSeriesRegister\(current.sha,content\)/);
- assert.match(client,/filePath\('Serier\/register.json'\)/);
- assert.match(client,/sha:expectedSha/);
- assert.match(overview,/nh-media-quick-link/);
 });

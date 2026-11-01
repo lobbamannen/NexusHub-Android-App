@@ -553,8 +553,9 @@ class MainActivity : Activity() {
             val uri=if(resultCode==RESULT_OK)data?.data else null
             if(uri!=null)io.execute {
                 try {
-                    GemmaRuntime.get(applicationContext).unload()
-                    EmbeddingGemmaRuntime.get(applicationContext).importModel(uri)
+                    ModelRunCoordinator.exclusive("embedding-import") {
+                        EmbeddingGemmaRuntime.get(applicationContext).importModel(uri)
+                    }
                     notifyUser("EmbeddingGemma 2 installerad och testad.")
                 }catch(e:Exception) {
                     notifyUser("EmbeddingGemma 2: "+(e.message?:"Importfel").take(220))

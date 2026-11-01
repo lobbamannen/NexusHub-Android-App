@@ -24,7 +24,7 @@ import * as posters from '@/app/api/posters/route';
 import * as economy from '@/app/api/economy/route';
 import * as fallback from '@/app/api/[[...path]]/route';
 import { initializeStorage, durableGet, durableSet, durableDelete,durableEntries } from './local-store';
-import { configureOutbox, enqueueMutation, isQueuedMutation, noteGithubFailure } from './outbox';
+import { configureOutbox, enqueueMutation, isQueuedMutation, noteGithubFailure, affectedReadResources } from './outbox';
 import { replicaReader } from './mirror-access';
 import { github } from '@/lib/github';
 import { createMirrorWriteBarrier } from '@/lib/mirror-write-barrier.mjs';
@@ -40,7 +40,7 @@ const routes: Record<string, Route> = {
   '/api/story-register': stories, '/api/story-status': storyStatus,
   '/api/document-bookmarks': bookmarks, '/api/posters': posters, '/api/economy': economy,
 };
-interface CachedResponse { body: ArrayBuffer; status: number; headers: [string, string][]; savedAt: string; repositorySavedAt?: Record<string, string> }
+interface CachedResponse { body: ArrayBuffer; status: number; headers: [string, string][]; savedAt: string; confirmedThrough?: number; repositorySavedAt?: Record<string, string> }
 const cacheable = (request: Request) => request.method === 'GET' && /^\/api\/(media-additions|calendar|series-watch-settings|watch-history|daily-activity|todos|idea-files|idea-plans|ideas|films|series|story-register|story-status|document-bookmarks|economy|github\/browse|portal\/(overview|document))(?:\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search);
 async function dispatch(request: Request): Promise<Response> {
   await initializeStorage();
@@ -57,14 +57,38 @@ function readCacheKey(request: Request) {
   url.searchParams.sort();
   return 'api-read:v1:' + url.pathname + url.search;
 }
+async function invalidateReadResource(path:string){
+  for(const [key] of await durableEntries('api-read:v1:'+path)){
+    if(key==='api-read:v1:'+path||key.startsWith('api-read:v1:'+path+'?'))await durableDelete(key);
+  }
+}
 function signalStale(path: string, savedAt: string | null, repositories?: string[]) {
   window.dispatchEvent(new CustomEvent('nexus-offline-read', { detail: { path, savedAt, repositories } }));
 }
 let apiEpoch=0;
 const commitReadCache=cacheCommitter(()=>apiEpoch);
 const writeBarrier=createMirrorWriteBarrier();
+const unresolvedReceiptPaths=new Set<string>();
+const resourceSequences=new Map<string,number>();
+const resourceReceipts=new Map<string,any>();
+function newerReceipt(candidate:any,previous:any){
+  if(!candidate)return false;
+  if(!previous)return true;
+  if(candidate.sequence!==undefined)return previous.sequence===undefined||candidate.sequence>previous.sequence;
+  return previous.sequence===undefined&&String(candidate.completedAt)>String(previous.completedAt);
+}
+function cacheAfterReceipt(cached:CachedResponse|undefined,receipt:any){
+  if(!cached)return false;
+  return receipt.sequence!==undefined?(cached.confirmedThrough||0)>=receipt.sequence:Date.parse(cached.savedAt)>Date.parse(receipt.completedAt);
+}
+async function usableReadCache(key:string,path:string){
+  const cached=await durableGet<CachedResponse>(key);
+  const required=resourceSequences.get(path)||0;
+  return cached&&(cached.confirmedThrough||0)>=required?cached:undefined;
+}
 async function dispatchWithCache(request: Request) {
   const epoch=apiEpoch;
+  const confirmedThrough=resourceSequences.get(new URL(request.url).pathname)||0;
   const response = await dispatch(request);
   if(epoch===apiEpoch&&request.method==='GET'&&response.ok){try{await observeSnapshot(new URL(request.url).pathname,await response.clone().json());}catch{/* History failure never converts a successful read into a failure. */}}
   if (!cacheable(request)) return response;
@@ -76,7 +100,7 @@ async function dispatchWithCache(request: Request) {
       const fresh = await response.clone().json();
       const repositories = fresh.repositories && typeof fresh.repositories === 'object' ? fresh.repositories : {};
       const missing = ['databas', 'plugins'].filter(repo => !repositories[repo]);
-      const cached = await durableGet<CachedResponse>(key);
+      const cached = await usableReadCache(key,path);
       let previous: any = null;
       if (cached) { try { previous = JSON.parse(new TextDecoder().decode(cached.body)); } catch { /* Ignore incompatible old cache. */ } }
       const merged = { ...repositories };
@@ -105,14 +129,14 @@ async function dispatchWithCache(request: Request) {
       const cachedBody=await result.clone().arrayBuffer();
       if (Object.keys(merged).length) await commitReadCache(epoch,()=>durableSet(key, {
         body: cachedBody, status: result.status,
-        headers: Array.from(result.headers.entries()), savedAt: at, repositorySavedAt,
+        headers: Array.from(result.headers.entries()), savedAt: at, confirmedThrough, repositorySavedAt,
       } satisfies CachedResponse));
       return result;
     }
     if (response.ok) {
-      const body=await response.clone().arrayBuffer();await commitReadCache(epoch,()=>durableSet(key, { body, status: response.status, headers: Array.from(response.headers.entries()), savedAt: new Date().toISOString() } satisfies CachedResponse));
+      const body=await response.clone().arrayBuffer();await commitReadCache(epoch,()=>durableSet(key, { body, status: response.status, headers: Array.from(response.headers.entries()), savedAt: new Date().toISOString(),confirmedThrough } satisfies CachedResponse));
     } else if (response.status >= 500) {
-      const cached = await durableGet<CachedResponse>(key);
+      const cached = await usableReadCache(key,path);
       if (cached) {
         const headers = new Headers(cached.headers);
         const savedAt = cached.repositorySavedAt ? Object.values(cached.repositorySavedAt).sort()[0] || cached.savedAt : cached.savedAt;
@@ -127,7 +151,7 @@ async function dispatchWithCache(request: Request) {
 }
 
 const readUiLocal=localFirstReader({
- get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(await writeBarrier.blockedAsync(url.pathname,current?.commit||null,(expected:string,actual:string)=>github('databas').isAncestor(expected,actual)))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data){try{await observeSnapshot(url.pathname,data);}catch{/* Optional history projection. */}return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
+ get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(unresolvedReceiptPaths.has(url.pathname)||await writeBarrier.blockedAsync(url.pathname,current?.commit||null,(expected:string,actual:string)=>github('databas').isAncestor(expected,actual)))return await usableReadCache(key,url.pathname)||null;const data=await localReadSeed(url.pathname,url.search);if(data){try{await observeSnapshot(url.pathname,data);}catch{/* Optional history projection. */}return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}}catch{/* Missing or damaged local model falls through to last good read. */}return await usableReadCache(key,url.pathname)||null;},
  refresh:(request:Request)=>{telemetry('local_read_fallback',{resource:resourceForPath(new URL(request.url).pathname),outcome:'network'});return dispatchWithCache(request);},
  changed:()=>window.dispatchEvent(new Event('nexus-github-changed')),
  failure:(key:string,at:string)=>signalStale(key,at),
@@ -141,35 +165,72 @@ export function installLocalApi(): void {
   // Reconciliation deliberately bypasses the offline cache: only a current GitHub
   // response can prove that an interrupted write actually committed.
   // Recover confirmed writes even if the WebView was terminated after GitHub accepted them.
-  void durableEntries<any>('outbox-receipt:v1:').then(entries=>{
-    // Rehydrate only the newest confirmed revision per resource. UUID sort order
-    // is not commit order and must not resurrect an older write barrier.
-    const newest=new Map<string,{commit:string;completedAt:string}>();
+  let startupError: unknown;
+  const restored = (async()=>{
+    await initializeStorage();
+    const entries=await durableEntries<any>('outbox-receipt:v1:');
+    const newest=new Map<string,any>();
     for(const [,receipt] of entries) {
-      if(!receipt?.path||!/^[a-f0-9]{40}$/.test(receipt.commit||''))continue;
-      const old=newest.get(receipt.path);
-      if(!old||String(old.completedAt)<String(receipt.completedAt))
-        newest.set(receipt.path,receipt);
+      if(typeof receipt?.path!=='string')continue;
+      // Legacy media receipts did not retain kind; fence both projections.
+      const resources=Array.isArray(receipt.affectedResources)?receipt.affectedResources:
+        affectedReadResources({path:receipt.path,body:{kind:'json',text:'{}'}});
+      for(const path of resources){
+        const old=newest.get(path);
+        if(newerReceipt(receipt,old))newest.set(path,receipt);
+      }
     }
-    for(const [path,receipt] of newest)writeBarrier.record(path,receipt.commit);
-  }).catch(()=>{});
+    for(const [path,receipt] of newest){
+      resourceReceipts.set(path,receipt);
+      if(receipt.sequence!==undefined)resourceSequences.set(path,receipt.sequence);
+      if(/^[a-f0-9]{40}$/.test(receipt.commit||''))writeBarrier.record(path,receipt.commit);
+      else unresolvedReceiptPaths.add(path);
+      // Drop only reads older than the acknowledgement. Newer verified reads
+      // remain useful offline; a pre-write cache cannot impersonate this write.
+      for(const [key,cached] of await durableEntries<CachedResponse>('api-read:v1:'+path)){
+        if((key==='api-read:v1:'+path||key.startsWith('api-read:v1:'+path+'?'))&&!cacheAfterReceipt(cached,receipt))await durableDelete(key);
+      }
+      if(receipt.response?.body){
+        let data:any;try{data=JSON.parse(receipt.response.body);}catch{continue;}
+        const key=compatibleMutationModel(path,data)?'api-read:v1:'+path:
+          path==='/api/ideas'&&data.saved===true&&typeof data.idea?.id==='string'?'api-read:v1:/api/ideas?id='+encodeURIComponent(data.idea.id):null;
+        if(key){
+          const cached=await durableGet<CachedResponse>(key);
+          if(!cacheAfterReceipt(cached,receipt))await durableSet(key,{
+            body:new TextEncoder().encode(receipt.response.body).buffer,status:200,
+            headers:[['Content-Type','application/json']],savedAt:receipt.completedAt,confirmedThrough:receipt.sequence,
+          } satisfies CachedResponse);
+        }
+      }
+    }
+  })().catch(error=>{startupError=error;});
   configureOutbox(dispatch,async(item,receipt)=>{
     apiEpoch++;
-    const path=new URL(item.path,location.origin).pathname;
-    const paths=[path];
-    if(path==='/api/media-register'&&item.body.kind==='json'){
-      try{const kind=JSON.parse(item.body.text).kind;if(['films','series'].includes(kind))paths.push('/api/'+kind);}catch{}
-    }
+    const paths=receipt.affectedResources||affectedReadResources(item);
+    receipt.affectedResources=paths;
     // For reconciled acknowledgements the route may contain no commit SHA.
     // Read a fresh GitHub head before dropping the durable outbox entry;
     // failure keeps the already-confirmed receipt for a safe local retry.
     const commit=receipt.commit||await github('databas').head();
     if(!/^[a-f0-9]{40}$/.test(commit))throw Error('GitHub-versionen kunde inte bekräftas.');
     receipt.commit=commit;
+    // Resolve and persist the fence before any fallible cache integration.
+    await durableSet('outbox-receipt:v1:'+item.id,receipt);
     for(const target of paths){
+      if(newerReceipt(resourceReceipts.get(target),receipt))continue;
+      resourceReceipts.set(target,receipt);
+      if(receipt.sequence!==undefined)resourceSequences.set(target,receipt.sequence);
+      unresolvedReceiptPaths.delete(target);
       writeBarrier.record(target,commit);
-      for(const [key] of await durableEntries('api-read:v1:'+target)){
-        if(key==='api-read:v1:'+target||key.startsWith('api-read:v1:'+target+'?'))await durableDelete(key);
+      await invalidateReadResource(target);
+      if(receipt.response?.body){
+        const data=JSON.parse(receipt.response.body);
+        const key=compatibleMutationModel(target,data)?'api-read:v1:'+target:
+          target==='/api/ideas'&&data.saved===true&&typeof data.idea?.id==='string'?'api-read:v1:/api/ideas?id='+encodeURIComponent(data.idea.id):null;
+        if(key)await commitReadCache(null,()=>durableSet(key,{
+          body:new TextEncoder().encode(receipt.response!.body).buffer,status:200,
+          headers:[['Content-Type','application/json']],savedAt:receipt.completedAt,confirmedThrough:receipt.sequence,
+        } satisfies CachedResponse));
       }
     }
     // The actual remote confirmation is not lost if the local integration is interrupted.
@@ -180,23 +241,11 @@ export function installLocalApi(): void {
     const url = new URL(raw, location.href);
     if (url.origin === location.origin && url.pathname.startsWith('/api/')) {
       const request = new Request(input instanceof Request ? input : url.href, init);
-      if (request.method === 'DELETE' && url.pathname === '/api/ideas') {
-        apiEpoch++;let id:string;
-        try {id=(await request.clone().json()).id;await commitReadCache(null,async()=>{await durableDelete('api-read:v1:/api/ideas');await durableDelete('api-read:v1:/api/ideas?id='+encodeURIComponent(id));});}
-        catch {return Response.json({error:'Telefonens cache kunde inte uppdateras. Försök igen.'},{status:503});}
-        const response=await dispatchWithCache(request);apiEpoch++;
-        if(response.ok){try{const data=await response.clone().json();if(data.deleted)writeBarrier.record('/api/ideas',data.commit);}catch{}}
-        if(response.ok)await commitReadCache(null,async()=>{await durableDelete('api-read:v1:/api/ideas');await durableDelete('api-read:v1:/api/ideas?id='+encodeURIComponent(id));});
-        return response;
-      }
+      await restored;
+      if(startupError)return Response.json({error:'Telefonens bekräftade sparningar kunde inte återställas. Försök igen när lagringen kan läsas.'},{status:503});
       if(isQueuedMutation(request)){
         apiEpoch++;const response=await enqueueMutation(request);apiEpoch++;
-        if(response.ok){try{const data=await response.clone().json();if(data.saved){const paths=url.pathname==='/api/media-register'?['/api/'+(await request.clone().json()).kind]:[url.pathname];for(const path of paths){writeBarrier.record(path,data.commit);await commitReadCache(null,async()=>{const compatible=compatibleMutationModel(path,data);if(!compatible)await durableDelete('api-read:v1:'+path);else await durableSet('api-read:v1:'+path,{body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString()});});}}}catch{/* Confirmed write is preserved even if cache update fails. */}}
-        return response;
-      }
-      if(request.method==='POST'&&url.pathname==='/api/todos'){
-        const response=await dispatch(request);
-        if(response.ok){try{const data=await response.clone().json();if(data.saved){telemetry('github_write_confirmed',{category:categoryForPath(url.pathname)});writeBarrier.record(url.pathname,data.commit);await durableDelete(readCacheKey(new Request(url.href)));}}catch{/* The remote write remains confirmed. */}}
+
         return response;
       }
       const eligible=cacheable(request)&&!url.pathname.startsWith('/api/portal/document')&&!url.pathname.startsWith('/api/github/');

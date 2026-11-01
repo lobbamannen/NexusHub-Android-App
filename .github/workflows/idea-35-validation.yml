@@ -1,7 +1,7 @@
 name: Verify idea 35 audit regressions
 on:
   push:
-    branches: [fix/idea-35-audit-31]
+    branches: [fix/idea-35-audit-31, fix/idea-35-complete-recovery-20261101]
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,5 +20,9 @@ jobs:
         run: |
           npm run check
           npm run check:design
-          node --test tests/outbox-identity.test.mjs tests/mirror-write-barrier.test.mjs tests/replica-read.test.mjs tests/replica-plan.test.mjs tests/replica-projections.test.mjs tests/replica-sync.test.mjs tests/economy-intelligence.test.mjs tests/connected-library.test.mjs tests/story-cover-posters.test.mjs tests/calendar-view.test.mjs tests/idea-intelligence-regressions.test.mjs tests/incoming-sync.test.mjs
+          npm run test:current
+      - name: Verify actual native streaming helper
+        run: |
+          g++ -std=c++17 -Wall -Wextra -pedantic tests/native/runtime-utils-test.cpp -o /tmp/runtime-utils-test
+          /tmp/runtime-utils-test
       - run: npm run build

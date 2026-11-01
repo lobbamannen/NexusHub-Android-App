@@ -6,13 +6,24 @@ import {durableGet,durableSet,durableEntries,durableDelete} from './local-store'
 import {base64,gitBlobSha} from '@/lib/github-inbox.mjs';
 export type IncomingFile={id:string;name:string;mime:string;blob?:Blob;error?:string;sha?:string};
 export type SharedReceipt={entries:{path:string;sha:string}[];manifestSha:string;commit:string};
-export type Incoming={sourceLabel?:string;id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string;commit?:string;processed?:boolean}>;error?:string;shared?:SharedReceipt;sharedError?:string;deleting?:boolean;localOnly?:boolean;nativeQueued?:boolean;nativeState?:string};
+export type Incoming={sourceLabel?:string;id:string;text:string;createdAt:string;files:IncomingFile[];native?:boolean;destinations?:string[];sent:Record<string,{path:string;sha:string;commit?:string;processed?:boolean}>;error?:string;shared?:SharedReceipt;sharedError?:string;deleting?:boolean;localOnly?:boolean;nativeQueued?:boolean;nativeState?:string;nativeImportError?:string};
 const bridge=()=>window.Android as any;
 export async function incomingItems():Promise<Incoming[]>{
  const saved=new Map((await durableEntries<Incoming>('incoming:v1:')).map(([,item])=>[item.id,item]));
  const removed=new Set((await durableEntries('incoming-removed:v1:')).map(([key])=>key.slice('incoming-removed:v1:'.length)));
  const native=JSON.parse(bridge()?.listIncoming?.()||'[]');
- for(const item of native)if(!saved.has(item.id)&&!removed.has(item.id))saved.set(item.id,{...item,native:true,sent:{}});
+ const jobs=new Map(backgroundIncomingJobs().map(job=>[job.id,job]));
+ for(const item of native){
+  if(removed.has(item.id))continue;
+  const old=saved.get(item.id);if(old&&!old.native)continue;
+  const job=jobs.get(item.id);
+  // A staged native job supersedes package staging errors. Other upload errors
+  // and verified receipts still belong to their own operation and must survive.
+  const nativeImportError=!old?.shared&&!job&&typeof item.importError==='string'?item.importError:'';
+  const previousError=old?.nativeImportError&&old.sharedError===old.nativeImportError?'':old?.sharedError;
+  saved.set(item.id,{...item,...old,native:true,sent:old?.sent||{},nativeImportError,
+   sharedError:job?.error||nativeImportError||previousError||''});
+ }
  return [...saved.values()].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 }
 export async function saveIncoming(files:File[],text='',destinations?:string[],sourceLabel?:string):Promise<Incoming>{

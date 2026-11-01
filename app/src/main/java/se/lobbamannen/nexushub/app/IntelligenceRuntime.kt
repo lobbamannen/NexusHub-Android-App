@@ -164,6 +164,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
         check(LlamaNative.isLoaded) { "Native llama.cpp saknas i APK:n" }
         processing=true
         try {
+            ModelRunCoordinator.checkpoint()
             val p=config()
             val signature=GemmaConfig.engineSignature(p,prefs.getString("sha256","").orEmpty())
             val warmAtStart=loadedSignature==signature && LlamaNative.isEngineInitialized()
@@ -171,9 +172,9 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             if(!warmAtStart) {
                 val importedHash=prefs.getString("sha256","").orEmpty()
                 require(Regex("[a-f0-9]{64}").matches(importedHash)) { "Importen saknar giltig SHA-256-identitet." }
-                check(GgufInspector.sha256(model)==importedHash) { "Modellens bytes avviker från verifierad import. Importera igen." }
+                check(GgufInspector.sha256(model) { ModelRunCoordinator.checkpoint() }==importedHash) { "Modellens bytes avviker från verifierad import. Importera igen." }
                 if(LlamaNative.isEngineInitialized()) LlamaNative.releaseEngine()
-                LlamaNative.resetStop()
+                ModelRunCoordinator.resetStop { LlamaNative.resetStop() }
                 val nativeDir=app.applicationInfo.nativeLibraryDir
                 LlamaNative.configureAcceleratorEnvironment(nativeDir)
                 LlamaNative.setNativeLibraryDir(nativeDir)
@@ -181,11 +182,13 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                 LlamaNative.resetHtpExecutionAudit(p.getBoolean("audit"))
                 val backend=p.getString("backend")
                 val gpu=if(backend=="CPU")0 else if(backend=="NPU_HEXAGON")0 else p.getInt("gpuLayers")
+                ModelRunCoordinator.checkpoint()
                 val ok=LlamaNative.initEngineExt(model.absolutePath,p.getInt("contextSize"),
                     p.getInt("threads"),p.getInt("batchThreads"),false,p.getBoolean("q8Kv"),
                     p.getBoolean("flashAttention"),gpu,p.getInt("batch"),
                     p.getInt("microbatch"),p.getBoolean("mlock"),
                     backend=="NPU_HEXAGON" || backend=="AUTO",p.getBoolean("audit"))
+                ModelRunCoordinator.checkpoint()
                 check(ok) { LlamaNative.getLastErrorMsg().ifBlank { "Kunde inte ladda modellen." } }
                 val initialized=JSONObject(LlamaNative.getLatestTelemetryJson())
                 val appliedContext=initialized.optInt("active_ctx_size",-1)
@@ -214,24 +217,28 @@ class IntelligenceRuntime private constructor(private val app: Context) {
                 }
             }
             verifyBackend(JSONObject(LlamaNative.getLatestTelemetryJson()))
-            LlamaNative.resetStop()
+            ModelRunCoordinator.resetStop { LlamaNative.resetStop() }
             LlamaNative.resetTurnTelemetry()
             // Independent audit for every turn, including warm-engine inferencing.
             LlamaNative.resetHtpExecutionAudit(p.getBoolean("audit"))
-            val formatted=LlamaNative.applyChatTemplateExt(roles.toTypedArray(),contents.toTypedArray(),
-                true,p.getBoolean("thinking"))
-                ?.takeIf { it.isNotBlank() } ?: error("Modellens chattemplate kunde inte användas.")
             val requested=maxTokens ?: p.getInt("maxOutputTokens")
             require(requested in 16..p.getInt("maxOutputTokens"))
-            val promptTokens=LlamaNative.countTokens(formatted)
-            require(promptTokens>0 && promptTokens+requested+16<=p.getInt("contextSize")) {
-                "Prompt och reserverad utdata överskrider kontexten."
+            val fitted=ChatContextBudget.fit(roles,contents,requested,p.getInt("contextSize")) { keptRoles,keptContents ->
+                ModelRunCoordinator.checkpoint()
+                val text=LlamaNative.applyChatTemplateExt(keptRoles.toTypedArray(),keptContents.toTypedArray(),
+                    true,p.getBoolean("thinking"))
+                    ?.takeIf { it.isNotBlank() } ?: error("Modellens chattemplate kunde inte användas.")
+                text to LlamaNative.countTokens(text)
             }
+            val formatted=fitted.text
+            val promptTokens=fitted.tokens
             val parser=GemmaStreamParser({})
+            ModelRunCoordinator.checkpoint()
             LlamaNative.generateCompletionExt(formatted,TokenCallback { token->parser.feed(token) },
                 requested,p.getDouble("temperature").toFloat(),p.getDouble("topP").toFloat(),
                 p.getInt("topK"),p.getDouble("minP").toFloat(),
                 p.getDouble("repeatPenalty").toFloat(),p.getLong("seed"))
+            ModelRunCoordinator.checkpoint()
             parser.flush()
             val telemetry=JSONObject(LlamaNative.getLatestTelemetryJson())
             val actual=telemetry.optString("backend_active")
@@ -244,6 +251,7 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             check(reason !in setOf("error","cancelled","in_progress")) { "Generering avslutades inte normalt: $reason" }
             val result=JSONObject().put("text",parser.finalAnswer())
                 .put("finishReason",reason).put("promptTokens",promptTokens)
+                .put("omittedHistoryTurns",fitted.omittedHistoryTurns)
                 .put("backend",actual).put("requestedBackend",p.getString("backend"))
                 .put("fallbackOccurred",fallback)
                 .put("fallbackReason",telemetry.optString("fallback_reason",""))

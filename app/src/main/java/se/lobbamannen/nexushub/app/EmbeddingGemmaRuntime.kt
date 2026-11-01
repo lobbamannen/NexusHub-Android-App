@@ -110,92 +110,98 @@ class EmbeddingGemmaRuntime private constructor(private val context: Context) {
     }
 
     /** SAF import is verified by real document AND query inference before promotion. */
-    fun importModel(uri: Uri): JSONObject = synchronized(lock) {
-        check(!processing && !importing) { "Modellmotorn arbetar redan." }
-        importing = true
-        progress = 0L
-        val pending = File(dir, ".pending-${System.nanoTime()}.litertlm")
-        try {
-            val name = context.contentResolver.query(
-                uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
-            )?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "embeddinggemma2.litertlm"
-            require(name.endsWith(".litertlm", true)) { "Välj EmbeddingGemma 2 text 270M i .litertlm-format." }
-            check(StatFs(dir.absolutePath).availableBytes > 350L * 1024 * 1024) { "Otillräckligt ledigt utrymme." }
-            context.contentResolver.openInputStream(uri)?.use { source ->
-                FileOutputStream(pending).use { output ->
-                    val block = ByteArray(128 * 1024)
-                    while (true) {
-                        val n = source.read(block)
-                        if (n < 0) break
-                        if (n > 0) {
-                            output.write(block, 0, n)
-                            progress += n
-                            check(progress <= 500L * 1024 * 1024) { "Modellfilen är för stor." }
+    fun importModel(uri: Uri): JSONObject = ModelRunCoordinator.exclusive("embedding-import") {
+        GemmaRuntime.get(context).unload()
+        synchronized(lock) {
+            check(!processing && !importing) { "Modellmotorn arbetar redan." }
+            importing = true
+            progress = 0L
+            val pending = File(dir, ".pending-${System.nanoTime()}.litertlm")
+            try {
+                val name = context.contentResolver.query(
+                    uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
+                )?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "embeddinggemma2.litertlm"
+                require(name.endsWith(".litertlm", true)) { "Välj EmbeddingGemma 2 text 270M i .litertlm-format." }
+                check(StatFs(dir.absolutePath).availableBytes > 350L * 1024 * 1024) { "Otillräckligt ledigt utrymme." }
+                context.contentResolver.openInputStream(uri)?.use { source ->
+                    FileOutputStream(pending).use { output ->
+                        val block = ByteArray(128 * 1024)
+                        while (true) {
+                            val n = source.read(block)
+                            if (n < 0) break
+                            if (n > 0) {
+                                output.write(block, 0, n)
+                                progress += n
+                                check(progress <= 500L * 1024 * 1024) { "Modellfilen är för stor." }
+                            }
                         }
+                        output.fd.sync()
                     }
-                    output.fd.sync()
+                } ?: error("Kan inte läsa vald modell.")
+                check(progress >= 50L * 1024 * 1024) { "Ofullständig modellfil." }
+                val digest = sha256(pending)
+                engine(pending.absolutePath).use { test ->
+                    test.initialize()
+                    check(embedding(test, "task: search result | query: programmering").size == 256)
+                    check(embedding(test, "title: test | text: En teknisk rapport om programmering.").size == 256)
                 }
-            } ?: error("Kan inte läsa vald modell.")
-            check(progress >= 50L * 1024 * 1024) { "Ofullständig modellfil." }
-            val digest = sha256(pending)
-            engine(pending.absolutePath).use { test ->
-                test.initialize()
-                check(embedding(test, "task: search result | query: programmering").size == 256)
-                check(embedding(test, "title: test | text: En teknisk rapport om programmering.").size == 256)
+                // The current verified model is not modified until the new one is runnable.
+                verifiedFile = null
+                Os.rename(pending.absolutePath, file.absolutePath)
+                check(prefs.edit().putString("sha256", digest).putString("name", name).commit())
+                status()
+            } finally {
+                pending.delete()
+                importing = false
             }
-            // The current verified model is not modified until the new one is runnable.
-            verifiedFile = null
-            Os.rename(pending.absolutePath, file.absolutePath)
-            check(prefs.edit().putString("sha256", digest).putString("name", name).commit())
-            status()
-        } finally {
-            pending.delete()
-            importing = false
         }
     }
 
     /** Each request is bounded and immediately releases memory before Gemma 4 runs. */
-    fun embed(payload: JSONObject): JSONObject = synchronized(lock) {
-        check(!importing && !processing) { "EmbeddingGemma arbetar redan." }
-        check(file.isFile && file.length() > 50L * 1024 * 1024) { "Importera EmbeddingGemma 2 först." }
-        val hash = prefs.getString("sha256", "") ?: ""
-        verifiedModelHash(hash)
-        val items = payload.getJSONArray("items")
-        require(items.length() in 1..8) { "Högst åtta textfönster per anrop." }
-        processing = true
-        try {
-            val started = android.os.SystemClock.elapsedRealtime()
-            val vectors = JSONArray()
-            engine(file.absolutePath).use { e ->
-                e.initialize()
-                for (i in 0 until items.length()) {
-                    val item = items.getJSONObject(i)
-                    val id = item.getString("id")
-                    val text = item.getString("text").trim()
-                    val task = item.getString("task")
-                    require(id.length in 1..1024 && text.length in 1..3500 && task in listOf("query", "document")) {
-                        "Felaktig eller för lång embeddingindata."
+    fun embed(payload: JSONObject): JSONObject = ModelRunCoordinator.exclusive("embedding") {
+        GemmaRuntime.get(context).unload()
+        synchronized(lock) {
+            check(!importing && !processing) { "EmbeddingGemma arbetar redan." }
+            check(file.isFile && file.length() > 50L * 1024 * 1024) { "Importera EmbeddingGemma 2 först." }
+            val hash = prefs.getString("sha256", "") ?: ""
+            verifiedModelHash(hash)
+            val items = payload.getJSONArray("items")
+            require(items.length() in 1..8) { "Högst åtta textfönster per anrop." }
+            processing = true
+            try {
+                val started = android.os.SystemClock.elapsedRealtime()
+                val vectors = JSONArray()
+                engine(file.absolutePath).use { e ->
+                    e.initialize()
+                    for (i in 0 until items.length()) {
+                        val item = items.getJSONObject(i)
+                        val id = item.getString("id")
+                        val text = item.getString("text").trim()
+                        val task = item.getString("task")
+                        require(id.length in 1..1024 && text.length in 1..3500 && task in listOf("query", "document")) {
+                            "Felaktig eller för lång embeddingindata."
+                        }
+                        val formatted = if (task == "query") {
+                            "task: search result | query: $text"
+                        } else {
+                            val title = item.optString("title", "none").replace('|', ' ').replace('\n', ' ').take(120).ifBlank { "none" }
+                            "title: $title | text: $text"
+                        }
+                        val startedItem = android.os.SystemClock.elapsedRealtime()
+                        val values = embedding(e, formatted)
+                        val floats = JSONArray()
+                        values.forEach { floats.put(it.toDouble()) }
+                        vectors.put(JSONObject().put("id", id).put("values", floats)
+                            .put("durationMs", android.os.SystemClock.elapsedRealtime() - startedItem))
                     }
-                    val formatted = if (task == "query") {
-                        "task: search result | query: $text"
-                    } else {
-                        val title = item.optString("title", "none").replace('|', ' ').replace('\n', ' ').take(120).ifBlank { "none" }
-                        "title: $title | text: $text"
-                    }
-                    val startedItem = android.os.SystemClock.elapsedRealtime()
-                    val values = embedding(e, formatted)
-                    val floats = JSONArray()
-                    values.forEach { floats.put(it.toDouble()) }
-                    vectors.put(JSONObject().put("id", id).put("values", floats)
-                        .put("durationMs", android.os.SystemClock.elapsedRealtime() - startedItem))
                 }
+                JSONObject().put("vectors", vectors)
+                    .put("modelSha256", hash)
+                    .put("profileVersion", PROFILE_VERSION)
+                    .put("totalMs", android.os.SystemClock.elapsedRealtime() - started)
+            } finally {
+                processing = false
             }
-            JSONObject().put("vectors", vectors)
-                .put("modelSha256", hash)
-                .put("profileVersion", PROFILE_VERSION)
-                .put("totalMs", android.os.SystemClock.elapsedRealtime() - started)
-        } finally {
-            processing = false
         }
     }
 }
