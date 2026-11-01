@@ -20,6 +20,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run build
+        if: matrix.surface == 'calendar'
       - run: npm install --no-save --package-lock=false playwright@1.58.2
       - name: Run real browser contracts
         env:

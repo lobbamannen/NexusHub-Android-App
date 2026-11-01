@@ -8,7 +8,7 @@ import {useBackHandler} from '@/components/NativeBackBridge';
 
 type Message={id:string;role:'user'|'assistant';content:string;at:string};
 type ModelStatus={imported?:boolean;importing?:boolean;processing?:boolean;fileBytes?:number;filename?:string;copyBytes?:number;copyTotal?:number;warm?:boolean;config?:Record<string,any>;lastTelemetry?:Record<string,any>;error?:string};
-type Reply={requestId:string;ok:boolean;result?:{text:string;finishReason:string;telemetry?:Record<string,any>};error?:string};
+type Reply={requestId:string;ok:boolean;result?:{text:string;finishReason:string;omittedHistoryTurns?:number;telemetry?:Record<string,any>};error?:string};
 const KEY='nexus_gemma_chat_v1';
 const PENDING='nexus_gemma_pending_v1';
 const options:Record<string,string[]>={contextSize:['1024','2048','4096','8192','16384','32768','65536'],backend:['AUTO','CPU','GPU_OPENCL','NPU_HEXAGON'],q8Kv:['false','true'],flashAttention:['false','true'],mlock:['false','true'],thinking:['false','true'],audit:['false','true'],warmModel:['false','true']};
@@ -61,7 +61,10 @@ export default function NexusIntelligence(){
    if(!reply.result){setError('Inget modellresultat mottogs.');return;}
    if(reply.result.telemetry)setLast(reply.result.telemetry);
    if(!reply.result.text?.trim())setError('Modellen gav inget synligt svar.');
-   if(['length','context_limit'].includes(reply.result.finishReason))setNotice('Modellen nådde sin token- eller kontextgräns. Delsvaret visas.');
+   const notes=[];
+   if((reply.result.omittedHistoryTurns||0)>0)notes.push('Modellens tokenbudget utelämnade '+reply.result.omittedHistoryTurns+' äldre turer ur arbetskontexten. De finns kvar i chatten.');
+   if(['length','context_limit'].includes(reply.result.finishReason))notes.push('Modellen nådde sin token- eller kontextgräns. Delsvaret visas.');
+   if(notes.length)setNotice(notes.join(' '));
   };
   const onResult=(e:Event)=>consume((e as CustomEvent<Reply>).detail);
   const check=()=>{
@@ -84,7 +87,7 @@ export default function NexusIntelligence(){
   try{context=buildGemmaContext(messages,text);}catch(e:any){setError(e.message);return;}
   const payload=context.messages;
   const id=crypto.randomUUID();
-  if(context.omittedTurns)setNotice('Äldre turer utelämnades ur modellkontexten, men finns kvar i chatten.');
+  setNotice(context.omittedTurns?'Äldre turer utelämnades ur modellkontexten, men finns kvar i chatten.':'');
   try{
    const next=[...messages,{id,role:'user' as const,content:text,at:new Date().toISOString()}];
    localStorage.setItem(KEY,JSON.stringify(next.slice(-60)));localStorage.setItem(PENDING,id);

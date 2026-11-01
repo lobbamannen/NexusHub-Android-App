@@ -27,11 +27,11 @@ const button=(view,label)=>view.root.findAllByType('button').find(b=>b.children.
 test('native reply remains recoverable until the transcript is durable, then replay is idempotent',async()=>scenario(async(h,view)=>{
  await act(async()=>view.root.findByType('textarea').props.onChange({target:{value:'question'}}));
  await act(async()=>button(view,' Skicka').props.onClick());
- const reply={requestId:'request-1',ok:true,result:{text:'Saved answer',finishReason:'stop'}};
+ const reply={requestId:'request-1',ok:true,result:{text:'Saved answer',finishReason:'stop',omittedHistoryTurns:2}};
  const deliver=()=>{const e=new Event('nexus-gemma-chat');e.detail=reply;h.window.dispatchEvent(e)};
  h.fail=true;await act(async()=>deliver());assert.equal(h.data.get('nexus_gemma_pending_v1'),'request-1');
  h.fail=false;h.events.length=0;await act(async()=>deliver());
- assert.equal(h.data.has('nexus_gemma_pending_v1'),false);
+ assert.equal(h.data.has('nexus_gemma_pending_v1'),false);assert.ok(JSON.stringify(view.toJSON()).includes('tokenbudget utelämnade 2'));
  assert.ok(h.events.indexOf('set:nexus_gemma_chat_v1')<h.events.indexOf('remove:nexus_gemma_pending_v1'));
  await act(async()=>deliver());assert.equal(JSON.parse(h.data.get('nexus_gemma_chat_v1')).filter(m=>m.id==='reply:request-1').length,1);
 }));

@@ -22,30 +22,30 @@
 
 ### Task 1: Durable write and replica contracts
 Files: platform/outbox.ts, platform/api.ts, lib/replica-projections.mjs, platform/replica-sync.ts, tests receipt/API/replica behavior.
-- [ ] Reproduce incomplete receipt and lost media fence using actual code.
-- [ ] Persist complete validated route response+affected resources; await startup restore; recover old receipts via safe read, never fabricated partial success. Include direct todos/deletion recovery as appropriate without losing response contracts.
-- [ ] Pin Plugins reads; handle obsolete repair markers safely.
-- [ ] Test original repros, lost responses, restart, concurrent publication; commit and review.
+- [x] Reproduce incomplete receipt and lost media fence using actual code.
+- [x] Persist complete validated route response+affected resources; await startup restore; recover old receipts via safe read, never fabricated partial success. Include direct todos/deletion recovery as appropriate without losing response contracts.
+- [x] Pin Plugins reads; handle obsolete repair markers safely.
+- [x] Test original repros, lost responses, restart, concurrent publication; commit and review.
 
 ### Task 2: Native intake and model ownership
 Files: IncomingShareStore.kt, BackgroundIntake*.kt, ModelRunCoordinator.kt, MainActivity.kt, IntelligenceRuntime.kt, runtime-utils.h, llama-android-accelerated.cpp; native tests.
-- [ ] Reproduce stop-prefix, early cancellation, import bypass and incomplete intake metadata.
-- [ ] Hold model ownership across import/test/cleanup; preserve cancellation intent across reset/load; safe release on failure.
-- [ ] Journal receipt before copying, disk budget+partial failure recovery; preserve originals and discover package without final metadata. No helfils Base64.
-- [ ] Flush legitimate final stop-prefix, keep complete markers hidden; test native helpers and intake fault injection; commit/review.
+- [x] Reproduce stop-prefix, early cancellation, import bypass and incomplete intake metadata.
+- [x] Hold model ownership across import/test/cleanup; preserve cancellation intent across reset/load; safe release on failure.
+- [x] Journal receipt before copying, disk budget+partial failure recovery; preserve originals and discover package without final metadata. No helfils Base64.
+- [x] Flush legitimate final stop-prefix, keep complete markers hidden; test native helpers and intake fault injection; commit/review.
 
 ### Task 3: Identity-safe editors and prompt/modal contracts
 Files: ReleaseWatch.tsx, NexusIntelligence.tsx, RetrievalLab.tsx, shared helpers/tests.
-- [ ] Reproduce delayed conflict response across identities, long assistant turn, initial Shift+Tab, actual source-metric mismatch.
-- [ ] Guard every async continuation with identity/generation; pin save target; keep stable draft per identity.
-- [ ] Omit oversized complete history turns and honor actual native context contract without deleting visible history; fix modal focus/back/unsaved-close and evidence diagnostics.
-- [ ] Persist chat acknowledgement only after visible transcript durable; test navigation/recovery; commit/review.
+- [x] Reproduce delayed conflict response across identities, long assistant turn, initial Shift+Tab, actual source-metric mismatch.
+- [x] Guard every async continuation with identity/generation; pin save target; keep stable draft per identity.
+- [x] Omit oversized complete history turns and honor actual native context contract without deleting visible history; fix modal focus/back/unsaved-close and evidence diagnostics.
+- [x] Persist chat acknowledgement only after visible transcript durable; test navigation/recovery; commit/review.
 
 ### Task 4: Paths, caches, tests and delivery completeness
 Files: lib/connections.mjs, UI server scripts/helpers, derived cache namespaces, tests runners/classification, README/docs.
-- [ ] JSON repository paths distinct from Markdown-relative links; test all actual roots and traversal.
-- [ ] Every UI script uses isolated strict-port server+identity and guaranteed cleanup.
-- [ ] Bound only reconstructible inactive derived caches; protect active snapshots. Code splitting remains deferred absent physical measured benefit. Readability changes limited to touched flows.
-- [ ] Classify every old failure with behavior replacement as needed; make current suite runnable without giant assertion; document full31 decisions and test evidence.
-- [ ] Run current suite, typecheck/design/build/Python/native checks, independent final review, publish PR, CI signed APK, merge main then verify release.
+- [x] JSON repository paths distinct from Markdown-relative links; test all actual roots and traversal.
+- [x] Every UI script uses isolated strict-port server+identity and guaranteed cleanup.
+- [x] Bound only reconstructible inactive derived caches; protect active snapshots. Code splitting remains deferred absent physical measured benefit. Readability changes limited to touched flows.
+- [x] Classify every old failure with behavior replacement as needed; make current suite runnable without giant assertion; document full31 decisions and test evidence.
+- [ ] Final delivery: local suite/typecheck/design/build/Python/C++ pass; independent review and PR5 complete. Await signed Android/Robolectric and browser CI, merge main, verify actual release.
 

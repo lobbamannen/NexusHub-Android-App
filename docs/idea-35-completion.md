@@ -49,3 +49,7 @@ Import journalförs före filkopiering. Delvis kopierade original bevaras och vi
 ## Verifieringsstatus
 
 Aktuella lokala och Actions-resultat fylls i efter slutförd verifiering. Inga fysiska Samsung-, Androids lagringstrycks-, processdöds- eller NPU-prestandaprov har utförts i denna körmiljö. De kvarstår även om kompilering och simulerade felprov passerar.
+
+## Ytterligare upptäckt under slutkontrollen
+
+`npm audit` flaggade Vite 6.4.3:s utvecklingsserver. Vite är uppdaterad inom samma patchserie till exakt 6.4.5, med uppdaterad lockfil. Efterkontrollen rapporterar noll kända npm-sårbarheter. Bakgrund: [Vites release](https://github.com/vitejs/vite/releases/tag/v6.4.5) och [leverantörens säkerhetsrapport](https://github.com/vitejs/launch-editor/security/advisories/GHSA-587h-7wmj-h5pm). Detta innebär inte att appen har säkerhetscertifierats.
