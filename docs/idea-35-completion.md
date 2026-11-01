@@ -48,7 +48,17 @@ Import journalförs före filkopiering. Delvis kopierade original bevaras och vi
 
 ## Verifieringsstatus
 
-Aktuella lokala och Actions-resultat fylls i efter slutförd verifiering. Inga fysiska Samsung-, Androids lagringstrycks-, processdöds- eller NPU-prestandaprov har utförts i denna körmiljö. De kvarstår även om kompilering och simulerade felprov passerar.
+Slutkontroll 2026-11-01:
+
+- Alla 346 gällande Node-tester passerar; inga hoppade över och inga väntande.
+- TypeScript, produktionsbygget, 36 designhashar, fyra Python-tester för native-cache samt den kompilerade C++-streaminghjälparen passerar.
+- `npm audit`: noll kända sårbarheter efter patchuppdateringen till Vite 6.4.5.
+- [Separat regressionskontroll](https://github.com/lobbamannen/NexusHub-Android-App/actions/runs/41318682488): godkänd.
+- [Åtta verkliga browserkontroller](https://github.com/lobbamannen/NexusHub-Android-App/actions/runs/41318682577): godkända för aktivitet, kalender, kopplingar, inklistring, puls, scroll, väder och Gemma-dialog. Dialogens bild vid 412 px har också granskats visuellt.
+- Oberoende kodgranskning av lagring, cache/sökvägar, UI och native: rapporterade brister åtgärdade och regressionstestade. Slutgranskningen körde ytterligare 51 riktade testfall och C++-hjälparen.
+- [Signerad APK och fokuserade Android-tester](https://github.com/lobbamannen/NexusHub-Android-App/actions/runs/41319103754): godkänd. Samtliga 31 fokuserade Android-tester passerar, inklusive noll utrymme följt av lyckad staging med bevarade bytes. APK-signatur, native-paketering och ZIP-checksummor verifieras av körningen.
+
+ Inga fysiska Samsung-, Androids lagringstrycks-, processdöds- eller NPU-prestandaprov har utförts i denna körmiljö. De kvarstår även om kompilering och simulerade felprov passerar.
 
 ## Ytterligare upptäckt under slutkontrollen
 

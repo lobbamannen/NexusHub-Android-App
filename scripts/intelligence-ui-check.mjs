@@ -8,7 +8,7 @@ try{
  for(const width of [320,412,1000]){
   const page=await browser.newPage({viewport:{width,height:915}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(server.url);const trigger=page.getByRole('button',{name:'Inställningar',exact:true});await trigger.click();
-  const dialog=page.getByRole('dialog',{name:'Globala Gemma-inställningar'});await dialog.waitFor();
+  const dialog=page.getByRole('dialog',{name:'Globala Gemma-inställningar'});await dialog.waitFor();assert.equal(await page.getByRole('dialog').count(),1,'one labelled native dialog, without nested dialog roles');
   assert.equal(await page.locator('dialog').evaluate(el=>el.matches(':modal')),true);
   const first=dialog.locator('input,select,button').first();await first.evaluate(el=>el.focus());
   await page.keyboard.press('Shift+Tab');assert.equal(await dialog.getByRole('button',{name:'Stäng',exact:true}).evaluate(el=>el===document.activeElement),true);

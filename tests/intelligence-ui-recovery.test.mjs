@@ -17,7 +17,7 @@ function harness(){
  },{window,document,localStorage:storage,crypto:{randomUUID:()=> 'request-1'}});
  const nodeMock=element=>{
   if(element.type==='dialog')return {showModal(){opened++},close(){closed++}};
-  if(element.props.role==='dialog')return {querySelector:()=>controls[0],querySelectorAll:()=>controls,focus(){focused='container'}};
+  if(element.props.className==='panel nh-int-modal')return {querySelector:()=>controls[0],querySelectorAll:()=>controls,focus(){focused='container'}};
   return {focus(){focused='trigger'},scrollTo(){},scrollHeight:0};
  };
  return {Component,data,events,window,document,nodeMock,controls,get opened(){return opened},get closed(){return closed},get focused(){return focused},set fail(value){fail=value},back:()=>back()};
@@ -36,7 +36,7 @@ test('native reply remains recoverable until the transcript is durable, then rep
  await act(async()=>deliver());assert.equal(JSON.parse(h.data.get('nexus_gemma_chat_v1')).filter(m=>m.id==='reply:request-1').length,1);
 }));
 test('settings use a native modal, contain initial reverse tab, and require a decision for unsaved edits',async()=>scenario(async(h,view)=>{
- await act(async()=>button(view,' Inställningar').props.onClick());assert.equal(h.opened,1);assert.equal(h.focused,'first');
+ await act(async()=>button(view,' Inställningar').props.onClick());assert.equal(h.opened,1);assert.equal(h.focused,'first');assert.equal(view.root.findByType('dialog').props['aria-label'],'Globala Gemma-inställningar');assert.equal(view.root.findAllByProps({role:'dialog'}).length,0);
  const tab=new Event('keydown',{cancelable:true});Object.assign(tab,{key:'Tab',shiftKey:true});await act(async()=>h.document.dispatchEvent(tab));assert.equal(tab.defaultPrevented,true);assert.equal(h.focused,'last');
  await act(async()=>view.root.findAllByType('input')[0].props.onChange({target:{value:'0.8'}}));
  await act(async()=>h.back());assert.equal(view.root.findAllByType('dialog').length,1);assert.ok(button(view,'Kasta ändringar'));
