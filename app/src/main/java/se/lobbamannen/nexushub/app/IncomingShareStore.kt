@@ -20,6 +20,8 @@ class IncomingShareStore(private val context: Context) {
     companion object {
         private const val MAX_FILE_BYTES = 64L * 1024 * 1024
         private const val MAX_PACKAGE_BYTES = 128L * 1024 * 1024
+        // Only legacy WebView JSON paths use Base64. Background GitHub uploads stream the original files.
+        private const val MAX_BRIDGE_BYTES = 10L * 1024 * 1024
     }
     @Synchronized fun encodedSize(id:String,fileId:String):Long {
         require(uuid.matches(id) && uuid.matches(fileId))
@@ -112,7 +114,11 @@ class IncomingShareStore(private val context: Context) {
     }
     @Synchronized fun read(id: String, fileId: String): String {
         if (!uuid.matches(id) || !uuid.matches(fileId)) return ""
-        return try { Base64.encodeToString(File(File(root, id), fileId).readBytes(), Base64.NO_WRAP) } catch (_: Exception) { "" }
+        return try {
+            val file=localFile(id,fileId)
+            require(file.length()<=MAX_BRIDGE_BYTES) { "Stora filer ska läsas via den strömmande native-kön." }
+            Base64.encodeToString(file.readBytes(),Base64.NO_WRAP)
+        } catch (_: Exception) { "" }
     }
     @Synchronized fun remove(id: String): Boolean = uuid.matches(id) && File(root, id).deleteRecursively()
 }

@@ -271,6 +271,13 @@ class MainActivity : Activity() {
         @JavascriptInterface fun activityExport():String = if(trustedDocument)try{ActivityJournal(applicationContext).export()}catch(_:Exception){""} else ""
         @JavascriptInterface fun listIncoming(): String = if (trustedDocument) incomingShares.list() else "[]"
         @JavascriptInterface fun readIncomingFile(id: String, fileId: String): String = if (trustedDocument) incomingShares.read(id, fileId) else ""
+        @JavascriptInterface fun incomingFileLength(id: String, fileId: String): Long =
+            if(trustedDocument) try { incomingShares.encodedSize(id,fileId) } catch(_:Exception){ -1L } else -1L
+        @JavascriptInterface fun resumeIncomingShares():Boolean {
+            if(!trustedDocument)return false
+            io.execute { BackgroundIntake.importShares(applicationContext) }
+            return true
+        }
         @JavascriptInterface fun removeIncoming(id: String): Boolean = trustedDocument && incomingShares.remove(id)
 
 

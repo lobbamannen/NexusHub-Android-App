@@ -6,6 +6,9 @@ export const nativeIntakeAvailable=()=>typeof bridge()?.queueIncoming==='functio
 export function backgroundIncomingJobs():Job[]{if(!nativeIntakeAvailable())return [];const jobs=JSON.parse(bridge().incomingJobs());if(!Array.isArray(jobs))throw Error('Bakgrundskön kunde inte läsas.');return jobs;}
 export async function stageBackgroundIncoming(item:Incoming):Promise<Job|null>{
  if(!nativeIntakeAvailable()||(item.localOnly??!!item.destinations?.length)||item.deleting||item.shared)return null;
+ // ACTION_SEND was already copied to private native storage. Never encode it a
+ // second time through the WebView; retry the same durable native queue instead.
+ if(item.native){bridge()?.resumeIncomingShares?.();return null;}
  const files=[];for(const file of item.files){if(file.error)throw Error(file.error);const encoded=file.blob?base64(new Uint8Array(await file.blob.arrayBuffer())):bridge()?.readIncomingFile?.(item.id,file.id);if(typeof encoded!=='string')throw Error('Originalfilen kunde inte säkras för bakgrundsuppladdning.');files.push({id:file.id,name:file.name,mime:file.mime,base64:encoded,...(file.sha?{sha:file.sha}:{})});}
  const job=JSON.parse(bridge().queueIncoming(JSON.stringify({id:item.id,text:item.text,createdAt:item.createdAt,...(item.sourceLabel?{sourceLabel:item.sourceLabel}:{}),files})));
  if(job.error&&!job.state||job.id!==item.id)throw Error(job.error||'Bakgrundsuppladdningen kunde inte köas. Originalet finns kvar på telefonen.');return job;
