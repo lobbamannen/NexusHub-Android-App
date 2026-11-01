@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {BrainCircuit,RefreshCw,CheckCircle2,AlertTriangle,Copy,ExternalLink,Search} from 'lucide-react';
 import {buildIdeaCorpus,relatedReportCandidates,relationExcerpt,sourceLink,type Corpus,type Hit} from '@/platform/idea-retrieval';
 import {durableGet,durableSet} from '@/platform/local-store';
+import {derivedGet,derivedSet} from '@/platform/derived-cache';
 import type {RelationCandidate} from '@/platform/idea-relations';
 import {embeddingStatus,importEmbeddingModel} from '@/platform/embedding-bridge';
 
@@ -40,13 +41,13 @@ export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];o
     if(controller.signal.aborted||token!==seq.current)return;
     const cacheKey=MATCH_CACHE_VERSION+idea.id;
     const ideaSignature=JSON.stringify([signature,idea.text]);
-    const cached=force?undefined:await durableGet<CachedMatch>(cacheKey);
+    const cached=force?undefined:await derivedGet<CachedMatch>(cacheKey);
     if(cached?.signature===ideaSignature){
      next[idea.id]=cached.results;reused++;
     }else{
      next[idea.id]=await relatedReportCandidates(found,idea);
      if(controller.signal.aborted||token!==seq.current)return;
-     await durableSet(cacheKey,{signature:ideaSignature,results:next[idea.id]} satisfies CachedMatch);
+     await derivedSet(cacheKey,{signature:ideaSignature,results:next[idea.id]} satisfies CachedMatch);
      recalculated++;
     }
     for(const candidate of next[idea.id]){

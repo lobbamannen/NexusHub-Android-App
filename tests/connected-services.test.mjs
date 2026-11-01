@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import ts from 'typescript';
 const root=new URL('../',import.meta.url);
-async function load(path,bindings){const key='__connectedTest'+Math.random().toString(36).slice(2);globalThis[key]=bindings;let code=fs.readFileSync(new URL(path,root),'utf8').replace(/^import \{replicaReader\} from '\.\/mirror-access';$/m,`const {replicaReader}=globalThis[${JSON.stringify(key)}];`).replace(/^import \{durableGet,durableSet\} from '\.\/local-store';$/m,`const {durableGet,durableSet}=globalThis[${JSON.stringify(key)}];`);code=ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText.replace(/from (["'])([^"']+)\1/g,(_,q,path)=>'from '+JSON.stringify(path.startsWith('@/')?new URL(path.slice(2),root).href:import.meta.resolve(path)));try{return await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));}finally{delete globalThis[key];}}
+async function load(path,bindings){const key='__connectedTest'+Math.random().toString(36).slice(2);globalThis[key]=bindings;let code=fs.readFileSync(new URL(path,root),'utf8').replace(/^import \{replicaReader\} from '\.\/mirror-access';$/m,`const {replicaReader}=globalThis[${JSON.stringify(key)}];`).replace(/^import \{(?:durableGet,durableSet|derivedGet as durableGet,derivedSet as durableSet)\} from '\.\/(?:local-store|derived-cache)';$/m,`const {durableGet,durableSet}=globalThis[${JSON.stringify(key)}];`);code=ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText.replace(/from (["'])([^"']+)\1/g,(_,q,path)=>'from '+JSON.stringify(path.startsWith('@/')?new URL(path.slice(2),root).href:import.meta.resolve(path)));try{return await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));}finally{delete globalThis[key];}}
 const bytes=text=>new TextEncoder().encode(text),sha='a'.repeat(40);
 function model(entries){const map=new Map(entries),snapshot={commit:sha,files:entries.map(([path,body])=>({path,size:bytes(body).length,sha:sha,type:'blob'}))};return {snapshot,reader:{current:async()=>snapshot,file:async(repo,path)=>map.has(path)?{path,sha,commit:snapshot.commit,bytes:bytes(map.get(path))}:null,json:async(repo,path)=>map.has(path)?JSON.parse(map.get(path)):null}};}
 test('same-blob relative references are resolved separately for each path',async()=>{
@@ -21,4 +21,13 @@ test('Guardian refuses broken current poster catalogs instead of consulting a ca
 test('training distinguishes a missing month from unavailable bytes and refuses stale snapshot results',async()=>{
  const path='Cortex/Data/Dagsloggar/2026/2026-10.json',m=model([[path,JSON.stringify({records:[]})]]),cache=new Map();const {trainingArchive}=await load('platform/training-archive.ts',{replicaReader:m.reader,durableGet:async k=>cache.get(k),durableSet:async(k,v)=>cache.set(k,v)});
  assert.equal((await trainingArchive('2026-09')).state,'empty');m.reader.file=async()=>null;assert.equal((await trainingArchive('2026-10')).state,'unavailable');
+});
+test('updated path rules bypass cached extractions made by the previous resolver',async()=>{
+ const path='Ideer/id.json',m=model([[path,JSON.stringify({text:'Reference',path:'Anvandaren/profile.md'})],['Anvandaren/profile.md','Profile']]);
+ const oldKey='connections:extract:v3:'+sha+':'+path;
+ const cache=new Map([[oldKey,{paths:['Ideer/Anvandaren/profile.md'],urls:[],sourceIds:[],tags:[]}]]);
+ const {buildConnectionIndex}=await load('platform/connection-index.ts',{replicaReader:m.reader,durableGet:async k=>cache.get(k),durableSet:async(k,v)=>cache.set(k,v)});
+ const result=await buildConnectionIndex([],new AbortController().signal,()=>{});
+ assert.deepEqual(result.references['databas:Ideer/id.json'].paths,['Anvandaren/profile.md']);
+ assert.ok(cache.has('connections:extract:v4:'+sha+':'+path));
 });

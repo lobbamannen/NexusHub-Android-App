@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "check": "tsc --noEmit",
-    "check:design": "node scripts/check-original-design.mjs"
+    "check:design": "node scripts/check-original-design.mjs",
+    "test:current": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@fullcalendar/react": "7.1.3",

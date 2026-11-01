@@ -62,12 +62,23 @@ class BackgroundIntakeStore(private val context:Context) {
                 return@synchronized previous
             }
             val dir=directory(id).apply{mkdirs()}
+            val required=(0 until files.length()).sumOf { incoming.localFile(id,files.getJSONObject(it).getString("id")).length() }
+            require(android.os.StatFs(dir.path).availableBytes>required+1024L*1024) { "Otillräckligt utrymme för bakgrundskön. Delade original behålls." }
             for(i in 0 until files.length()) {
                 val fid=files.getJSONObject(i).getString("id")
                 val from=incoming.localFile(id,fid)
                 val atomic=AtomicFile(File(dir,fid));val out=atomic.startWrite()
                 try {
-                    from.inputStream().use{it.copyTo(out,64*1024)}
+                    from.inputStream().use { source ->
+                        val buffer=ByteArray(64*1024)
+                        while(true) {
+                            val count=source.read(buffer)
+                            if(count<0)break
+                            if(count==0)continue
+                            require(android.os.StatFs(dir.path).availableBytes>count+1024L*1024) { "Utrymmet tog slut när bakgrundskön förbereddes. Originalet behålls." }
+                            out.write(buffer,0,count)
+                        }
+                    }
                     atomic.finishWrite(out)
                 }catch(e:Exception){atomic.failWrite(out);throw e}
                 require(BackgroundIntakeProtocol.hashFile(File(dir,fid))==files.getJSONObject(i).getString("sha")) { "Delad fil ändrades under kopieringen." }

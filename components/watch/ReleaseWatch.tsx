@@ -11,24 +11,84 @@ import '@/components/calendar/calendar.css';
 const stamp=(v?:string)=>v?new Date(v).toLocaleString('sv-SE',{timeZone:'Europe/Stockholm',dateStyle:'short',timeStyle:'short'}):'Inte kontrollerat ännu';
 async function read(path:string,fresh=true){const r=await fetch('/api/'+path,fresh?{cache:'reload'}:undefined),d=await r.json();if(!r.ok)throw Error(d.error||'Kunde inte läsa GitHub.');return {...d,offline:r.headers.get('X-Nexus-Offline')==='true'};}
 /** Each editor keeps its exact SHA and durable draft until a verified write or explicit undo. */
-function useWatchEditor(path:string,id:string,toValue:(data:any)=>any,toBody:(value:any)=>any){
- const key='watch:draft:'+id;const [base,setBase]=useState<any>(null),[draft,setDraft]=useState<any>(null),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[conflict,setConflict]=useState<any>(null);
- const identity=useRef(id);identity.current=id;
- const [loadedId,setLoadedId]=useState<string|null>(null);
+export function useWatchEditor(path:string,id:string,toValue:(data:any)=>any,toBody:(value:any)=>any){
+ const key='watch:draft:'+id;
+ const [base,setBase]=useState<any>(null),[draft,setDraft]=useState<any>(null);
+ const [ready,setReady]=useState(false),[busy,setBusy]=useState(false),[loadedId,setLoadedId]=useState<string|null>(null);
+ const [error,setError]=useState(''),[notice,setNotice]=useState(''),[conflict,setConflict]=useState<any>(null);
+ // A new object on every identity transition also guards A → B → A.
+ const owner=useRef({path,id,alive:true,running:false});
+ if(owner.current.path!==path||owner.current.id!==id)owner.current={path,id,alive:true,running:false};
+ const scope=owner.current;
+ const current=()=>owner.current===scope&&scope.alive;
  const identityReady=ready&&loadedId===id;
- const reload=async()=>{const r=await read(path);if(identity.current===id)setBase(r);return r;};
- useEffect(()=>{
-  let alive=true;setLoadedId(null);setReady(false);setBase(null);setDraft(null);setConflict(null);setError('');
-  void Promise.all([read(path,false),durableGet(key)]).then(([r,d])=>{
-   if(alive&&identity.current===id){setBase(r);setDraft(d||null);setLoadedId(id);setReady(true);}
-  }).catch(e=>{if(alive&&identity.current===id)setError(e.message);});
-  return()=>{alive=false;};
- },[key,path,id]);
- const edit=async(value:any)=>{if(!identityReady||busy||!base)return;setBusy(true);setError('');try{const d={value,expectedSha:draft?draft.expectedSha:base.sha};setDraft(d);await durableSet(key,d);setNotice('Utkast sparat på telefonen. Välj Spara för GitHub.');}catch(e:any){setError('Utkastet kunde inte sparas: '+e.message);}finally{setBusy(false);}};
  const target={path:path==='series'?'Serier/register.json':'Serier/bevakning-installningar.json',id};
- const undo=async()=>{if(!identityReady||busy)return;setBusy(true);try{await cancelQueuedEdits('watch',target);await durableDelete(key);setDraft(null);setConflict(null);setError('');setNotice('Utkastet är ångrat.');await reload();}catch(e:any){setError(e.message);}finally{setBusy(false);}};
- const save=async()=>{if(!identityReady||!draft||busy||identity.current!==id)return;setBusy(true);setError('');setNotice('');try{await durableSet(key,draft);const r=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...toBody(draft.value),expectedSha:draft.expectedSha})}),d=await r.json();if(!r.ok||!d.saved)throw Object.assign(Error(d.error||'Sparningen kunde inte verifieras.'),{status:r.status});await durableDelete(key);if(identity.current!==id)return;setDraft(null);setBase(d);setNotice('Sparat och verifierat i GitHub.');window.dispatchEvent(new CustomEvent('nexus-refresh-module',{detail:{view:'serier'}}));void syncWatchState();}catch(e:any){setError(e.message+' Ditt utkast finns kvar.');if(e.status===409){try{const r=await read(path);if(!r.offline)setConflict(r);}catch{}}}finally{setBusy(false);}};
- const resolve=async(local:boolean)=>{if(!identityReady||busy)return;setBusy(true);try{const r=await read(path);if(r.offline)throw Error('En aktuell GitHub-version behövs.');await durableSet(key+':backup:'+crypto.randomUUID(),{local:draft,github:r,at:new Date().toISOString()});await cancelQueuedEdits('watch',target);if(local){const d={...draft,expectedSha:r.sha};await durableSet(key,d);setDraft(d);}else{await durableDelete(key);setDraft(null);}setBase(r);setConflict(null);setError('');setNotice('Båda versionerna är säkerhetskopierade lokalt.'+(local?' Granska och välj Spara.':''));}catch(e:any){setError(e.message);}finally{setBusy(false);}};
+ useEffect(()=>{
+  scope.alive=true;setLoadedId(null);setReady(false);setBusy(false);setBase(null);setDraft(null);setConflict(null);setError('');setNotice('');
+  void Promise.all([read(path,false),durableGet(key)]).then(([r,d])=>{
+   if(current()){setBase(r);setDraft(d||null);setLoadedId(id);setReady(true);}
+  }).catch(e=>{if(current())setError(e.message);});
+  return()=>{scope.alive=false;};
+ },[scope]);
+ const begin=()=>{
+  if(!current()||!identityReady||scope.running)return false;
+  scope.running=true;setBusy(true);return true;
+ };
+ const finish=()=>{scope.running=false;if(current())setBusy(false);};
+ const edit=async(value:any)=>{
+  if(!base||!begin())return;
+  setError('');
+  const next={value,expectedSha:draft?draft.expectedSha:base.sha};
+  setDraft(next);
+  try{await durableSet(key,next);if(current())setNotice('Utkast sparat på telefonen. Välj Spara för GitHub.');}
+  catch(e:any){if(current())setError('Utkastet kunde inte sparas: '+e.message);}
+  finally{finish();}
+ };
+ const undo=async()=>{
+  if(!begin())return;
+  try{
+   await cancelQueuedEdits('watch',target);if(!current())return;
+   await durableDelete(key);if(!current())return;
+   setDraft(null);setConflict(null);setError('');setNotice('Utkastet är ångrat.');
+   const result=await read(path);if(current())setBase(result);
+  }catch(e:any){if(current())setError(e.message);}finally{finish();}
+ };
+ const save=async()=>{
+  if(!draft||!begin())return;
+  // Build the request before the first await; it belongs to this identity/version.
+  setError('');setNotice('');
+  try{
+   const body=JSON.stringify({...toBody(draft.value),expectedSha:draft.expectedSha});
+   await durableSet(key,draft);if(!current())return;
+   const response=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body});
+   const result=await response.json();
+   if(!response.ok||!result.saved)throw Object.assign(Error(result.error||'Sparningen kunde inte verifieras.'),{status:response.status});
+   // Clear only the saved identity's draft, even when navigation occurred during PUT.
+   // A returning editor may have created a newer draft, which must survive.
+   window.dispatchEvent(new CustomEvent('nexus-refresh-module',{detail:{view:'serier'}}));void syncWatchState();
+   if(!current())return;
+   const stored=await durableGet(key);if(!current())return;
+   if(JSON.stringify(stored)===JSON.stringify(draft))await durableDelete(key);
+   if(!current())return;
+   setDraft(null);setBase(result);setNotice('Sparat och verifierat i GitHub.');
+  }catch(e:any){
+   if(!current())return;
+   setError(e.message+' Ditt utkast finns kvar.');
+   if(e.status===409){try{const result=await read(path);if(current()&&!result.offline)setConflict(result);}catch{}}
+  }finally{finish();}
+ };
+ const resolve=async(local:boolean)=>{
+  if(!begin())return;
+  try{
+   const result=await read(path);if(!current())return;
+   if(result.offline)throw Error('En aktuell GitHub-version behövs.');
+   await durableSet(key+':backup:'+crypto.randomUUID(),{local:draft,github:result,at:new Date().toISOString()});if(!current())return;
+   await cancelQueuedEdits('watch',target);if(!current())return;
+   if(local){const next={...draft,expectedSha:result.sha};await durableSet(key,next);if(!current())return;setDraft(next);}
+   else{await durableDelete(key);if(!current())return;setDraft(null);}
+   setBase(result);setConflict(null);setError('');setNotice('Båda versionerna är säkerhetskopierade lokalt.'+(local?' Granska och välj Spara.':''));
+  }catch(e:any){if(current())setError(e.message);}finally{finish();}
+ };
  let value:any=null;try{value=identityReady?(draft?.value??(base?toValue(base):null)):null;}catch{/* Unknown register stays read-only. */}
  return {value,base:identityReady?base:null,draft:identityReady?draft:null,ready:identityReady,busy:busy||!identityReady,error,notice,conflict:identityReady?conflict:null,edit,save,undo,resolve,toValue};
 }

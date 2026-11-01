@@ -131,3 +131,14 @@ test('bulk delete retains failed original for retry without affecting forwarded 
  await m.syncIncoming();assert.equal((await m.incomingItems()).length,0);
  assert.equal(deletes,3);
 });
+test('native package staging errors reach inbox status and retire when a native job supersedes them',async()=>{
+ const {m,kv}=await setup();const id=crypto.randomUUID();let jobs=[];
+ const item={id,text:'Preserved original',createdAt:new Date().toISOString(),files:[],importError:'Disk full while staging',importRetryable:true,recoveryRequired:true};
+ window.Android={listIncoming:()=>JSON.stringify([item]),queueIncoming:()=> '{}',incomingJobs:()=>JSON.stringify(jobs)};
+ let current=(await m.incomingItems())[0];assert.equal(current.sharedError,item.importError);assert.equal(current.nativeImportError,item.importError);
+ await m.saveIncomingItem(current);
+ jobs=[{id,state:'pending'}];current=(await m.incomingItems())[0];assert.equal(current.sharedError,'');assert.equal(current.text,item.text);
+ // A genuine upload error remains visible even if the earlier staging error clears.
+ jobs=[{id,state:'failed',error:'GitHub rejected upload'}];current=(await m.incomingItems())[0];assert.equal(current.sharedError,'GitHub rejected upload');
+ assert.equal(kv.get('incoming:v1:'+id).text,item.text);
+});

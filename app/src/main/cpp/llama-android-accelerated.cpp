@@ -690,8 +690,7 @@ Java_com_example_ai_runtime_LlamaNative_generateCompletionExt(
             callback_class = jCallback ? env->GetObjectClass(jCallback) : nullptr;
             const jmethodID callback = callback_class ? env->GetMethodID(callback_class, "onToken", "(Ljava/lang/String;)V") : nullptr;
             auto publish = [&](bool partial) {
-                const std::string safe = jarvis::without_stop_suffix(raw, g_engine.chat_params.additional_stops);
-                const std::string utf8 = safe.substr(0, jarvis::complete_utf8_prefix(safe));
+                const std::string utf8 = jarvis::publishable_text(raw, g_engine.chat_params.additional_stops, partial);
                 auto parsed = common_chat_parse(utf8, partial, g_engine.parser_params);
                 if (!parsed.tool_calls.empty()) throw std::runtime_error("Model requested a tool; Gemma Lab has no tool execution capability");
                 if (parsed.content.compare(0, visible.size(), visible) != 0) {
@@ -723,11 +722,9 @@ Java_com_example_ai_runtime_LlamaNative_generateCompletionExt(
                 if (n < 0) { piece.resize(-n); n = llama_token_to_piece(vocab, token, piece.data(), piece.size(), 0, true); }
                 if (n < 0) throw std::runtime_error("Detokenization failed");
                 raw.append(piece.data(), n);
-                bool stopped = false;
-                for (const auto& stop : g_engine.chat_params.additional_stops) {
-                    const auto at = stop.empty() ? std::string::npos : raw.find(stop);
-                    if (at != std::string::npos) { raw.resize(at); stopped = true; break; }
-                }
+                const auto stop_at = jarvis::first_stop(raw, g_engine.chat_params.additional_stops);
+                const bool stopped = stop_at != std::string::npos;
+                if (stopped) raw.resize(stop_at);
                 publish(true);
                 if (stopped) { t.finish_reason = "template_stop"; break; }
                 if (i + 1 == max_generation) break;

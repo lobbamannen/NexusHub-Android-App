@@ -49,11 +49,12 @@ object GgufInspector {
     private const val MAX_STRING = 16L * 1024 * 1024
     private const val MAX_DIRECTORY = 128L * 1024 * 1024
 
-    fun sha256(file: File): String {
+    fun sha256(file: File, checkpoint: () -> Unit = {}): String {
         val md = MessageDigest.getInstance("SHA-256")
         file.inputStream().buffered(256 * 1024).use { input ->
             val buffer = ByteArray(256 * 1024)
             while (true) {
+                checkpoint()
                 if (Thread.currentThread().isInterrupted) throw InterruptedException("Model verification cancelled")
                 val n = input.read(buffer)
                 if (n < 0) break

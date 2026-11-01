@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     } catch (error: any) { return json({ saved: false, error: error.message }, error.status === 409 || error.status === 422 ? 409 : error.status === 401 || error.status === 403 ? 403 : 503); }
 }
 
-/** Deletion is explicit and online only; it is never replayed from an outbox. */
+/** Deletion is explicit; durable retries require an explicit user action and never run automatically. */
 export async function DELETE(request: Request) {
     try {
         const origin = request.headers.get('origin');

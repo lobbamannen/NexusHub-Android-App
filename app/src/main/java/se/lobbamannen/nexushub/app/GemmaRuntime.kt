@@ -70,7 +70,9 @@ class GemmaRuntime private constructor(context: Context) {
 
     private fun scheduleIdleRelease() {
         releaseExecutor.execute {
-            if (native.unloadIfIdle { releaseRequested() }) memoryPressure = false
+            ModelRunCoordinator.exclusive("cleanup") {
+                if (native.unloadIfIdle { releaseRequested() }) memoryPressure = false
+            }
         }
     }
 
@@ -78,18 +80,18 @@ class GemmaRuntime private constructor(context: Context) {
         .put("appBackgrounded", inBackground)
         .put("backgroundGraceExpired", graceExpired)
 
-    fun saveProfile(changes: JSONObject): JSONObject = native.saveProfile(changes)
-    fun importModel(uri: Uri): JSONObject = try {
+    fun saveProfile(changes: JSONObject): JSONObject = ModelRunCoordinator.exclusive("profile") { native.saveProfile(changes) }
+    fun importModel(uri: Uri): JSONObject = ModelRunCoordinator.exclusive("gemma-import") { try {
         native.import(uri)
     } finally {
         // A trim-memory signal arriving during import is honored after import.
         if (releaseRequested()) scheduleIdleRelease()
-    }
-    fun deleteModel(): JSONObject = native.delete()
-    fun unload(): Unit = native.unload()
+    } }
+    fun deleteModel(): JSONObject = ModelRunCoordinator.exclusive("delete") { native.delete() }
+    fun unload(): Unit = ModelRunCoordinator.exclusive("cleanup") { native.unload() }
     fun cancel(): Unit = native.cancel()
-    fun chat(messages: JSONArray): JSONObject = native.chat(messages)
+    fun chat(messages: JSONArray): JSONObject = ModelRunCoordinator.exclusive("gemma") { native.chat(messages) }
     /** Explicit future caller API; no automatic ideas/document trigger is installed. */
     fun runExplicitTask(prompt: String, maxTokens: Int? = null): JSONObject =
-        native.infer(prompt, maxTokens)
+        ModelRunCoordinator.exclusive("gemma") { native.infer(prompt, maxTokens) }
 }

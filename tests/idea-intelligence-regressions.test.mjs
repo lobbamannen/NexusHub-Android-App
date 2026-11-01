@@ -16,6 +16,7 @@ function load(path,stubs={},globals={}){
  const module={exports:{}};
  const localRequire=name=>{
   if(Object.hasOwn(stubs,name))return stubs[name];
+  if(name==='@/platform/derived-cache'){const store=stubs['@/platform/local-store'];return {derivedGet:store.durableGet,derivedSet:store.durableSet};}
   if(name==='react')return React;
   if(name==='lucide-react')return new Proxy({},{get:()=>()=>null});
   if(name.endsWith('.css'))return {};

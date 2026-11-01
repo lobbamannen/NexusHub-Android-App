@@ -11,9 +11,9 @@ type StoredBody = { kind: 'json'; text: string } | { kind: 'form'; entries: [str
 export interface PendingWrite {
   id: string; path: string; method: string; createdAt: string; updatedAt: string;
   status: WriteStatus; attempts: number; error: string; uncertain: boolean;
-  body: StoredBody; contentType: string; fingerprint?: string;
+  body: StoredBody; contentType: string; fingerprint?: string; manualOnly?: boolean;
 }
-type Receipt = { status: number; completedAt: string; commit?: string; integrated?: boolean; path?: string };
+export type Receipt = { status: number; completedAt: string; sequence?: number; commit?: string; integrated?: boolean; path?: string; affectedResources?: string[]; response?: {body: string; headers: [string,string][]} };
 type Dispatcher = (request: Request) => Promise<Response>;
 const PREFIX = 'outbox:v1:';
 let dispatch: Dispatcher;
@@ -26,7 +26,21 @@ function completed(item: PendingWrite) { if (typeof window !== 'undefined') wind
 export function noteGithubFailure() { if (observing) networkFailure = true; }
 export function configureOutbox(handler: Dispatcher, onConfirmed?: (item:PendingWrite,receipt:Receipt)=>Promise<void>) { dispatch = handler; integrate=onConfirmed; }
 export function isQueuedMutation(request: Request) {
-  return request.method === 'POST' && /^\/api\/(calendar|series-watch-settings|watch-history|ideas|films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
+  return (request.method === 'DELETE' && new URL(request.url).pathname === '/api/ideas') || request.method === 'POST' && /^\/api\/(todos|calendar|series-watch-settings|watch-history|ideas|films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
+}
+/** Persist all read projections before an acknowledgement can outlive its intent. */
+export function affectedReadResources(item: Pick<PendingWrite,'path'|'body'>): string[] {
+  const path = new URL(item.path, location.origin).pathname;
+  const resources = new Set([path, '/api/portal/overview']);
+  if (path === '/api/media-register') {
+    let kind: string | undefined;
+    if (item.body.kind === 'json') { try { kind = JSON.parse(item.body.text).kind; } catch {} }
+    for (const target of kind === 'films' || kind === 'series' ? [kind] : ['films','series']) resources.add('/api/' + target);
+  }
+  if (path.startsWith('/api/files')) {
+    resources.add('/api/idea-files'); resources.add('/api/github/browse'); resources.add('/api/portal/document');
+  }
+  return [...resources];
 }
 async function locked<T>(work: () => Promise<T>): Promise<T> {
   const run = async (): Promise<T> => {
@@ -97,6 +111,10 @@ function matches(row: any, patch: any) { return !!row && Object.keys(patch).ever
 async function reconcile(item: PendingWrite): Promise<Response | null> {
   if (item.body.kind !== 'json' || item.path.startsWith('/api/files')) return null;
   let input: any; try { input = JSON.parse(item.body.text); } catch { return null; }
+  if (item.path === '/api/ideas' && item.method === 'DELETE') {
+    const response = await dispatch(new Request(new URL('/api/ideas?id=' + encodeURIComponent(input.id || ''), location.origin)));
+    return response.status === 404 ? Response.json({deleted:true,id:input.id,reconciled:true}) : null;
+  }
   if (item.path === '/api/ideas') {
     const response = await dispatch(new Request(new URL('/api/ideas?id=' + encodeURIComponent(input.idea?.id || ''), location.origin)));
     if (!response.ok) return null;
@@ -133,6 +151,8 @@ async function reconcile(item: PendingWrite): Promise<Response | null> {
   } else if(item.path==='/api/calendar'){
     const change=input.change,found=register?.events?.find((e:any)=>e.id===(change?.event?.id||change?.id));
     complete=change?.action==='delete'?!!found?.deletedAt:!!found&&matches(found,change?.event||{});
+  } else if(item.path==='/api/todos'){
+    complete=same(register,input.data);
   } else if(item.path==='/api/series-watch-settings'){
     complete=matches(register,input.data||{});
   } else if(item.path==='/api/watch-history'){
@@ -167,7 +187,21 @@ async function finish(item: PendingWrite, response: Response) {
   // The durable receipt precedes cache integration and deletion of the pending work.
   let data:any=null;
   try{data=await response.clone().json();}catch{/* A successful response may be non-JSON. */}
-  const receipt: Receipt = { status: response.status, completedAt: new Date().toISOString(),
+  if (!data || typeof data !== 'object' || (data.saved !== true && data.deleted !== true && !item.path.startsWith('/api/files'))) throw Error('GitHub gav ingen fullständig kvittens. Ändringen behålls för säker återläsning.');
+  const path=new URL(item.path,location.origin).pathname;
+  const registerRoutes=['/api/films','/api/series','/api/media-register','/api/story-register','/api/story-status','/api/document-bookmarks'];
+  const dataRoutes=['/api/calendar','/api/todos','/api/series-watch-settings','/api/watch-history','/api/economy'];
+  const model=path==='/api/ideas'?item.method==='DELETE'?data.deleted===true&&typeof data.id==='string':data.idea&&/^[a-f0-9]{40}$/.test(data.sha||''):
+    registerRoutes.includes(path)?data.register&&typeof data.register==='object':
+    dataRoutes.includes(path)?data.data&&typeof data.data==='object':true;
+  if(!model)throw Error('GitHub-kvittensen saknar den fullständiga sparade modellen. Ändringen behålls för återläsning.');
+  // Serialized under the existing outbox lock. Wall-clock time and UUID key order
+  // cannot determine which of two confirmations for one resource happened last.
+  const sequence=(await durableGet<number>('outbox-receipt-sequence:v1')||0)+1;
+  await durableSet('outbox-receipt-sequence:v1',sequence);
+  const receipt: Receipt = { status: response.status, completedAt: new Date().toISOString(),sequence,
+    response: {body:await response.clone().text(),headers:Array.from(response.headers.entries())},
+    affectedResources:affectedReadResources(item),
     commit: /^[a-f0-9]{40}$/.test(data?.commit||'') ? data.commit : undefined,
     path: new URL(item.path,location.origin).pathname };
   await durableSet('outbox-receipt:v1:' + item.id, receipt);
@@ -179,8 +213,17 @@ async function finish(item: PendingWrite, response: Response) {
 async function execute(item: PendingWrite): Promise<Response> {
   const completedReceipt=await durableGet<Receipt>('outbox-receipt:v1:' + item.id);
   if(completedReceipt) {
+    if (!completedReceipt.response) {
+      // Old receipts prove a write happened, but contain no editor model. Recover
+      // read-only; never fabricate success or resend an acknowledged mutation.
+      try { const checked = await reconcile(item); if (checked) return await finish(item,checked); }
+      catch { /* Keep the receipt and original intent for a later explicit retry. */ }
+      item.error = 'Sparningen har en äldre kvittens men kunde inte återläsas fullständigt. Försök igen när GitHub kan nås.';
+      await durableSet(PREFIX + item.id,item);
+      return queued(item);
+    }
     await integrateReceipt(item,completedReceipt);
-    return Response.json({saved:true,reconciled:true,source:'local-receipt'});
+    return new Response(completedReceipt.response.body,{status:completedReceipt.status,headers:completedReceipt.response.headers});
   }
   if (item.uncertain) {
     try { const checked = await reconcile(item); if (checked) return finish(item, checked); } catch { /* original request below retains its SHA */ }
@@ -221,7 +264,7 @@ export async function enqueueMutation(request: Request): Promise<Response> {
       const receipt = await durableGet<Receipt>('outbox-receipt:v1:' + digest);
       const id = newIntentId(digest,!!receipt,()=>crypto.randomUUID());
       const at = new Date().toISOString();
-      const item: PendingWrite = { ...serialized, fingerprint:digest, id, createdAt: at, updatedAt: at, status: 'pending', attempts: 0, error: '', uncertain: !!receipt };
+      const item: PendingWrite = { ...serialized, ...(request.method === 'DELETE' ? {manualOnly:true} : {}), fingerprint:digest, id, createdAt: at, updatedAt: at, status: 'pending', attempts: 0, error: '', uncertain: !!receipt };
       await durableSet(PREFIX + id, item);
       changed();
       return execute(item);
@@ -233,7 +276,7 @@ export async function enqueueMutation(request: Request): Promise<Response> {
 export async function retryPendingWrites(id?: string): Promise<PendingWrite[]> {
   return locked(async () => {
     for (const item of await pendingWrites()) {
-      if (id ? item.id !== id : item.status !== 'pending') continue;
+      if (id ? item.id !== id : item.status !== 'pending' || item.manualOnly) continue;
       await execute(item);
     }
     return pendingWrites();

@@ -1,7 +1,8 @@
-import{chromium}from'playwright';import{spawn}from'node:child_process';import fs from'node:fs/promises';import assert from'node:assert/strict';
-const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port','5182'],{stdio:'ignore'});let browser;
+import {startUiTestServer} from './ui-test-server.mjs';
+import{chromium}from'playwright';import fs from'node:fs/promises';import assert from'node:assert/strict';
+const server=await startUiTestServer({port:5183,path:'/tests/ui/activity-preview.html'});let browser;
 try{
- const base='http://127.0.0.1:5182';for(let i=0;i<60;i++){try{if((await fetch(base+'/tests/ui/activity-preview.html')).ok)break;}catch{}await new Promise(r=>setTimeout(r,250));}
+ const base=server.origin;
  browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/google-chrome',headless:true,args:['--no-sandbox']});await fs.mkdir('activity-ui',{recursive:true});
  for(const width of[320,412,1000]){
   const page=await browser.newPage({viewport:{width,height:960}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/tests/ui/activity-preview.html');await page.getByRole('heading',{name:'Aktivitetslogg',exact:true}).waitFor();await page.getByText(/68 händelser/).waitFor();
@@ -15,4 +16,4 @@ try{
  const page=await browser.newPage({viewport:{width:412,height:900}});await page.addInitScript(()=>{window.__jobs=[];window.Android={queueIncoming(raw){const data=JSON.parse(raw),job={id:data.id,state:'pending'};window.__jobs.push(job);return JSON.stringify(job);},incomingJobs(){return JSON.stringify(window.__jobs);},backgroundActive(){return true;}};});
  await page.goto(base+'/tests/ui/paste-preview.html');await page.getByRole('button',{name:'Klistra in text',exact:true}).click();await page.getByLabel('Text',{exact:true}).fill('Test av bakgrundssparning');await page.getByRole('button',{name:'Spara',exact:true}).click();await page.getByRole('dialog').waitFor({state:'detached'});assert.equal(await page.evaluate(()=>window.__jobs.length),1);assert.equal(await page.evaluate(()=>window.__jobs[0].state),'pending');await page.getByRole('button',{name:'Klistra in text',exact:true}).click();await page.getByRole('dialog').waitFor();await page.screenshot({path:'activity-ui/background-save-412.png'});await page.close();
  console.log('Activity and background-save UI verified at 320/412/1000: filters, details, pagination, complete export, pending native handoff and no overflow.');
-}finally{await browser?.close();server.kill();}
+}finally{await browser?.close();await server.stop();}

@@ -25,9 +25,16 @@ test('one sync worker reuses existing copies, downloads only changes, resumes an
  const first=m.syncReplicaNow();assert.equal(first,m.syncReplicaNow());await first;
  assert.equal(calls.length,3);assert.equal(m.replicaStatus().repositories.databas.done,28);assert.equal(keyScans,2);
  calls.length=0;await m.syncReplicaNow();assert.equal(calls.length,0);
+ const oldFile=files[0],oldObject='mirror/databas/'+oldFile.sha;
+ const obsoleteMarker='replica-repair:v1:databas:'+encodeURIComponent(oldFile.path)+':'+oldFile.sha;
+ kv.set(obsoleteMarker,{path:oldFile.path,sha:oldFile.sha});
  commit='b'.repeat(40);files[0]=await make('file-0.txt','Ändrad text');files.push(await make('new.txt','Ny text'));failPath='new.txt';
  await m.syncReplicaNow();assert.deepEqual(new Set(calls),new Set(['file-0.txt','new.txt']));assert.ok(m.replicaStatus().error);assert.equal(m.replicaStatus().repositories.databas.done,28);assert.equal(kv.get('replica-complete:v2:databas').commit,'a'.repeat(40));
+ assert.equal(kv.has(obsoleteMarker),true,'failed publication retains the prior snapshot repair marker');
  calls.length=0;failPath='';await m.syncReplicaNow();assert.deepEqual(calls,['new.txt']);assert.equal(m.replicaStatus().repositories.databas.done,29);assert.equal(m.replicaStatus().error,'');
+ assert.equal(kv.has(obsoleteMarker),false,'obsolete repair marker terminates after successful publication');
+ assert.equal(objects.has(oldObject),true,'immutable bytes needed by pinned or historical reads are preserved');
+ assert.ok(versions.some(v=>v.path===oldFile.path&&v.blob_sha===oldFile.sha));
  for(let i=0;i<8;i++)files.push(await make('more-'+i+'.txt','Nytt '+i));commit='c'.repeat(40);calls.length=0;onBlob=()=>m.pauseReplicaSync();await m.syncReplicaNow();assert.equal(m.replicaStatus().paused,true);assert.equal(calls.length,4);assert.equal(kv.get('replica-complete:v2:databas').commit,'b'.repeat(40));
  onBlob=null;await m.syncReplicaNow();assert.equal(m.replicaStatus().repositories.databas.done,37);assert.equal(m.replicaStatus().error,'');
 });

@@ -1,6 +1,6 @@
 import {readableIdeaExcerpt} from './idea-excerpt';
 import {replicaReader} from './mirror-access';
-import {durableGet,durableSet} from './local-store';
+import {derivedGet as durableGet,derivedSet as durableSet} from './derived-cache';
 import {embedBatch,embeddingStatus,type EmbedItem} from './embedding-bridge';
 import {ideaProbes,rankIdeaRelations,type RelationCandidate} from './idea-relations';
 
@@ -124,7 +124,8 @@ export async function buildIdeaCorpus(progress:(message:string,done:number,total
  }
  return {commit:snapshot.commit,docs,changed,skipped,semanticReady,semanticTotal,profile,incomplete:semanticReady<semanticTotal,unsupportedFiles};
 }
-export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=>boolean,hitLimit=32):Promise<{hits:Hit[];mode:string;embeddingMs:number;scanMs:number;fallback:string}>{
+export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=>boolean,hitLimit=32,signal?:AbortSignal):Promise<{hits:Hit[];mode:string;embeddingMs:number;scanMs:number;fallback:string}>{
+ if(signal?.aborted)throw new DOMException('Avbruten','AbortError');
  const start=performance.now(),terms=tokenize(query),all=corpus.docs.flatMap(d=>d.chunks).filter(c=>!filter||filter(c));
  if(!query.trim())return {hits:[],mode:'none',embeddingMs:0,scanMs:0,fallback:'Tom fråga'};
  const df=new Map<string,number>();for(const c of all){const tokens=new Set(tokenize(c.text+' '+c.title));for(const t of terms)if(tokens.has(t))df.set(t,(df.get(t)||0)+1)}
@@ -140,11 +141,12 @@ export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=
  if(corpus.profile && valid.length){
   try {
    const begun=performance.now();
-   const queryText=query.slice(0,3000);
+   const queryText=query;
    const cacheKey=corpus.profile+'|'+queryText;
    let q=queryCache.get(cacheKey);
    if(!q){
-    const result=await embedBatch([{id:'query',text:queryText,task:'query'}]);
+    const result=await embedBatch([{id:'query',text:queryText,task:'query'}],signal);
+    if(signal?.aborted)throw new DOMException('Avbruten','AbortError');
     if(result.modelSha256+':'+result.profileVersion+':chunk-v2'!==corpus.profile)throw Error('Föråldrad embeddingprofil');
     q=result.vectors[0].values;
     rememberQuery(cacheKey,q);
@@ -156,8 +158,9 @@ export async function searchCorpus(corpus:Corpus,query:string,filter?:(c:Chunk)=
     if(Number.isFinite(score))semantic.push({c,score});
    }
    semantic.sort((a,b)=>b.score-a.score||a.c.id.localeCompare(b.c.id));
-  }catch(e:any){fallback=e.message||'Semantisk sökning misslyckades'}
+  }catch(e:any){if(signal?.aborted||e.name==='AbortError')throw e;fallback=e.message||'Semantisk sökning misslyckades'}
  }else fallback=corpus.profile?'Semantiskt index är inte klart':'EmbeddingGemma 2 saknas; lexikal fallback';
+ if(signal?.aborted)throw new DOMException('Avbruten','AbortError');
  const lRanks=new Map<string,number>(lexical.map((x,i):[string,number]=>[x.c.id,i+1])),sRanks=new Map<string,number>(semantic.slice(0,160).map((x,i):[string,number]=>[x.c.id,i+1]));
  const sScores=new Map<string,number>(semantic.slice(0,160).map(x=>[x.c.id,x.score]));
  const candidates=new Map<string,Chunk>(all.filter(c=>lRanks.has(c.id)||sRanks.has(c.id)).map(c=>[c.id,c]));

@@ -1,5 +1,5 @@
 import {replicaReader} from './mirror-access';
-import {durableGet,durableSet} from './local-store';
+import {derivedGet as durableGet,derivedSet as durableSet} from './derived-cache';
 import {monthPath,normalizeTrainingMonth} from '@/lib/training-archive.mjs';
 
 export async function trainingArchive(month?:string){

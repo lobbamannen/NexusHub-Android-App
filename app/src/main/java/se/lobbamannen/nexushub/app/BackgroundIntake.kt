@@ -12,7 +12,7 @@ object BackgroundIntake {
     fun retry(context:Context,id:String):Boolean {val store=BackgroundIntakeStore(context);val job=store.job(id)?:return false;if(store.cancellationRequested(id))return false;if(job.optString("state") in setOf("cancelled","succeeded"))return false;store.update(id,"pending");schedule(context,id);return true}
     fun cancel(context:Context,id:String):Boolean {WorkManager.getInstance(context).cancelUniqueWork("nexus-incoming-$id");return BackgroundIntakeStore(context).cancel(id)}
     /** Android ACTION_SEND originals are already safe in IncomingShareStore, even before WebView startup. */
-    fun importShares(context:Context){
+    fun importShares(context:Context,scheduleJob:(Context,String)->Unit=::schedule){
         val shares=IncomingShareStore(context)
         val store=BackgroundIntakeStore(context)
         val items=org.json.JSONArray(shares.list())
@@ -20,7 +20,9 @@ object BackgroundIntake {
             try {
                 val item=items.getJSONObject(i)
                 val id=item.getString("id")
-                if(item.optString("importError").isNotBlank()||store.job(id)!=null)continue
+                if(item.optString("importError").isNotBlank()&&!item.optBoolean("importRetryable"))continue
+                val existing=store.job(id)
+                if(existing!=null&&(!item.optBoolean("importRetryable")||existing.optString("state")=="cancelled"))continue
                 val files=item.getJSONArray("files")
                 val failed=(0 until files.length()).map{files.getJSONObject(it)}
                     .firstOrNull{it.has("error")}
@@ -29,8 +31,13 @@ object BackgroundIntake {
                     continue
                 }
                 val job=store.stageShared(item,shares)
-                if(job.optString("state") in setOf("pending","running"))schedule(context,id)
-            }catch(_:Exception){/* The source remains durable and can be retried on restart. */}
+                if(job.optString("state") in setOf("pending","running"))scheduleJob(context,id)
+                shares.clearStagingError(id)
+            }catch(error:Exception){
+                val id=items.optJSONObject(i)?.optString("id")?:continue
+                try { shares.markImportError(id,"Kunde inte förbereda bakgrundsuppladdningen: "+(error.message?:"lagringsfel"),retryable=true) }
+                catch(_:Exception) { android.util.Log.e("BackgroundIntake","Mottagning $id kräver återställning; originalen behålls.",error) }
+            }
         }
     }
 }
