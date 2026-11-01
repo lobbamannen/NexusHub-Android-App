@@ -105,6 +105,12 @@ class BackgroundIntakeTest {
         file.remove("base64")
         file.put("sha",BackgroundIntakeProtocol.hash(bytes))
         val store=BackgroundIntakeStore(context)
+        // Disk availability is a real contract now; Robolectric defaults to zero.
+        org.robolectric.shadows.ShadowStatFs.registerStats(context.filesDir.absolutePath,1,0,0)
+        try { store.stageShared(item,IncomingShareStore(context));fail("Insufficient queue space must preserve the original") }
+        catch(error:IllegalArgumentException) { assertTrue(error.message.orEmpty().contains("utrymme")) }
+        assertEquals(bytes.toList(),File(originalDir,fid).readBytes().toList())
+        org.robolectric.shadows.ShadowStatFs.registerStats(context.filesDir.absolutePath,1000000,1000000,1000000)
         assertEquals("pending",store.stageShared(item,IncomingShareStore(context)).getString("state"))
         assertEquals(oldMeta,store.job(id)!!.getString("manifestSha"))
         assertEquals(bytes.toList(),File(store.fileDirectory(id),fid).readBytes().toList())
