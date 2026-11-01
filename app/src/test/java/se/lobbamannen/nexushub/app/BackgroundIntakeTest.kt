@@ -94,7 +94,7 @@ class BackgroundIntakeTest {
     }
 
     @Test fun nativeSharedFilesUseTheExistingQueueWithoutBase64Copies(){
-        val context=RuntimeEnvironment.getApplication<Application>()
+        val context=RuntimeEnvironment.getApplication()
         val item=input();val id=item.getString("id")
         val file=item.getJSONArray("files").getJSONObject(0)
         val fid=file.getString("id")
