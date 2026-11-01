@@ -58,6 +58,9 @@ export function incomingComplete(item:Incoming){const ids=[...item.files.map(f=>
 export async function incomingFileBase64(item:Incoming,file:IncomingFile):Promise<string>{
  if(file.error)throw Error(file.error);
  if(file.blob)return base64(new Uint8Array(await file.blob.arrayBuffer()));
+ const size=bridge()?.incomingFileLength?.(item.id,file.id);
+ if(typeof size==='number'&&size>10*1024*1024)
+  throw Error('Filen är för stor för manuell WebView-överföring (10 MiB). Den automatiska GitHub-uppladdningen använder native-filströmmen.');
  const native=bridge()?.readIncomingFile?.(item.id,file.id);if(native)return native;
  throw Error('Den lokala filen kunde inte läsas. Originalet behålls.');
 }
@@ -102,7 +105,7 @@ export function syncIncoming():Promise<void>{
     if(item.shared&&cloud?.manifestSha!==item.shared.manifestSha){throw Error('Mottagningsposten har ändrats i GitHub. Originalet behålls lokalt.');}
     // Files selected in the idea editor remain local until its explicit Save.
     if(item.localOnly??!!item.destinations?.length)continue;
-    if(nativeIntakeAvailable()&&!item.shared){const job=jobs.get(item.id);if(!job){await stageBackgroundIncoming(item);item.nativeQueued=true;await saveIncomingItem(item);}continue;}
+    if(nativeIntakeAvailable()&&!item.shared){const job=jobs.get(item.id);if(!job){const staged=await stageBackgroundIncoming(item);if(staged){item.nativeQueued=true;await saveIncomingItem(item);}}continue;}
     if(!item.shared){
      const duplicates=item.files.filter(f=>f.sha&&remote.items.some((r:any)=>r.metadata.id!==item.id&&r.metadata.files.some((x:any)=>x.sha===f.sha)));
      if(!cloud&&duplicates.length)throw Error('Identiskt dokument finns redan i NexusHub inkorg: '+duplicates.map(f=>f.name).join(', ')+'. Originalet finns kvar lokalt; ingen extra GitHub-kopia skapades.');

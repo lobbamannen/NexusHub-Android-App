@@ -677,7 +677,7 @@ Java_com_example_ai_runtime_LlamaNative_generateCompletionExt(
                 t.sampler_top_p = 1; t.sampler_top_k = 1; t.sampler_min_p = 0; t.sampler_seed = -1;
             } else {
                 t.sampler_temperature = temperature; t.sampler_top_k = std::max(0, (int)topK);
-                t.sampler_top_p = std::clamp((float)topP, 0.05f, 1.0f); t.sampler_min_p = std::clamp((float)minP, 0.0f, 1.0f);
+                t.sampler_top_p = std::clamp((float)topP, 0.01f, 1.0f); t.sampler_min_p = std::clamp((float)minP, 0.0f, 1.0f);
                 const uint32_t actual_seed = seed >= 0 ? (uint32_t)seed : (uint32_t)std::chrono::high_resolution_clock::now().time_since_epoch().count();
                 t.sampler_seed = actual_seed;
                 if (t.sampler_top_k) llama_sampler_chain_add(sampler, llama_sampler_init_top_k(t.sampler_top_k));
@@ -743,7 +743,8 @@ Java_com_example_ai_runtime_LlamaNative_generateCompletionExt(
                 }
                 t.decode_evaluated_tokens++;
             }
-            publish(t.finish_reason == "cancelled" || t.finish_reason == "length" || t.finish_reason == "context_limit");
+            // A completed token/context-limited generation must flush legitimate trailing text.
+            publish(t.finish_reason == "cancelled");
         }
     } catch (const std::exception& e) {
         t.finish_reason = abort_requested(nullptr) ? "cancelled" : "error";

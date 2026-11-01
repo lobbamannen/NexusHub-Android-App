@@ -56,6 +56,7 @@ export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];o
     if(token===seq.current){setMatches({...next});setDecisions({...states});}
    }
    if(token!==seq.current||controller.signal.aborted)return;
+   setMatches({...next});setDecisions({...states});
    setMessage((found.incomplete?'Delvis indexerat. ':'')+recalculated+' idéer analyserade · '+reused+' återanvända.');
   }catch(e:any){
    if(!controller.signal.aborted&&token===seq.current)setError(e.message||'Indexering misslyckades.');
@@ -90,12 +91,14 @@ export default function IdeaIntelligence({ideas,onSummaryChange}:{ideas:Idea[];o
  };
  const summary=useMemo<IdeaIntelligenceSummary>(()=>{
   const counts:Record<string,number>={};
+  const activeIds=new Set(list.map(idea=>idea.id));
   for(const [id,candidates] of Object.entries(matches)){
+   if(!activeIds.has(id))continue;
    const visible=candidates.filter(({hit})=>{const d=decisions[key(id,hit.chunk.path)];return !(d?.state==='dismissed'&&d.sha===hit.chunk.sha)});
    if(visible.length)counts[id]=visible.length;
   }
   return {counts,indexed:!!corpus,running,error};
- },[matches,decisions,corpus,running,error]);
+ },[matches,decisions,corpus,running,error,ideasKey]);
  useEffect(()=>onSummaryChange?.(summary),[onSummaryChange,summary]);
  const chosen=matches[current?.id||'']||[];
  const handoff=async()=>{

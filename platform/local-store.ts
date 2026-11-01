@@ -57,12 +57,19 @@ export async function durableEntries<T = unknown>(prefix = ''): Promise<Array<[s
   const db = await openStorage();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('kv', 'readonly');
-    const request = tx.objectStore('kv').openCursor();
+    const request = tx.objectStore('kv').openCursor(prefix ? IDBKeyRange.lowerBound(prefix) : undefined);
     const entries: Array<[string, T]> = [];
     request.onsuccess = () => {
       const cursor = request.result;
       if (!cursor) return;
-      if (typeof cursor.key === 'string' && cursor.key.startsWith(prefix)) entries.push([cursor.key, cursor.value]);
+      // An empty prefix must scan past non-string IndexedDB keys; those may
+      // sort before string keys. A nonempty prefix starts at its string lower bound.
+      if (typeof cursor.key !== 'string') {
+        if (!prefix) cursor.continue();
+        return;
+      }
+      if (!cursor.key.startsWith(prefix)) return;
+      entries.push([cursor.key, cursor.value]);
       cursor.continue();
     };
     tx.oncomplete = () => resolve(entries);

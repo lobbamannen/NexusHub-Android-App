@@ -216,6 +216,8 @@ class IntelligenceRuntime private constructor(private val app: Context) {
             verifyBackend(JSONObject(LlamaNative.getLatestTelemetryJson()))
             LlamaNative.resetStop()
             LlamaNative.resetTurnTelemetry()
+            // Independent audit for every turn, including warm-engine inferencing.
+            LlamaNative.resetHtpExecutionAudit(p.getBoolean("audit"))
             val formatted=LlamaNative.applyChatTemplateExt(roles.toTypedArray(),contents.toTypedArray(),
                 true,p.getBoolean("thinking"))
                 ?.takeIf { it.isNotBlank() } ?: error("Modellens chattemplate kunde inte användas.")

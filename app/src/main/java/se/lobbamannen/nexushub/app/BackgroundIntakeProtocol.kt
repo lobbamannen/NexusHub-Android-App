@@ -4,6 +4,7 @@ import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
+import java.io.File
 import java.text.Normalizer
 import java.time.Instant
 
@@ -15,6 +16,47 @@ object BackgroundIntakeProtocol {
     const val legacy="Mottagningsinkorg/"
     data class Entry(val path:String,val bytes:ByteArray){val sha:String get()=hash(bytes)}
     fun hash(bytes:ByteArray):String {val digest=MessageDigest.getInstance("SHA-1");digest.update("blob ${bytes.size}\u0000".toByteArray(Charsets.UTF_8));return digest.digest(bytes).joinToString(""){"%02x".format(it.toInt() and 255)}}
+    /** File-backed entries are streamed: do not materialize large originals as ByteArrays. */
+    data class FileEntry(val path:String,val sha:String,val source:File?=null,val bytes:ByteArray?=null)
+    fun hashFile(file:File):String {
+        require(file.isFile&&file.length()<=64L*1024*1024) { "Den lokala filen saknas eller är för stor." }
+        val digest=MessageDigest.getInstance("SHA-1")
+        digest.update("blob ${file.length()}\u0000".toByteArray(Charsets.UTF_8))
+        file.inputStream().use { input ->
+            val buffer=ByteArray(64*1024)
+            while(true) { val n=input.read(buffer);if(n<0)break;if(n>0)digest.update(buffer,0,n) }
+        }
+        return digest.digest().joinToString(""){"%02x".format(it.toInt() and 255)}
+    }
+    /** Same metadata layout and SHA as prepare(), but file bodies remain in durable native storage. */
+    fun prepareLocal(input:JSONObject,dir:File,prefix:String=root+input.optString("id")+"/"):List<FileEntry> {
+        val id=input.getString("id");require(uuid.matches(id));require(prefix==root+id+"/"||prefix==legacy+id+"/")
+        val text=input.getString("text");val created=input.getString("createdAt");Instant.parse(created)
+        require(!input.has("sourceLabel")||input.opt("sourceLabel") is String)
+        val source=jsTrim(input.optString("sourceLabel"));require(source.length<=120&&!source.any{it.code<32||it.code==127})
+        val files=input.getJSONArray("files");require(files.length()>0||jsTrim(text).isNotEmpty());require(files.length()<=1000)
+        val entries=mutableListOf<FileEntry>();val metadataFiles=mutableListOf<Any>();val ids=mutableSetOf<String>()
+        for(i in 0 until files.length()){
+            val f=files.getJSONObject(i);val fid=f.getString("id")
+            require(uuid.matches(fid)&&ids.add(fid))
+            val fname=f.getString("name");val mime=f.getString("mime")
+            require(fname.length<=10000&&mime.length<=300)
+            val file=File(dir,fid);val actual=hashFile(file)
+            require(!f.has("sha")||f.isNull("sha")||f.getString("sha")==actual){"Originalfilens kontrollsumma avviker."}
+            val target=prefix+fid+"-"+name(fname)
+            entries.add(FileEntry(target,actual,source=file))
+            metadataFiles.add(linkedMapOf("id" to fid,"name" to fname,"mime" to mime,"path" to target,"sha" to actual))
+        }
+        if(jsTrim(text).isNotEmpty()) {
+            val bytes=utf8(text);entries.add(FileEntry(prefix+"delad-text.txt",hash(bytes),bytes=bytes))
+        }
+        val metadata=linkedMapOf<String,Any>("schemaVersion" to 1)
+        if(source.isNotBlank())metadata["sourceLabel"]=source
+        metadata["id"]=id;metadata["text"]=text;metadata["createdAt"]=created;metadata["files"]=metadataFiles
+        val bytes=(pretty(metadata)+"\n").toByteArray(Charsets.UTF_8)
+        entries.add(FileEntry(prefix+"metadata.json",hash(bytes),bytes=bytes))
+        return entries
+    }
     private fun utf8(value:String):ByteArray {
         val clean=buildString {value.forEachIndexed {i,c->
             val unpaired=Character.isHighSurrogate(c)&&(i+1>=value.length||!Character.isLowSurrogate(value[i+1]))||Character.isLowSurrogate(c)&&(i==0||!Character.isHighSurrogate(value[i-1]))

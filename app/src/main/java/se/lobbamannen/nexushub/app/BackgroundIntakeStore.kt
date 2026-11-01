@@ -41,6 +41,50 @@ class BackgroundIntakeStore(private val context:Context) {
             write(File(dir,"job.json"),job);record(job,"pending","Mottagning väntar på GitHub");job
         }
     }
+    /** Existing durable queue, not a second journal or background engine. */
+    fun stageShared(input:JSONObject,incoming:IncomingShareStore):JSONObject {
+        val id=input.getString("id")
+        val files=input.getJSONArray("files")
+        for(i in 0 until files.length()) {
+            val f=files.getJSONObject(i)
+            require(!f.has("error")) { f.optString("error","Delad fil kunde inte tas emot.") }
+        }
+        val original=File(context.filesDir,"incoming-v1/"+id)
+        // Every file and the metadata hash are verified before any job is acknowledged.
+        val prepared=BackgroundIntakeProtocol.prepareLocal(input,original)
+        val manifestSha=prepared.last().sha
+        return synchronized(lock(id)) {
+            require(!cancellationRequested(id)) { "Posten har avbrutits och får inte återuppladdas." }
+            val previous=job(id)
+            if(previous!=null) {
+                require(previous.optString("state")!="cancelled") { "Posten har avbrutits." }
+                require(previous.optString("manifestSha")==manifestSha) { "Originalet har ändrats." }
+                return@synchronized previous
+            }
+            val dir=directory(id).apply{mkdirs()}
+            for(i in 0 until files.length()) {
+                val fid=files.getJSONObject(i).getString("id")
+                val from=incoming.localFile(id,fid)
+                val atomic=AtomicFile(File(dir,fid));val out=atomic.startWrite()
+                try {
+                    from.inputStream().use{it.copyTo(out,64*1024)}
+                    atomic.finishWrite(out)
+                }catch(e:Exception){atomic.failWrite(out);throw e}
+                require(BackgroundIntakeProtocol.hashFile(File(dir,fid))==files.getJSONObject(i).getString("sha")) { "Delad fil ändrades under kopieringen." }
+            }
+            write(File(dir,"payload.json"),JSONObject(input.toString()))
+            val job=JSONObject().put("id",id).put("state","pending").put("manifestSha",manifestSha)
+                .put("attempts",0).put("createdAt",input.getString("createdAt")).put("updatedAt",Instant.now().toString())
+                .put("title",files.optJSONObject(0)?.optString("name")?:"Delad text")
+            write(File(dir,"job.json"),job)
+            record(job,"pending","Mottagning väntar på GitHub")
+            job
+        }
+    }
+    fun payloadForUpload(id:String):JSONObject=synchronized(lock(id)) {
+        read(File(directory(id),"payload.json"))?:error("Mottagningsoriginalets metadata saknas.")
+    }
+    fun fileDirectory(id:String):File=directory(id)
     fun payload(id:String):JSONObject=synchronized(lock(id)) {
         val dir=directory(id);val p=read(File(dir,"payload.json"))?:error("Det beständiga originalet saknas.");val files=p.getJSONArray("files")
         for(i in 0 until files.length()){val f=files.getJSONObject(i);val bytes=AtomicFile(File(dir,f.getString("id"))).openRead().use{it.readBytes()};require(BackgroundIntakeProtocol.hash(bytes)==f.getString("sha")){"Det lokala originalets kontrollsumma avviker."};f.put("base64",Base64.encodeToString(bytes,Base64.NO_WRAP))};p

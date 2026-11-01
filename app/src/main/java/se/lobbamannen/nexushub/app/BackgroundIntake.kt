@@ -12,7 +12,27 @@ object BackgroundIntake {
     fun retry(context:Context,id:String):Boolean {val store=BackgroundIntakeStore(context);val job=store.job(id)?:return false;if(store.cancellationRequested(id))return false;if(job.optString("state") in setOf("cancelled","succeeded"))return false;store.update(id,"pending");schedule(context,id);return true}
     fun cancel(context:Context,id:String):Boolean {WorkManager.getInstance(context).cancelUniqueWork("nexus-incoming-$id");return BackgroundIntakeStore(context).cancel(id)}
     /** Android ACTION_SEND originals are already safe in IncomingShareStore, even before WebView startup. */
-    fun importShares(context:Context){val shares=IncomingShareStore(context);val items=org.json.JSONArray(shares.list());for(i in 0 until items.length()){try{val item=items.getJSONObject(i);val job=BackgroundIntakeStore(context).job(item.getString("id"));if(job!=null)continue;val files=item.getJSONArray("files");for(n in 0 until files.length()){val f=files.getJSONObject(n);require(!f.has("error"));val bytes=shares.read(item.getString("id"),f.getString("id"));require(bytes.isNotEmpty()||f.optString("sha")==BackgroundIntakeProtocol.hash(ByteArray(0))){ "Originalet kunde inte läsas." };f.put("base64",bytes)};enqueue(context,item)}catch(_:Exception){/* Original remains in native inbox for visible recovery. */}}}
+    fun importShares(context:Context){
+        val shares=IncomingShareStore(context)
+        val store=BackgroundIntakeStore(context)
+        val items=org.json.JSONArray(shares.list())
+        for(i in 0 until items.length()){
+            try {
+                val item=items.getJSONObject(i)
+                val id=item.getString("id")
+                if(item.optString("importError").isNotBlank()||store.job(id)!=null)continue
+                val files=item.getJSONArray("files")
+                val failed=(0 until files.length()).map{files.getJSONObject(it)}
+                    .firstOrNull{it.has("error")}
+                if(failed!=null){
+                    shares.markImportError(id,failed.optString("error","Delad fil kunde inte kopieras."))
+                    continue
+                }
+                val job=store.stageShared(item,shares)
+                if(job.optString("state") in setOf("pending","running"))schedule(context,id)
+            }catch(_:Exception){/* The source remains durable and can be retried on restart. */}
+        }
+    }
 }
 
 class BackgroundIntakeWorker(context:Context,params:WorkerParameters):Worker(context,params) {
@@ -27,7 +47,7 @@ class BackgroundIntakeWorker(context:Context,params:WorkerParameters):Worker(con
             try {
                 setForegroundAsync(ForegroundInfo(7402,ActiveSyncService.notification(applicationContext,"Laddar upp mottaget material till GitHub"),android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)).get()
                 store.update(id,"running")
-                val receipt=BackgroundIntakeGitHub(GithubCredentialStore(applicationContext).get()).upload(store.payload(id)){isStopped||store.cancellationRequested(id)}
+                val receipt=BackgroundIntakeGitHub(GithubCredentialStore(applicationContext).get()).uploadFromFiles(store.payloadForUpload(id),store.fileDirectory(id)){isStopped||store.cancellationRequested(id)}
                 if(receipt.optBoolean("deleted")){store.cancel(id,remoteDeleted=true)}else{
                     store.update(id,"succeeded",receipt=receipt)
                     if(store.cancellationRequested(id))store.cancel(id)

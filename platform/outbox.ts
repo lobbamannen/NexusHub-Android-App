@@ -4,25 +4,27 @@ import { queuedEditMatches } from '@/lib/draft-scope.mjs';
 import { sameIdea } from '@/lib/ideas.mjs';
 import { durableGet, durableSet, durableDelete, durableEntries } from './local-store';
 import { catalogReconciledReceipt } from '@/lib/economy-catalog.mjs';
+import { pendingIntentFor,newIntentId } from '@/lib/outbox-identity.mjs';
 
 export type WriteStatus = 'pending' | 'conflict' | 'failed';
 type StoredBody = { kind: 'json'; text: string } | { kind: 'form'; entries: [string, string | File][] };
 export interface PendingWrite {
   id: string; path: string; method: string; createdAt: string; updatedAt: string;
   status: WriteStatus; attempts: number; error: string; uncertain: boolean;
-  body: StoredBody; contentType: string;
+  body: StoredBody; contentType: string; fingerprint?: string;
 }
-type Receipt = { status: number; completedAt: string };
+type Receipt = { status: number; completedAt: string; commit?: string; integrated?: boolean; path?: string };
 type Dispatcher = (request: Request) => Promise<Response>;
 const PREFIX = 'outbox:v1:';
 let dispatch: Dispatcher;
+let integrate: ((item:PendingWrite,receipt:Receipt)=>Promise<void>) | undefined;
 let chain: Promise<unknown> = Promise.resolve();
 let networkFailure = false;
 let observing = false;
 function changed() { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('nexus-outbox-changed')); }
 function completed(item: PendingWrite) { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('nexus-write-completed', { detail: { id: item.id, path: item.path } })); }
 export function noteGithubFailure() { if (observing) networkFailure = true; }
-export function configureOutbox(handler: Dispatcher) { dispatch = handler; }
+export function configureOutbox(handler: Dispatcher, onConfirmed?: (item:PendingWrite,receipt:Receipt)=>Promise<void>) { dispatch = handler; integrate=onConfirmed; }
 export function isQueuedMutation(request: Request) {
   return request.method === 'POST' && /^\/api\/(calendar|series-watch-settings|watch-history|ideas|films|series|media-register|story-register|story-status|document-bookmarks|economy|files(?:\/[^/]+\/github)?)\/?$/.test(new URL(request.url).pathname);
 }
@@ -151,17 +153,35 @@ async function reconcile(item: PendingWrite): Promise<Response | null> {
   }
   return complete ? Response.json({ ...data, saved: true, reconciled: true, source: 'github' }) : null;
 }
-async function finish(item: PendingWrite, response: Response) {
-  // Retain a credential-free receipt to prevent duplicate delivery after a render/restart.
-  const receipt: Receipt = { status: response.status, completedAt: new Date().toISOString() };
-  await durableSet('outbox-receipt:v1:' + item.id, receipt);
+async function integrateReceipt(item: PendingWrite, receipt: Receipt) {
+  // Idempotent: a crash between remote success and local integration must not resend.
+  if(!receipt.integrated) {
+    await integrate?.(item,receipt);
+    receipt.integrated=true;
+    await durableSet('outbox-receipt:v1:' + item.id,receipt);
+  }
   await durableDelete(PREFIX + item.id);
   changed(); completed(item);
+}
+async function finish(item: PendingWrite, response: Response) {
+  // The durable receipt precedes cache integration and deletion of the pending work.
+  let data:any=null;
+  try{data=await response.clone().json();}catch{/* A successful response may be non-JSON. */}
+  const receipt: Receipt = { status: response.status, completedAt: new Date().toISOString(),
+    commit: /^[a-f0-9]{40}$/.test(data?.commit||'') ? data.commit : undefined,
+    path: new URL(item.path,location.origin).pathname };
+  await durableSet('outbox-receipt:v1:' + item.id, receipt);
+  await integrateReceipt(item,receipt);
   telemetry('github_write_confirmed',{category:categoryForPath(item.path),latency_bucket:bucketDuration(Date.now()-Date.parse(item.createdAt))});
   for(const event of confirmedActions(item.path,item.body))telemetry(event.name as Parameters<typeof telemetry>[0],event.properties);
   return response;
 }
 async function execute(item: PendingWrite): Promise<Response> {
+  const completedReceipt=await durableGet<Receipt>('outbox-receipt:v1:' + item.id);
+  if(completedReceipt) {
+    await integrateReceipt(item,completedReceipt);
+    return Response.json({saved:true,reconciled:true,source:'local-receipt'});
+  }
   if (item.uncertain) {
     try { const checked = await reconcile(item); if (checked) return finish(item, checked); } catch { /* original request below retains its SHA */ }
   }
@@ -193,14 +213,15 @@ async function execute(item: PendingWrite): Promise<Response> {
 export async function enqueueMutation(request: Request): Promise<Response> {
   return locked(async () => {
     try {
-      const serialized = await serialize(request), id = await fingerprint(serialized);
-      const receipt = await durableGet<Receipt>('outbox-receipt:v1:' + id);
-      // A→B→A is a new intent even if its bytes match an old completed request.
-      // A historical receipt alone never proves that the desired state is current.
-      const existing = await durableGet<PendingWrite>(PREFIX + id);
-      if (existing) return existing.status === 'pending' ? execute(existing) : queued(existing); // Explicit Spara may resume pending; conflicts require Settings review.
+      const serialized = await serialize(request), digest = await fingerprint(serialized);
+      // Retry unfinished equivalent operations, but never reuse a historical
+      // acknowledgement to suppress a new A→B→A user intention.
+      const existing = pendingIntentFor(await pendingWrites(),digest);
+      if (existing) return existing.status === 'pending' ? execute(existing) : queued(existing);
+      const receipt = await durableGet<Receipt>('outbox-receipt:v1:' + digest);
+      const id = newIntentId(digest,!!receipt,()=>crypto.randomUUID());
       const at = new Date().toISOString();
-      const item: PendingWrite = { ...serialized, id, createdAt: at, updatedAt: at, status: 'pending', attempts: 0, error: '', uncertain: !!receipt };
+      const item: PendingWrite = { ...serialized, fingerprint:digest, id, createdAt: at, updatedAt: at, status: 'pending', attempts: 0, error: '', uncertain: !!receipt };
       await durableSet(PREFIX + id, item);
       changed();
       return execute(item);

@@ -9,7 +9,7 @@ export function usePulseCalendar(day:string,revision?:string){
   const load=async()=>{const run=++generation;phone=[];publish();const current=()=>alive&&run===generation;
    let filters:Record<string,boolean>={};try{filters=await durableGet<Record<string,boolean>>('calendar:filters:v1')||{};}catch{if(current()){own=[];phone=[];publish();setStale(true);}return;}
    if(!current())return;if(filters.nexus===false)own=[];publish();setStale(false);
-   const jobs=[(async()=>{if(filters.nexus===false)return;try{const response=await fetch('/api/calendar'),data=await response.json();if(!response.ok||!Array.isArray(data.events))throw Error();if(current()){own=calendarOwnEvents(data.events);if(response.headers.get('X-Nexus-Offline')==='true')setStale(true);publish();}}catch{if(current())setStale(true);}})(),
+   const jobs=[(async()=>{if(filters.nexus===false)return;try{const response=await fetch('/api/calendar'),data=await response.json();if(!response.ok||!Array.isArray(data?.data?.events))throw Error();if(current()){own=calendarOwnEvents(data.data.events);if(response.headers.get('X-Nexus-Offline')==='true')setStale(true);publish();}}catch{if(current())setStale(true);}})(),
    (async()=>{if(filters.phone===false||!nativeAvailable())return;try{
     const permission=await nativeCall('calendar.getPermission');if(!current()||!permission.granted)return;
     const sources=await nativeCall('calendar.getSources');if(!current())return;

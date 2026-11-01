@@ -44,7 +44,7 @@ Inställningarna visar även krypterad tokenhantering, kontroll av GitHub-anslut
 - GitHub är gemensam beständig källa för Siten, appen och ChatGPT.
 - Befintliga filer, registerformat och originalvägar används utan omstrukturering.
 - Spara/Ångra, separata betygsskalor, favoriter, Sparad/Läst och verifierade säsonger behålls.
-- Ingen Firebase, egen backend eller schemalagd bakgrundstjänst används.
+- Ingen Firebase eller egen backend används. Android WorkManager schemalägger **beständiga mottagningsuppladdningar** när nätverket finns; synkkontroller för lokala GitHub-speglar sker medan appen är aktiv och vid återupptagning. Dessa är två olika flöden.
 - Beständig lokal kopia fylls automatiskt av hela Databas inklusive `Kunskap/`, samt plugin-repots innehåll. Även aldrig öppnade affischer, omslag, berättelser och övriga filer kopieras. GitHub är huvudkälla; en ofullständig lokal kopiering visas som pågående eller fel, aldrig som färdig.
 - Lokal lagring består av SQLite/IndexedDB för metadata och cache samt IndexedDB för bild-/originalbytes och väntande sparningar.
 
@@ -265,7 +265,7 @@ GitHub Actions-workflowet `.github/workflows/android-apk.yml` bygger **produktio
 
 - Pinnad llama.cpp-källkod cachas separat per `llama-revision.txt`.
 - Snapdragon OpenCL-/Hexagon-bibliotek återanvänds via sin egen cache med versions- och patchkontroll.
-- **Cortex-mönster för native:** Vid cachemiss byggs CMake normalt och de faktiskt paketerade `libllama_android.so`, `libllama.so`, `libggml.so`, `libggml-base.so`, `libggml-cpu.so` extraheras ur release-APK:n. SHA-256-lista sparas i cache. Vid exakt cacheträff verifieras listan och `-PusePrebuiltNative=true` gör att Gradle paketerar förkompilerade bibliotek utan att köra CMake.
+- **Cortex-mönster för native:** Vid cachemiss byggs CMake normalt och `libllama_android.so`, `libllama.so`, `libggml.so`, `libggml-base.so`, `libggml-cpu.so` kopieras från **verifierade CMake-intermediärer före APK-paketering**. Ett verifierat Actions-artefakt kan återanvändas vid kompatibel cachemiss; den färdiga APK:n kontrolleras separat. SHA-256-lista sparas i cache. Vid exakt cacheträff verifieras listan och `-PusePrebuiltNative=true` gör att Gradle paketerar förkompilerade bibliotek utan att köra CMake.
 - Cache-nyckeln inkluderar llama-revisionen, native-källor, CMake, CPU-auditpatch och Gradle-konfiguration. Ändringar där ger nytt native-bygge. Den native-kompilerade binärens inbyggda Git-SHA är kompileringsrevisionen; APK-versionen anges separat av GitHub Actions.
 - Ingen cacheträff får ersätta saknade bibliotek: pipeline avbryts vid bruten checksumma eller saknade `.so`. Installerad app och importerad GGUF påverkas inte av cacheändringarna.
 

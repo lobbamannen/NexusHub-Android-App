@@ -271,6 +271,13 @@ class MainActivity : Activity() {
         @JavascriptInterface fun activityExport():String = if(trustedDocument)try{ActivityJournal(applicationContext).export()}catch(_:Exception){""} else ""
         @JavascriptInterface fun listIncoming(): String = if (trustedDocument) incomingShares.list() else "[]"
         @JavascriptInterface fun readIncomingFile(id: String, fileId: String): String = if (trustedDocument) incomingShares.read(id, fileId) else ""
+        @JavascriptInterface fun incomingFileLength(id: String, fileId: String): Long =
+            if(trustedDocument) try { incomingShares.encodedSize(id,fileId) } catch(_:Exception){ -1L } else -1L
+        @JavascriptInterface fun resumeIncomingShares():Boolean {
+            if(!trustedDocument)return false
+            io.execute { BackgroundIntake.importShares(applicationContext) }
+            return true
+        }
         @JavascriptInterface fun removeIncoming(id: String): Boolean = trustedDocument && incomingShares.remove(id)
 
 
@@ -302,8 +309,13 @@ class MainActivity : Activity() {
             trustedDocument && try{GemmaRuntime.get(applicationContext).deleteModel();true}catch(_:Exception){false}
         @JavascriptInterface fun gemmaUnloadModel():Boolean =
             trustedDocument && try{GemmaRuntime.get(applicationContext).unload();true}catch(_:Exception){false}
-        @JavascriptInterface fun gemmaCancel():Boolean =
-            trustedDocument && try{GemmaRuntime.get(applicationContext).cancel();true}catch(_:Exception){false}
+        @JavascriptInterface fun gemmaCancel():Boolean = false // Deprecated unscoped cancel.
+        @JavascriptInterface fun gemmaCancelRequest(requestId:String):Boolean =
+            trustedDocument && ModelRunCoordinator.cancelGemma(requestId) {
+                GemmaRuntime.get(applicationContext).cancel()
+            }
+        @JavascriptInterface fun gemmaLatestResult():String =
+            if(trustedDocument)GemmaReplyStore.latest(applicationContext).toString() else "{}"
 
         /** EmbeddingGemma 2 is explicitly imported; the existing GGUF is untouched. */
         @JavascriptInterface fun embeddingStatus():String =
@@ -327,10 +339,11 @@ class MainActivity : Activity() {
                 !Regex("[a-fA-F0-9-]{36}").matches(requestId))return false
             io.execute {
                 val result=try {
-                    // Sequential model lifecycle: never keep both engines loaded.
-                    GemmaRuntime.get(applicationContext).unload()
-                    JSONObject().put("ok",true)
-                        .put("result",EmbeddingGemmaRuntime.get(applicationContext).embed(JSONObject(raw)))
+                    ModelRunCoordinator.run(requestId,"embedding") {
+                        GemmaRuntime.get(applicationContext).unload()
+                        JSONObject().put("ok",true)
+                            .put("result",EmbeddingGemmaRuntime.get(applicationContext).embed(JSONObject(raw)))
+                    }
                 }catch(e:Exception) {
                     JSONObject().put("ok",false).put("error",(e.message?:"Embedding misslyckades").take(500))
                 }.put("requestId",requestId)
@@ -348,13 +361,25 @@ class MainActivity : Activity() {
         @JavascriptInterface fun gemmaChatSend(raw:String,requestId:String):Boolean {
             if(!trustedDocument || raw.length !in 2..36000 ||
                 !Regex("[a-fA-F0-9-]{36}").matches(requestId))return false
+            if(!ModelRunCoordinator.reserveGemma(requestId))return false
+            try { GemmaReplyStore.begin(applicationContext,requestId) }
+            catch(_:Exception){ModelRunCoordinator.releaseGemma(requestId);return false}
             io.execute {
-                val answer=try {
-                    val result=GemmaClient.get(applicationContext).chat(org.json.JSONArray(raw))
-                    JSONObject().put("requestId",requestId).put("ok",true).put("result",result)
-                }catch(e:Exception){
-                    JSONObject().put("requestId",requestId).put("ok",false)
-                        .put("error",(e.message?:"Gemma kunde inte slutföra svaret").take(500))
+                val answer=try { ModelRunCoordinator.run(requestId,"gemma") {
+                    val response=try {
+                        val result=GemmaClient.get(applicationContext).chat(org.json.JSONArray(raw))
+                        JSONObject().put("requestId",requestId).put("ok",true).put("result",result)
+                    }catch(e:Exception){
+                        JSONObject().put("requestId",requestId).put("ok",false)
+                            .put("error",(e.message?:"Gemma kunde inte slutföra svaret").take(500))
+                    }
+                    GemmaReplyStore.complete(applicationContext,requestId,response)
+                    response
+                }}catch(e:Exception) {
+                    val response=JSONObject().put("requestId",requestId).put("ok",false)
+                        .put("error",(e.message?:"Gemma-körningen kunde inte slutföras").take(500))
+                    GemmaReplyStore.complete(applicationContext,requestId,response)
+                    response
                 }
                 val literal=JSONObject.quote(answer.toString())
                 runOnUiThread {

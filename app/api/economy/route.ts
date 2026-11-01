@@ -21,9 +21,17 @@ function money(value: unknown, label: string): number {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100000000 || Math.abs(Math.round(value * 100) - value * 100) > 0.000001) fail('Ogiltigt belopp: ' + label);
     return value;
 }
+function isRealDate(value: string): boolean {
+    const [year,month,day] = value.split('-').map(Number);
+    if (year < 1 || month < 1 || month > 12 || day < 1 || day > 31) return false;
+    const parsed = new Date(0);
+    parsed.setUTCHours(0,0,0,0);
+    parsed.setUTCFullYear(year,month-1,day);
+    return parsed.getUTCFullYear() === year && parsed.getUTCMonth()+1 === month && parsed.getUTCDate() === day;
+}
 function date(value: unknown): string | null {
     if (value === null || value === '') return null;
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value + 'T12:00:00Z'))) fail('Ange datum som ÅÅÅÅ-MM-DD.');
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !isRealDate(value)) fail('Ange datum som ÅÅÅÅ-MM-DD.');
     return value;
 }
 function verifyBudget(value: any) {

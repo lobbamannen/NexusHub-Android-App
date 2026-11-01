@@ -23,9 +23,10 @@ import * as bookmarks from '@/app/api/document-bookmarks/route';
 import * as posters from '@/app/api/posters/route';
 import * as economy from '@/app/api/economy/route';
 import * as fallback from '@/app/api/[[...path]]/route';
-import { initializeStorage, durableGet, durableSet, durableDelete } from './local-store';
+import { initializeStorage, durableGet, durableSet, durableDelete,durableEntries } from './local-store';
 import { configureOutbox, enqueueMutation, isQueuedMutation, noteGithubFailure } from './outbox';
 import { replicaReader } from './mirror-access';
+import { github } from '@/lib/github';
 import { createMirrorWriteBarrier } from '@/lib/mirror-write-barrier.mjs';
 export { pendingWrites, retryPendingWrites, discardPendingWrite, cancelQueuedEdits } from './outbox';
 
@@ -126,7 +127,7 @@ async function dispatchWithCache(request: Request) {
 }
 
 const readUiLocal=localFirstReader({
- get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(writeBarrier.blocked(url.pathname,current?.commit||null))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data){try{await observeSnapshot(url.pathname,data);}catch{/* Optional history projection. */}return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
+ get:async(key:string,request:Request)=>{await initializeStorage();const url=new URL(request.url);try{const current=await replicaReader.current('databas');if(await writeBarrier.blockedAsync(url.pathname,current?.commit||null,(expected:string,actual:string)=>github('databas').isAncestor(expected,actual)))return await durableGet<CachedResponse>(key)||null;const data=await localReadSeed(url.pathname,url.search);if(data){try{await observeSnapshot(url.pathname,data);}catch{/* Optional history projection. */}return {body:new TextEncoder().encode(JSON.stringify(data)).buffer,status:200,headers:[['Content-Type','application/json']],savedAt:new Date().toISOString(),mirrorComplete:true};}}catch{/* Missing or damaged local model falls through to last good read. */}return await durableGet<CachedResponse>(key)||null;},
  refresh:(request:Request)=>{telemetry('local_read_fallback',{resource:resourceForPath(new URL(request.url).pathname),outcome:'network'});return dispatchWithCache(request);},
  changed:()=>window.dispatchEvent(new Event('nexus-github-changed')),
  failure:(key:string,at:string)=>signalStale(key,at),
@@ -139,7 +140,41 @@ export function installLocalApi(): void {
   const nativeFetch = globalThis.fetch.bind(globalThis);
   // Reconciliation deliberately bypasses the offline cache: only a current GitHub
   // response can prove that an interrupted write actually committed.
-  configureOutbox(dispatch);
+  // Recover confirmed writes even if the WebView was terminated after GitHub accepted them.
+  void durableEntries<any>('outbox-receipt:v1:').then(entries=>{
+    // Rehydrate only the newest confirmed revision per resource. UUID sort order
+    // is not commit order and must not resurrect an older write barrier.
+    const newest=new Map<string,{commit:string;completedAt:string}>();
+    for(const [,receipt] of entries) {
+      if(!receipt?.path||!/^[a-f0-9]{40}$/.test(receipt.commit||''))continue;
+      const old=newest.get(receipt.path);
+      if(!old||String(old.completedAt)<String(receipt.completedAt))
+        newest.set(receipt.path,receipt);
+    }
+    for(const [path,receipt] of newest)writeBarrier.record(path,receipt.commit);
+  }).catch(()=>{});
+  configureOutbox(dispatch,async(item,receipt)=>{
+    apiEpoch++;
+    const path=new URL(item.path,location.origin).pathname;
+    const paths=[path];
+    if(path==='/api/media-register'&&item.body.kind==='json'){
+      try{const kind=JSON.parse(item.body.text).kind;if(['films','series'].includes(kind))paths.push('/api/'+kind);}catch{}
+    }
+    // For reconciled acknowledgements the route may contain no commit SHA.
+    // Read a fresh GitHub head before dropping the durable outbox entry;
+    // failure keeps the already-confirmed receipt for a safe local retry.
+    const commit=receipt.commit||await github('databas').head();
+    if(!/^[a-f0-9]{40}$/.test(commit))throw Error('GitHub-versionen kunde inte bekräftas.');
+    receipt.commit=commit;
+    for(const target of paths){
+      writeBarrier.record(target,commit);
+      for(const [key] of await durableEntries('api-read:v1:'+target)){
+        if(key==='api-read:v1:'+target||key.startsWith('api-read:v1:'+target+'?'))await durableDelete(key);
+      }
+    }
+    // The actual remote confirmation is not lost if the local integration is interrupted.
+    window.dispatchEvent(new Event('nexus-github-changed'));
+  });
   globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const raw = input instanceof Request ? input.url : String(input);
     const url = new URL(raw, location.href);

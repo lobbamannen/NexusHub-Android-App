@@ -3,9 +3,9 @@ import {observeFiles} from './activity-observer';
 import {recordActivity} from './activity';
 import {telemetry,bucketDuration,bucketFiles,bucketBytes,errorCategory} from './telemetry';
 import { github, invalidatePortalCache } from '@/lib/github';
-import { saveMirrorBatch } from '@/lib/mirror';
+import { saveMirrorBatch,repairMirrorVersion } from '@/lib/mirror';
 import { bucket, db } from '@/lib/store';
-import { durableGet, durableSet } from './local-store';
+import { durableGet, durableSet, durableDelete,durableEntries } from './local-store';
 import { hasGithubToken } from './env';
 import { invalidateMedia } from '@/lib/media-client';
 import { gitBlobSha } from '@/lib/github-inbox.mjs';
@@ -39,19 +39,23 @@ async function cycle(force=false){
    report({repo,phase:'checking',currentPath:''});
    const client=github(repo),head=await client.head();
    const previous=await durableGet<{commit:string;at:string}>('replica-complete:v2:'+repo);
-   if(!force&&previous?.commit===head&&state.repositories[repo]?.commit===head)continue;
+   const repairPrefix='replica-repair:v1:'+repo+':';
+   const repairs=await durableEntries<{path:string;sha:string}>(repairPrefix);
+   const damaged=new Set(repairs.map(([,record])=>record.path+'\0'+record.sha));
+   const published=await durableGet<{commit:string}>('replica-published:v1:'+repo);
+   // A failed publication cannot be skipped just because the download was completed.
+   if(!force&&previous?.commit===head&&published?.commit===head&&state.repositories[repo]?.commit===head&&!damaged.size)continue;
    const snapshot=await client.snapshot();
    if(snapshot.truncated)throw Error('GitHub gav ett ofullständigt filträd. Ingen fullständig synk markeras.');
    const files:File[]=snapshot.tree.filter((f:File)=>f.type==='blob');
    const [versions,keys]=await Promise.all([db().prepare('SELECT path,blob_sha,object_key FROM mirror_versions WHERE repo=?').bind(repo).all(),bucket().keys('mirror/')]);
-   const plan=planReplica(files,versions.results,keys,repo);
+   const plan=planReplica(files,versions.results,keys,repo,damaged);
    const previousInventory=await durableGet<{files:File[]}>('replica-inventory:v1:'+repo);
    if(plan.missing.length || previous?.commit!==snapshot.commit)begin();
    let progress:RepoReplica={commit:snapshot.commit,total:plan.total,done:plan.done,totalBytes:plan.totalBytes,doneBytes:plan.doneBytes,failed:0};
    const update=()=>report({done:progress.done,total:progress.total,repositories:{...state.repositories,[repo]:{...progress}}});
    update();
-   await db().prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('mirror_manifest:'+repo,JSON.stringify({commit:snapshot.commit,fetchedAt:snapshot.fetchedAt,files})).run();
-   // Never announce a new revision before its bytes have been copied and verified.
+   // Publish the manifest only after all files have been verified.
    if(previous?.commit!==snapshot.commit){changed=true;viewsDirty=true;}
    const errors:Record<string,unknown>={};
    let headCheckedAt=Date.now();
@@ -72,7 +76,14 @@ async function cycle(force=false){
      if(result.status==='fulfilled')good.push(result.value);
      else{if([401,403,429].includes(result.reason?.status))fatal=result.reason;errors[batch[i].path]={sha:batch[i].sha,error:result.reason?.message||String(result.reason)};progress.failed++;}
     }
-    await saveMirrorBatch(repo,good,snapshot.commit);
+    const repairsInBatch=good.filter(item=>damaged.has(item.file.path+'\0'+item.file.sha));
+    const normal=good.filter(item=>!damaged.has(item.file.path+'\0'+item.file.sha));
+    if(normal.length)await saveMirrorBatch(repo,normal,snapshot.commit);
+    for(const item of repairsInBatch){
+      await repairMirrorVersion(repo,item.file,item.bytes,snapshot.commit);
+      await durableDelete(repairPrefix+encodeURIComponent(item.file.path)+':'+item.file.sha);
+      viewsDirty=true;
+    }
     copied+=good.length;bytes+=good.reduce((sum,item)=>sum+item.file.size,0);
     progress.done+=good.length;progress.doneBytes+=good.reduce((sum,item)=>sum+item.file.size,0);update();
     if(progress.failed)await durableSet('replica-errors:v1:'+repo,errors);
@@ -85,8 +96,13 @@ async function cycle(force=false){
    if(progress.failed)throw Error(progress.failed+' filer kunde inte hämtas. Övriga filer har sparats. Tryck Försök igen. '+Object.values(errors).map((e:any)=>e.error)[0]);
    progress.checkedAt=new Date().toISOString();update();
    await observeFiles(repo,previousInventory?.files||null,files,snapshot.commit);
+   await db().prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind('mirror_manifest:'+repo,JSON.stringify({commit:snapshot.commit,fetchedAt:snapshot.fetchedAt,files})).run();
    await durableSet('replica-inventory:v1:'+repo,{commit:snapshot.commit,files});
    await durableSet('replica-recent:v1:'+repo,{commit:snapshot.commit,recent:snapshot.recent||[]});
+   // Atomically expose only the verified manifest first. A failed publication
+   // keeps the prior completion marker, so the next cycle retries rather than
+   // silently treating an unpublished snapshot as complete.
+   await durableSet('replica-published:v1:'+repo,{commit:snapshot.commit,fetchedAt:snapshot.fetchedAt,files});
    await durableSet('replica-complete:v2:'+repo,{commit:snapshot.commit,at:progress.checkedAt});
    await durableSet('replica-errors:v1:'+repo,{});
    // Retire stale failures from the former 20-file worker after successful copying.
@@ -110,5 +126,5 @@ export function startReplicaSync(){
  window.setInterval(()=>void run(),15000);
  const wake=()=>{cooldown=0;void run();};
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake();});
- window.addEventListener('online',wake);window.addEventListener('nexus-credentials-changed',()=>{paused=false;wake();});window.addEventListener('nexus-write-completed',wake);
+ window.addEventListener('online',wake);window.addEventListener('nexus-credentials-changed',()=>{paused=false;wake();});window.addEventListener('nexus-write-completed',wake);window.addEventListener('nexus-replica-repair',wake);
 }

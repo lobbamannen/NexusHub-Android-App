@@ -1,0 +1,24 @@
+name: Verify idea 35 audit regressions
+on:
+  push:
+    branches: [fix/idea-35-audit-31]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check TypeScript, preserved design, and relevant behavior
+        run: |
+          npm run check
+          npm run check:design
+          node --test tests/outbox-identity.test.mjs tests/mirror-write-barrier.test.mjs tests/replica-read.test.mjs tests/replica-plan.test.mjs tests/replica-projections.test.mjs tests/replica-sync.test.mjs tests/economy-intelligence.test.mjs tests/connected-library.test.mjs tests/story-cover-posters.test.mjs tests/calendar-view.test.mjs tests/idea-intelligence-regressions.test.mjs tests/incoming-sync.test.mjs
+      - run: npm run build
