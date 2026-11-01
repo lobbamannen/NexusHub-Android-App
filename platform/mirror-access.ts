@@ -22,7 +22,7 @@ export const replicaReader = createReplicaReader({
     return file ? file.arrayBuffer() : null;
   },
   onCorrupt:async (repo:string,path:string,sha:string)=>{
-    await durableSet('replica-repair:v1:'+repo+':'+sha,{path,sha});
+    await durableSet('replica-repair:v1:'+repo+':'+encodeURIComponent(path)+':'+sha,{path,sha});
     window.dispatchEvent(new Event('nexus-replica-repair'));
   },
 });

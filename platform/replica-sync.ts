@@ -41,8 +41,10 @@ async function cycle(force=false){
    const previous=await durableGet<{commit:string;at:string}>('replica-complete:v2:'+repo);
    const repairPrefix='replica-repair:v1:'+repo+':';
    const repairs=await durableEntries<{path:string;sha:string}>(repairPrefix);
-   const damaged=new Set(repairs.map(([key])=>key.slice(repairPrefix.length)));
-   if(!force&&previous?.commit===head&&state.repositories[repo]?.commit===head&&!damaged.size)continue;
+   const damaged=new Set(repairs.map(([,record])=>record.path+'\0'+record.sha));
+   const published=await durableGet<{commit:string}>('replica-published:v1:'+repo);
+   // A failed publication cannot be skipped just because the download was completed.
+   if(!force&&previous?.commit===head&&published?.commit===head&&state.repositories[repo]?.commit===head&&!damaged.size)continue;
    const snapshot=await client.snapshot();
    if(snapshot.truncated)throw Error('GitHub gav ett ofullständigt filträd. Ingen fullständig synk markeras.');
    const files:File[]=snapshot.tree.filter((f:File)=>f.type==='blob');
@@ -74,12 +76,12 @@ async function cycle(force=false){
      if(result.status==='fulfilled')good.push(result.value);
      else{if([401,403,429].includes(result.reason?.status))fatal=result.reason;errors[batch[i].path]={sha:batch[i].sha,error:result.reason?.message||String(result.reason)};progress.failed++;}
     }
-    const repairsInBatch=good.filter(item=>damaged.has(item.file.sha));
-    const normal=good.filter(item=>!damaged.has(item.file.sha));
+    const repairsInBatch=good.filter(item=>damaged.has(item.file.path+'\0'+item.file.sha));
+    const normal=good.filter(item=>!damaged.has(item.file.path+'\0'+item.file.sha));
     if(normal.length)await saveMirrorBatch(repo,normal,snapshot.commit);
     for(const item of repairsInBatch){
       await repairMirrorVersion(repo,item.file,item.bytes,snapshot.commit);
-      await durableDelete(repairPrefix+item.file.sha);
+      await durableDelete(repairPrefix+encodeURIComponent(item.file.path)+':'+item.file.sha);
       viewsDirty=true;
     }
     copied+=good.length;bytes+=good.reduce((sum,item)=>sum+item.file.size,0);
